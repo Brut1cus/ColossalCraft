@@ -3,6 +3,8 @@ package com.colossalcraft.block;
 import com.colossalcraft.tier.MaterialTier;
 import com.colossalcraft.tier.ThrusterTier;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -59,6 +61,40 @@ public final class SimpleParts {
         @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(FACING); }
         @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(FACING, c.getNearestLookingDirection().getOpposite()); }
         @Override protected BlockState rotate(BlockState s, Rotation r) { return s.setValue(FACING, r.rotate(s.getValue(FACING))); }
+    }
+
+    /** Slab joint: bottom or top half. Axis comes from the face you click. */
+    public static class SlabJointBlock extends JointBlock {
+        public static final net.minecraft.world.level.block.state.properties.BooleanProperty TOP = net.minecraft.world.level.block.state.properties.BooleanProperty.create("top");
+        private static final VoxelShape LOW = Block.box(0, 0, 0, 16, 8, 16), HIGH = Block.box(0, 8, 0, 16, 16, 16);
+        public SlabJointBlock(MaterialTier t, Properties p) { super(t, JointShape.SLAB, p); registerDefaultState(defaultBlockState().setValue(TOP, false)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(TOP); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) {
+            Direction f = c.getClickedFace();
+            boolean top = f == Direction.DOWN || (f != Direction.UP && c.getClickLocation().y - c.getClickedPos().getY() > 0.5);
+            return defaultBlockState().setValue(AXIS, f.getAxis()).setValue(TOP, top);
+        }
+        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return s.getValue(TOP) ? HIGH : LOW; }
+    }
+
+    /** Panel joint: a vertical half slab against the N/E/S/W side of its block. Axis = through the panel; sneak while placing for a vertical (door-hinge) axis. */
+    public static class PanelJointBlock extends JointBlock {
+        public static final DirectionProperty SIDE = BlockStateProperties.HORIZONTAL_FACING;
+        public PanelJointBlock(MaterialTier t, Properties p) { super(t, JointShape.PANEL, p); registerDefaultState(defaultBlockState().setValue(SIDE, Direction.NORTH)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIDE); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) {
+            Direction f = c.getClickedFace();
+            Direction side = f.getAxis().isHorizontal() ? f.getOpposite() : c.getHorizontalDirection();
+            return defaultBlockState().setValue(SIDE, side).setValue(AXIS, c.isSecondaryUseActive() ? Direction.Axis.Y : side.getAxis());
+        }
+        public static VoxelShape half(Direction d) {
+            return switch (d) {
+                case SOUTH -> Block.box(0, 0, 8, 16, 16, 16); case WEST -> Block.box(0, 0, 0, 8, 16, 16);
+                case EAST -> Block.box(8, 0, 0, 16, 16, 16); default -> Block.box(0, 0, 0, 16, 16, 8);
+            };
+        }
+        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return half(s.getValue(SIDE)); }
+        @Override protected BlockState rotate(BlockState s, Rotation r) { return super.rotate(s, r).setValue(SIDE, r.rotate(s.getValue(SIDE))); }
     }
 
     /** Pilot Throne: a chair. FACING = the way the pilot looks (forward of the Colossus). Right-click to sit. */

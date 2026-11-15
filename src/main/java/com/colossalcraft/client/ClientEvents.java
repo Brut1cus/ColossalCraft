@@ -27,6 +27,7 @@ public final class ClientEvents {
     @EventBusSubscriber(modid = ColossalCraft.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class ModBus {
         @SubscribeEvent public static void renderers(EntityRenderersEvent.RegisterRenderers e) { e.registerEntityRenderer(ModRegistry.COLOSSUS.get(), ColossusRenderer::new); e.registerEntityRenderer(ModRegistry.SEAT.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); }
+        @SubscribeEvent public static void menus(RegisterMenuScreensEvent e) { e.register(ModRegistry.ENGINE_MENU.get(), EngineScreen::new); }
         @SubscribeEvent public static void keys(RegisterKeyMappingsEvent e) { e.register(PILOT); e.register(DESCEND); e.register(HOVER); e.register(DISASSEMBLE); e.register(SCREEN); }
         @SubscribeEvent public static void hud(RegisterGuiLayersEvent e) {
             e.registerAboveAll(ResourceLocation.fromNamespaceAndPath(ColossalCraft.MODID, "hud"), (g, delta) -> {

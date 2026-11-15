@@ -128,7 +128,8 @@ public class HullCoreScreen extends Screen {
         treeRows.add(new Row((id == 0 ? "CORE  " : "Part " + id + "  ") + StructureScan.tons(s.getDouble("Mass")), id == 0 ? HEAD : TXT, -1, depth));
         for (CompoundTag j : bySeg.getOrDefault(id, List.of())) {
             double r = j.getDouble("Ratio");
-            treeRows.add(new Row("J" + j.getInt("Id") + " " + cap(j.getString("Tier")) + " " + (int) (r * 100) + "%", r > 1 ? ERR : j.getBoolean("Stalled") ? WARN : TXT, j.getInt("Id"), depth + 1));
+            treeRows.add(new Row("J" + j.getInt("Id") + " " + cap(j.getString("Tier")) + " " + (int) (r * 100) + "% @" + j.getInt("X") + "," + j.getInt("Y") + "," + j.getInt("Z"),
+                    r > 1 ? ERR : j.getBoolean("Stalled") ? WARN : TXT, j.getInt("Id"), depth + 1));
             for (Tag c : j.getList("Children", Tag.TAG_COMPOUND)) addSeg(((CompoundTag) c).getInt("S"), segs, bySeg, depth + 2);
         }
     }
@@ -220,7 +221,12 @@ public class HullCoreScreen extends Screen {
         check(g, x, cy, canMove ? 0 : 1, "Can move itself", "Thrusters push. Joints set to Walk move legs. Servo Motors that touch no joint drive it along the ground."); cy += 12;
         check(g, x, cy, overloaded ? 2 : 0, "Joints hold the weight", "A joint above 100% load will snap. Use a stronger material or a bigger joint (more joint blocks side by side)."); cy += 12;
         check(g, x, cy, stalled ? 1 : 0, "Motors strong enough", "A moving joint needs a Servo Motor touching it with enough torque to lift its limb."); cy += 12;
-        if (walkers) { check(g, x, cy, data.getDouble("Gyro") >= mass ? 0 : 1, "Gyros keep it upright", "Walkers need gyro capacity at least equal to their mass to walk at full speed."); cy += 12; }
+        if (data.getBoolean("Legged")) {
+            StringBuilder ft = new StringBuilder("It stands on legs. To stay up it needs a powered gyro in a foot, and every joint from that foot up to the Hull Core needs a strong enough Servo Motor.");
+            for (Tag f : list("Feet")) { CompoundTag fc = (CompoundTag) f; ft.append("\nFoot part ").append(fc.getInt("Seg")).append(": ").append(fc.getBoolean("Ok") ? "OK" : fc.getString("Problem")); }
+            check(g, x, cy, data.getBoolean("FootOK") ? 0 : 2, "Footing (gyro in a foot)", ft.toString()); cy += 12;
+        }
+        if (walkers) { check(g, x, cy, data.getDouble("Gyro") >= mass ? 0 : 1, "Gyros strong enough", "Walkers need gyro capacity at least equal to their mass to walk at full speed."); cy += 12; }
 
         int gx = x + 170, gw = W - NAV - 8 - 176;
         g.drawString(font, "STATUS", gx, y, DIM, false);
@@ -266,15 +272,17 @@ public class HullCoreScreen extends Screen {
         if (j == null) return;
         int dx = x + 168, dw = W - NAV - 8 - 174;
         g.drawString(font, "J" + j.getInt("Id") + "  " + cap(j.getString("Tier")) + " joint", dx, y, HEAD, false);
-        g.drawString(font, String.format("%d block%s, strength %.2f, %s axis", j.getInt("K"), j.getInt("K") == 1 ? "" : "s", j.getDouble("Area"), j.getString("Axis").toUpperCase()), dx, y + 11, DIM, false);
-        g.drawString(font, j.getList("Children", Tag.TAG_COMPOUND).isEmpty() ? "Holds nothing (one side free)" : "Holds up " + StructureScan.tons(j.getDouble("Sub")), dx, y + 22, j.getList("Children", Tag.TAG_COMPOUND).isEmpty() ? DIM : TXT, false);
+        boolean free = j.getList("Children", Tag.TAG_COMPOUND).isEmpty();
+        g.drawString(font, String.format("Position  %d, %d, %d", j.getInt("X"), j.getInt("Y"), j.getInt("Z")), dx, y + 11, WARN, false);
+        tips.add(new Tip(dx, y + 10, dx + dw, y + 20, "World X, Y, Z of this joint's first bearing block. Press F3 and look at a bearing to match it."));
+        g.drawString(font, String.format("%d blk, strength %.2f, %s axis", j.getInt("K"), j.getDouble("Area"), j.getString("Axis").toUpperCase()), dx, y + 22, DIM, false);
         double r = j.getDouble("Ratio");
-        bar(g, dx, y + 34, dw, r, r > 1 ? ERR : r > 0.8 ? WARN : OK, String.format("load %.0f%%", r * 100),
+        bar(g, dx, y + 33, dw, r, r > 1 ? ERR : r > 0.8 ? WARN : OK, free ? "holds nothing" : String.format("load %.0f%%, holds %s", r * 100, StructureScan.tons(j.getDouble("Sub"))),
                 String.format("Limit: %sN straight down, %sN*m of leverage. Over 100%% it snaps. Bigger joints: force grows with blocks, leverage with blocks^1.5.",
                         StructureScan.kilo(j.getDouble("FCap")), StructureScan.kilo(j.getDouble("MCap"))));
         double tq = j.getDouble("Torque"), req = j.getDouble("Req");
         String tl = j.getInt("Motors") == 0 ? "no motor" : StructureScan.kilo(tq) + " / " + StructureScan.kilo(req) + " N*m";
-        bar(g, dx, y + 48, dw, j.getInt("Motors") == 0 ? 0 : req <= 0 ? 1 : tq / req, j.getInt("Motors") == 0 ? DIM : tq >= req ? OK : WARN, tl,
+        bar(g, dx, y + 45, dw, j.getInt("Motors") == 0 ? 0 : req <= 0 ? 1 : tq / req, j.getInt("Motors") == 0 ? DIM : tq >= req ? OK : WARN, tl,
                 "Motor torque compared with what this limb needs. Put Servo Motors touching the joint. Motors of all touching blocks add up.");
         g.drawString(font, "Movement:", dx, y + 57, DIM, false);
         int mode = j.getInt("Mode");

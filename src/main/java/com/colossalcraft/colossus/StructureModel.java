@@ -50,6 +50,14 @@ public class StructureModel {
     public final Map<BlockPos, BlockState> blocks;
     public final Map<BlockPos, CompoundTag> bes;
     public final Map<BlockPos, Integer> segOf = new HashMap<>();
+    /** Joint block -> joint id (bearings are drawn turning with their joint). */
+    public final Map<BlockPos, Integer> jointOf = new HashMap<>();
+    /** Footing: a legged Colossus stands on parts that hang from joints. It needs a gyro in a foot and motors on every joint from that foot up to the core. */
+    public boolean legged;
+    public final List<Foot> feet = new ArrayList<>();
+    public double footingGyro;
+    public record Foot(int seg, double gyro, boolean ok, String problem) {}
+    private final Map<Integer, Double> segGyro = new HashMap<>();
     public final Set<BlockPos> solid = new HashSet<>();
     public final List<BlockPos> surface = new ArrayList<>();
     public final Set<BlockPos> visible = new HashSet<>();
@@ -216,17 +224,18 @@ public class StructureModel {
             } else if (b instanceof ControllerBlock cb) {
                 boolean formed = s.getValue(ControllerBlock.FORMED);
                 if (cb.engine != null) addEngine(p, cb.engine, formed, formed ? "" : "structure not formed");
-                else if (formed) { gyroCap += cb.gyroCapacity; gyroPower += cb.gyroCapacity / 3000.0; }
+                else if (formed) { gyroCap += cb.gyroCapacity; gyroPower += cb.gyroCapacity / 3000.0; segGyro.merge(segOf.getOrDefault(p, 0), cb.gyroCapacity, Double::sum); }
             } else if (b instanceof PowerBlock pb) {
                 addEngine(p, pb.tier, true, "");
             } else if (b instanceof ThrusterBlock tb) {
                 Direction push = s.getValue(ThrusterBlock.FACING).getOpposite();
                 thrustCap[push.ordinal()] += tb.tier.force; thrustPow[push.ordinal()] += tb.tier.power; thrusters++;
-            } else if (b instanceof GyroBlock gb) { gyroCap += gb.capacity; gyroPower += gb.capacity / 3000.0; }
+            } else if (b instanceof GyroBlock gb) { gyroCap += gb.capacity; gyroPower += gb.capacity / 3000.0; segGyro.merge(segOf.getOrDefault(p, 0), gb.capacity, Double::sum); }
             else if (b instanceof SailBlock) sails++;
             else if (b instanceof PilotSeatBlock && seat == null) { seat = p; forward = s.getValue(PilotSeatBlock.FACING); }
         }
 
+        for (Joint j : joints) for (BlockPos p : j.blocks) jointOf.put(p, j.id);
         // ---- joint torque & static load ----
         for (Joint j : joints) {
             Vec3 r = j.subCom.subtract(j.pivot);
@@ -236,7 +245,36 @@ public class StructureModel {
             double f = j.subMass * G, mo = j.subMass * G * Math.sqrt(r.x * r.x + r.z * r.z);
             j.staticRatio = j.subMass <= 0 ? 0 : Math.max(f / j.forceCap, mo / j.momentCap);
         }
+        footing();
     }
+
+    /** Feet = parts that hold the lowest blocks. Legged = some foot is not the core part. */
+    private void footing() {
+        int minY = Integer.MAX_VALUE;
+        for (BlockPos p : solid) minY = Math.min(minY, p.getY());
+        Set<Integer> footSegs = new TreeSet<>();
+        for (BlockPos p : solid) if (p.getY() == minY) footSegs.add(segOf.getOrDefault(p, 0));
+        // only walkers: stands on parts below joints AND has joints set to Walk (a ship's hanging rudder doesn't count)
+        legged = footSegs.stream().anyMatch(sg -> sg != 0) && joints.stream().anyMatch(j -> j.mode == WALK_A || j.mode == WALK_B);
+        if (!legged) return;
+        for (int sg : footSegs) {
+            double g = segGyro.getOrDefault(sg, 0.0);
+            String problem = g <= 0 ? "no gyro in this foot" : null;
+            int cur = sg, guard = 0;
+            while (problem == null && cur > 0 && guard++ < 1000) {
+                Seg seg = segs.get(cur);
+                if (seg.parentJoint < 0) break;
+                Joint j = joints.get(seg.parentJoint);
+                if (j.motors == 0) problem = "joint J" + j.id + " has no motor";
+                else if (j.motorTorque < j.reqTorque) problem = "joint J" + j.id + " motor too weak";
+                cur = Math.max(0, j.parentSeg);
+            }
+            boolean ok = problem == null;
+            feet.add(new Foot(sg, g, ok, ok ? "" : problem));
+            if (ok) footingGyro += g;
+        }
+    }
+    public boolean footingOk() { return !legged || footingGyro > 0; }
 
     private void addEngine(BlockPos p, EngineTier t, boolean running, String note) {
         CompoundTag tag = bes.get(p);

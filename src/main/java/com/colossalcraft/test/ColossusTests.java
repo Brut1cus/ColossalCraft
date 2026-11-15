@@ -253,4 +253,87 @@ public class ColossusTests {
             h.succeed();
         });
     }
+
+    /** Two-legged walker standing on Gantry Scaffold. footGyros: put a Pocket Gyro at each foot; coreGyro: put one on the deck. */
+    static void walker(GameTestHelper h, boolean footGyros, boolean coreGyro) {
+        for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) h.setBlock(x, 0, z, ModRegistry.GANTRY_SCAFFOLD.get());
+        for (int x = 5; x <= 9; x++) for (int z = 5; z <= 9; z++) h.setBlock(x, 6, z, Blocks.OAK_PLANKS);
+        h.setBlock(7, 7, 7, ModRegistry.HULL_CORE.get());
+        h.setBlock(7, 7, 8, ModRegistry.PILOT_SEAT.get().defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, Direction.NORTH));
+        h.setBlock(6, 7, 7, ModRegistry.EMBER_BOILER.get());
+        CompoundTag t = new CompoundTag(); t.putLong("Energy", 900_000);
+        h.getBlockEntity(new BlockPos(6, 7, 7)).loadWithComponents(t, h.getLevel().registryAccess());
+        if (coreGyro) h.setBlock(8, 7, 7, ModRegistry.SMALL_GYRO.get());
+        BlockState joint = ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+        for (int x : new int[]{6, 8}) {
+            h.setBlock(x, 5, 7, joint);
+            h.setBlock(x == 6 ? 5 : 9, 5, 7, ModRegistry.MOTORS.get(MaterialTier.IRON).get());
+            for (int y = 2; y <= 4; y++) h.setBlock(x, y, 7, Blocks.STONE_BRICKS);
+            h.setBlock(x, 1, 7, footGyros ? ModRegistry.SMALL_GYRO.get().defaultBlockState() : Blocks.STONE_BRICKS.defaultBlockState());
+        }
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        for (StructureModel.Joint j : r.model.joints) {
+            CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) (j.pivot.x < 7.5 ? StructureModel.WALK_A : StructureModel.WALK_B));
+            hc.joints.put(StructureModel.jointKey(j.key), c);
+        }
+        hc.setChanged();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 140)
+    public static void walkerWithoutGyroFalls(GameTestHelper h) {
+        walker(h, false, false);
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        h.assertTrue(r.model.legged && !r.model.footingOk(), "should be legged without footing");
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); ColossalCraft.LOG.info("[test] no gyro tilt={}", c.tilt); h.assertTrue(c.tilt > 1.0, "did not fall, tilt " + c.tilt); h.succeed(); });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 140)
+    public static void walkerWithGyroOnlyInCoreFalls(GameTestHelper h) {
+        walker(h, false, true);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); h.assertTrue(c.tilt > 1.0, "a core gyro alone should not hold it, tilt " + c.tilt); h.succeed(); });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 140)
+    public static void walkerWithFootGyrosStands(GameTestHelper h) {
+        walker(h, true, false);
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        h.assertTrue(r.model.legged && r.model.footingOk(), "footing should be OK: " + r.model.feet);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); ColosalCraftLog(c); h.assertTrue(c.tilt == 0 && c.onGroundC, "should stand, tilt " + c.tilt); h.succeed(); });
+    }
+    @GameTest(template = "empty16")
+    public static void lockedLegsDontTip(GameTestHelper h) {
+        walker(h, false, false);
+        ((com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7))).joints = new CompoundTag(); // all Locked: a statue, not a walker
+        h.assertTrue(!StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model.legged, "locked legs shouldn't count as a walker");
+        h.succeed();
+    }
+
+    private static void ColosalCraftLog(ColossusEntity c) { ColossalCraft.LOG.info("[test] foot gyro tilt={} ground={} energy={}", c.tilt, c.onGroundC, c.energy); }
+
+    @GameTest(template = "empty16", timeoutTicks = 40)
+    public static void engineFuelSlotBurns(GameTestHelper h) {
+        h.setBlock(5, 1, 5, ModRegistry.EMBER_BOILER.get());
+        var cap = h.getLevel().getCapability(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.BLOCK, h.absolutePos(new BlockPos(5, 1, 5)), null);
+        h.assertTrue(cap != null, "no item handler");
+        h.assertTrue(cap.insertItem(0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL, 3), false).isEmpty(), "coal refused");
+        h.assertTrue(!cap.insertItem(0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIRT), true).isEmpty(), "dirt accepted");
+        h.runAfterDelay(10, () -> {
+            var be = (com.colossalcraft.block.PowerBlockEntity) h.getBlockEntity(new BlockPos(5, 1, 5));
+            h.assertTrue(be.energy == 3 * 1600L * 40L && be.fuel.getStackInSlot(0).isEmpty(), "energy " + be.energy);
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16")
+    public static void panelJointSitsAgainstSide(GameTestHelper h) {
+        var panel = ModRegistry.JOINT_SHAPES.get(MaterialTier.IRON).get(com.colossalcraft.block.SimpleParts.JointShape.PANEL).get();
+        h.setBlock(5, 1, 5, panel.defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.PanelJointBlock.SIDE, Direction.EAST));
+        var shape = h.getLevel().getBlockState(h.absolutePos(new BlockPos(5, 1, 5))).getShape(h.getLevel(), h.absolutePos(new BlockPos(5, 1, 5))).bounds();
+        h.assertTrue(shape.minX == 0.5 && shape.maxX == 1.0, "panel should hug the east side: " + shape);
+        h.succeed();
+    }
 }

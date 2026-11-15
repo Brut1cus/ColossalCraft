@@ -15,7 +15,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 import org.jetbrains.annotations.Nullable;
 
 /** Shared block entity for engines and multiblock controllers (engines and gyros). */
-public class PowerBlockEntity extends BlockEntity {
+public class PowerBlockEntity extends BlockEntity implements net.minecraft.world.MenuProvider {
     public long energy;
     public boolean primed;   // zero-point
     public boolean formed;
@@ -29,7 +29,15 @@ public class PowerBlockEntity extends BlockEntity {
         return null;
     }
 
+    /** Fuel slot (GUI, hoppers, pipes). Each tick one item is burned into stored energy when it fits. */
+    public final net.neoforged.neoforge.items.ItemStackHandler fuel = new net.neoforged.neoforge.items.ItemStackHandler(1) {
+        @Override public boolean isItemValid(int slot, ItemStack stack) { EngineTier t = tier(); return t != null && t.fuelValue(stack) != 0; }
+        @Override protected void onContentsChanged(int slot) { setChanged(); }
+    };
+
     public static void serverTick(Level level, BlockPos pos, BlockState state, PowerBlockEntity be) {
+        ItemStack st = be.fuel.getStackInSlot(0);
+        if (!st.isEmpty() && be.addFuel(st, true)) { be.addFuel(st, false); be.fuel.extractItem(0, 1, false); }
         if (!(state.getBlock() instanceof ControllerBlock) || level.getGameTime() % 20 != 0) return;
         ControllerBlock c = (ControllerBlock) state.getBlock();
         String msg = c.def.validate(level, pos, state.getValue(ControllerBlock.FACING));
@@ -68,24 +76,14 @@ public class PowerBlockEntity extends BlockEntity {
 
     @Override protected void saveAdditional(CompoundTag tag, HolderLookup.Provider reg) {
         super.saveAdditional(tag, reg);
-        tag.putLong("Energy", energy); tag.putBoolean("Primed", primed); tag.putBoolean("Formed", formed);
+        tag.putLong("Energy", energy); tag.putBoolean("Primed", primed); tag.putBoolean("Formed", formed); tag.put("Fuel", fuel.serializeNBT(reg));
     }
     @Override protected void loadAdditional(CompoundTag tag, HolderLookup.Provider reg) {
         super.loadAdditional(tag, reg);
         energy = tag.getLong("Energy"); primed = tag.getBoolean("Primed"); formed = tag.getBoolean("Formed");
+        if (tag.contains("Fuel")) fuel.deserializeNBT(reg, tag.getCompound("Fuel"));
     }
 
-    /** Hopper/pipe input: accepts valid fuel only, burns it straight into the buffer. */
-    public final IItemHandler fuelHandler = new IItemHandler() {
-        public int getSlots() { return 1; }
-        public ItemStack getStackInSlot(int slot) { return ItemStack.EMPTY; }
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            if (stack.isEmpty() || !addFuel(stack, true)) return stack;
-            if (!simulate) addFuel(stack, false);
-            ItemStack r = stack.copy(); r.shrink(1); return r;
-        }
-        public ItemStack extractItem(int slot, int amount, boolean simulate) { return ItemStack.EMPTY; }
-        public int getSlotLimit(int slot) { return 64; }
-        public boolean isItemValid(int slot, ItemStack stack) { return addFuel(stack, true); }
-    };
+    @Override public net.minecraft.network.chat.Component getDisplayName() { return getBlockState().getBlock().getName(); }
+    @Override public net.minecraft.world.inventory.AbstractContainerMenu createMenu(int id, net.minecraft.world.entity.player.Inventory inv, Player p) { return new EngineMenu(id, inv, this); }
 }

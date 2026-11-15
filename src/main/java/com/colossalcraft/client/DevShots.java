@@ -85,47 +85,42 @@ public final class DevShots {
             case 54 -> shot("0_closeup_chair");
             case 55 -> server(sp -> look(sp, base.offset(4, 10, -4), base.offset(1, 8, -1)));
             case 68 -> shot("0_closeup_joints");
-            case 70 -> server(sp -> { BlockPos h = base.offset(0, 8, 0); sp.connection.teleport(h.getX() + 0.5, h.getY(), h.getZ() - 2.5, 0f, 30f); });
-            case 80 -> server(sp -> Net.sendScan(sp, base.offset(0, 8, 0), StructureScan.scan(sp.serverLevel(), base.offset(0, 8, 0))));
-            case 100 -> shot("1_overview");
-            case 105 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
-            case 120 -> shot("2_joints");
-            case 125 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(2); }
-            case 135 -> shot("3_power");
-            case 138 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(3); }
-            case 143 -> shot("3b_help");
-            case 145 -> { mc.setScreen(null); server(sp -> ColossusEntity.assemble(sp.serverLevel(), base.offset(0, 8, 0), sp)); }
-            case 150 -> server(sp -> { sp.getAbilities().flying = true; sp.onUpdateAbilities(); sp.connection.teleport(base.getX() + 5.5, base.getY() + 10, base.getZ() - 4.5, 45f, 38f); });
-            case 175 -> shot("4_assembled");
-            case 180 -> server(sp -> {
+            case 70 -> server(sp -> { if (sp.serverLevel().getBlockEntity(base.offset(-1, 8, 0)) instanceof PowerBlockEntity pe) sp.openMenu(pe, buf -> buf.writeBlockPos(pe.getBlockPos())); });
+            case 85 -> shot("0b_engine_gui");
+            case 86 -> mc.setScreen(null);
+            case 90 -> server(sp -> { BlockPos h = base.offset(0, 8, 0); sp.connection.teleport(h.getX() + 0.5, h.getY(), h.getZ() - 2.5, 0f, 30f); });
+            case 100 -> server(sp -> Net.sendScan(sp, base.offset(0, 8, 0), StructureScan.scan(sp.serverLevel(), base.offset(0, 8, 0))));
+            case 115 -> shot("1_overview");
+            case 117 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
+            case 130 -> shot("2_joints");
+            case 132 -> mc.setScreen(null);
+            case 135 -> server(sp -> { sp.getAbilities().flying = false; sp.onUpdateAbilities(); BlockPos p = base.offset(1, 8, 1); sp.connection.teleport(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, 135f, 20f); });
+            case 145 -> { ColossalCraft.LOG.info("[devshots] before build player y={}", mc.player.getY()); server(sp -> ColossusEntity.assemble(sp.serverLevel(), base.offset(0, 8, 0), sp)); }
+            case 150, 155, 160, 170, 180 -> ColossalCraft.LOG.info("[devshots] after build t={} player y={} onGround={}", t, mc.player.getY(), mc.player.onGround());
+            case 175 -> shot("3_standing_on_deck");
+            case 182 -> server(sp -> {
                 ColossusEntity c = colossus(); if (c == null) return;
                 net.minecraft.world.phys.Vec3 hc = c.blockWorldCenter(BlockPos.ZERO);
-                net.minecraft.world.phys.Vec3 eye = hc.add(-2.6, 1.4, -2.6);
-                net.minecraft.world.phys.Vec3 d = hc.subtract(eye);
-                float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z)), pitch = (float) Math.toDegrees(-Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
-                sp.connection.teleport(eye.x, eye.y - 1.62, eye.z, yaw, pitch);
+                net.minecraft.world.phys.Vec3 eye = hc.add(-2.6, 1.4, -2.6), d = hc.subtract(eye);
+                sp.getAbilities().flying = true; sp.onUpdateAbilities();
+                sp.connection.teleport(eye.x, eye.y - 1.62, eye.z, (float) Math.toDegrees(Math.atan2(-d.x, d.z)), (float) Math.toDegrees(-Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z))));
             });
-            case 195 -> {
-                var p = mc.player; var eye = p.getEyePosition(); var to = eye.add(p.getViewVector(1f).scale(p.blockInteractionRange()));
-                for (var c : com.colossalcraft.colossus.ColossusCollision.all(true)) if (c.level() == p.level())
-                    ColossalCraft.LOG.info("[devshots] eye={} look={} heart={} bbox={} hit={}", eye, p.getViewVector(1f), c.blockWorldCenter(BlockPos.ZERO), c.getBoundingBox().inflate(6).contains(eye), c.raycastBlock(eye, to));
-                ColossalCraft.LOG.info("[devshots] loaded={} clientEntities={}", com.colossalcraft.colossus.ColossusCollision.all(true).stream().map(c -> c.level().isClientSide + ":" + c.getId()).toList(), java.util.stream.StreamSupport.stream(mc.level.entitiesForRendering().spliterator(), false).filter(en -> en instanceof ColossusEntity).map(en -> en.getId() + "@" + en.position() + " model=" + (((ColossusEntity) en).model != null)).toList());
-                ColossalCraft.LOG.info("[devshots] click hull core handled={}", ClientHooks.tryClickColossus());
-            }
-            case 210 -> shot("5_built_screen");
-            case 212 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
-            case 218 -> shot("6_built_joints");
-            case 220 -> { mc.setScreen(null); server(sp -> { ColossusEntity c = colossus(); if (c != null) sp.startRiding(c, true); }); }
-            case 225 -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
-            case 290 -> shot("7_walking_back");
-            case 292 -> mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
-            case 305 -> shot("8_walking_front");
-            case 307 -> mc.options.setCameraType(CameraType.FIRST_PERSON);
-            case 315 -> shot("9_cockpit");
-            case 340 -> mc.stop();
+            case 192 -> ColossalCraft.LOG.info("[devshots] click hull core handled={}", ClientHooks.tryClickColossus());
+            case 200 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
+            case 205 -> shot("4_built_joints");
+            case 207 -> { mc.setScreen(null); server(sp -> { ColossusEntity c = colossus(); if (c != null) sp.startRiding(c, true); }); }
+            case 212 -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            case 262 -> shot("5_walking_back");
+            case 264 -> mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+            case 275 -> shot("6_walking_front");
+            case 277 -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            case 300 -> server(sp -> { ColossusEntity c = colossus(); if (c != null) { c.energy = 0; ColossalCraft.LOG.info("[devshots] power cut"); } });
+            case 330, 345 -> { ColossusEntity c = colossus(); ColossalCraft.LOG.info("[devshots] t={} tilt={}", t, c == null ? -1 : c.tilt); }
+            case 346 -> shot("7_fallen");
+            case 352 -> mc.stop();
             default -> {}
         }
-        if (t > 225 && t < 330) server(sp -> { ColossusEntity c = colossus(); if (c != null) c.setInput(1f, t > 260 && t < 280 ? 0.6f : 0f, false, false); if (c != null && t % 20 == 0) ColossalCraft.LOG.info("[devshots] walk t={} pos={} ground={} phase={}", t, c.position(), c.onGroundC, c.walkPhase); });
+        if (t > 212 && t < 300) server(sp -> { ColossusEntity c = colossus(); if (c != null) c.setInput(1f, t > 240 && t < 255 ? 0.6f : 0f, false, false); if (c != null && t % 20 == 0) ColossalCraft.LOG.info("[devshots] walk t={} pos={} ground={} phase={}", t, c.position(), c.onGroundC, c.walkPhase); });
     }
 
     /** Two-legged test walker. Legs hang from iron bearing joints (X axis) driven by iron motors. */
@@ -137,7 +132,8 @@ public final class DevShots {
         for (int side : new int[]{-1, 1}) {
             lv.setBlockAndUpdate(b.offset(side, 4, 0), joint);
             lv.setBlockAndUpdate(b.offset(side * 2, 4, 0), ModRegistry.MOTORS.get(MaterialTier.IRON).get().defaultBlockState());
-            for (int y = 0; y <= 3; y++) lv.setBlockAndUpdate(b.offset(side, y, 0), Blocks.STONE_BRICKS.defaultBlockState());
+            for (int y = 1; y <= 3; y++) lv.setBlockAndUpdate(b.offset(side, y, 0), Blocks.STONE_BRICKS.defaultBlockState());
+            lv.setBlockAndUpdate(b.offset(side, 0, 0), ModRegistry.SMALL_GYRO.get().defaultBlockState()); // gyro-stabilised foot
             lv.setBlockAndUpdate(b.offset(side, 0, -1), Blocks.STONE_BRICK_SLAB.defaultBlockState());
         }
         lv.setBlockAndUpdate(b.offset(0, 7, 0), ModRegistry.HULL_CORE.get().defaultBlockState());
@@ -157,8 +153,8 @@ public final class DevShots {
         }
         if (lv.getBlockEntity(b.offset(-1, 7, 0)) instanceof PowerBlockEntity pe) { pe.energy = 800_000; pe.setChanged(); }
         var js = ModRegistry.JOINT_SHAPES.get(MaterialTier.GOLD);
-        lv.setBlockAndUpdate(b.offset(-2, 7, -1), js.get(com.colossalcraft.block.SimpleParts.JointShape.SLAB).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
-        lv.setBlockAndUpdate(b.offset(2, 7, -1), js.get(com.colossalcraft.block.SimpleParts.JointShape.PANEL).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
+        lv.setBlockAndUpdate(b.offset(-2, 7, -1), js.get(com.colossalcraft.block.SimpleParts.JointShape.SLAB).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.SlabJointBlock.TOP, true));
+        lv.setBlockAndUpdate(b.offset(2, 7, -1), js.get(com.colossalcraft.block.SimpleParts.JointShape.PANEL).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.PanelJointBlock.SIDE, Direction.EAST));
         lv.setBlockAndUpdate(b.offset(2, 7, 1), js.get(com.colossalcraft.block.SimpleParts.JointShape.PIN).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y));
         lv.setBlockAndUpdate(b.offset(0, 7, -2), ModRegistry.SKY_SAIL.get().defaultBlockState());
         StructureScan.Result r = StructureScan.scan(lv, b.offset(0, 7, 0));

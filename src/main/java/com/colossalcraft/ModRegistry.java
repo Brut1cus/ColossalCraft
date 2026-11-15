@@ -33,6 +33,9 @@ public final class ModRegistry {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(ColossalCraft.MODID);
     public static final DeferredRegister<BlockEntityType<?>> BES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, ColossalCraft.MODID);
     public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(Registries.ENTITY_TYPE, ColossalCraft.MODID);
+    public static final DeferredRegister<net.minecraft.world.inventory.MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, ColossalCraft.MODID);
+    public static final DeferredHolder<net.minecraft.world.inventory.MenuType<?>, net.minecraft.world.inventory.MenuType<EngineMenu>> ENGINE_MENU =
+            MENUS.register("engine", () -> net.neoforged.neoforge.common.extensions.IMenuTypeExtension.create(EngineMenu::new));
     public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, ColossalCraft.MODID);
 
     public static final List<DeferredBlock<?>> ALL_BLOCKS = new ArrayList<>();
@@ -74,7 +77,7 @@ public final class ModRegistry {
         cat = Cat.JOINTS;
         for (MaterialTier t : MaterialTier.values()) {
             Map<JointShape, DeferredBlock<JointBlock>> m = new EnumMap<>(JointShape.class);
-            for (JointShape sh : JointShape.values()) m.put(sh, block(t.id + "_" + sh.suffix, p -> new JointBlock(t, sh, p), metal().noOcclusion()));
+            for (JointShape sh : JointShape.values()) m.put(sh, block(t.id + "_" + sh.suffix, p -> sh == JointShape.SLAB ? new SlabJointBlock(t, p) : sh == JointShape.PANEL ? new PanelJointBlock(t, p) : new JointBlock(t, sh, p), metal().noOcclusion()));
             JOINT_SHAPES.put(t, m); JOINTS.put(t, m.get(JointShape.FULL));
         }
         for (MaterialTier t : MaterialTier.values()) MOTORS.put(t, block(t.id + "_motor", p -> new MotorBlock(t, p), metal()));
@@ -166,6 +169,6 @@ public final class ModRegistry {
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_MATERIALS = tab(Cat.MATERIALS, "materials", () -> new ItemStack(COLOSSTEEL_INGOT.get()), "propulsion");
 
     public static void register(IEventBus bus) {
-        BLOCKS.register(bus); ITEMS.register(bus); BES.register(bus); ENTITIES.register(bus); TABS.register(bus);
+        BLOCKS.register(bus); ITEMS.register(bus); BES.register(bus); ENTITIES.register(bus); TABS.register(bus); MENUS.register(bus);
     }
 }

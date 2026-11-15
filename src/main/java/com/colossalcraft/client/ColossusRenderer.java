@@ -68,33 +68,55 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             }
         }
         BlockPos.MutableBlockPos lp = new BlockPos.MutableBlockPos();
+        double tl = Mth.lerp(pt, e.prevTilt, e.tilt);
+        var axis = e.tiltAxis();
+        Matrix4d baseM = new Matrix4d().rotateY(-yaw);
+        if (tl != 0) baseM.rotate(tl, axis.x, axis.y, axis.z);
+        baseM.translate(-m.com.x, -m.com.y, -m.com.z);
+        Matrix4d[] segM = new Matrix4d[m.segs.size()];
+        for (int i = 0; i < segM.length; i++) segM[i] = new Matrix4d(baseM).mul(art[i]);
         for (StructureModel.Seg s : m.segs) {
-            Matrix4d local = new Matrix4d().rotateY(-yaw).translate(-m.com.x, -m.com.y, -m.com.z).mul(art[s.id]);
-            Matrix4f lf = new Matrix4f(local);
+            Matrix4d local = segM[s.id];
             ps.pushPose();
-            ps.mulPose(lf);
+            ps.mulPose(new Matrix4f(local));
             for (BlockPos p : s.blocks) {
-                if (!m.visible.contains(p)) continue;
-                BlockState st = m.blocks.get(p);
-                if (st == null) continue;
-                BlockEntity be = e.clientBes.get(p);
-                BlockEntityRenderer<BlockEntity> ber = be == null ? null : beRenderers.getRenderer(be);
-                if (st.getRenderShape() == RenderShape.INVISIBLE && ber == null) continue;
-                Vector3d w = local.transformPosition(new Vector3d(p.getX() + .5, p.getY() + .5, p.getZ() + .5));
-                lp.set(ex + w.x, ey + w.y, ez + w.z);
-                int li = level == null ? light : LevelRenderer.getLightColor(level, lp);
-                ps.pushPose();
-                ps.translate(p.getX(), p.getY(), p.getZ());
-                boolean animated = st.getRenderShape() == RenderShape.ENTITYBLOCK_ANIMATED;
-                boolean staticPart = animated && STATIC_MODEL_MODS.contains(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(st.getBlock()).getNamespace());
-                if (staticPart) { renderBaked(st, ps, buf, li); ber = null; }
-                else if (st.getRenderShape() == RenderShape.MODEL || ber == null)
-                    try { blocks.renderSingleBlock(st, ps, buf, li, OverlayTexture.NO_OVERLAY); } catch (Exception ignored) {}
-                if (ber != null) try { ber.render(be, pt, ps, buf, li, OverlayTexture.NO_OVERLAY); } catch (Throwable bex) { e.clientBes.remove(p); }
-                ps.popPose();
+                Integer jid = m.jointOf.get(p);
+                if (jid != null && !m.joints.get(jid).childSegs.isEmpty()) continue; // bearings are drawn with their moving side below
+                drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp);
             }
             ps.popPose();
         }
+        // bearings turn with the part they move
+        for (StructureModel.Joint j : m.joints) {
+            if (j.childSegs.isEmpty()) continue;
+            Matrix4d local = segM[j.childSegs.get(0)];
+            ps.pushPose();
+            ps.mulPose(new Matrix4f(local));
+            for (BlockPos p : j.blocks) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp);
+            ps.popPose();
+        }
         super.render(e, yawIgnored, pt, ps, buf, light);
+    }
+
+    private void drawBlock(ColossusEntity e, StructureModel m, BlockPos p, Matrix4d local, PoseStack ps, MultiBufferSource buf, float pt, int light,
+                           double ex, double ey, double ez, net.minecraft.client.multiplayer.ClientLevel level, BlockPos.MutableBlockPos lp) {
+        if (!m.visible.contains(p)) return;
+        BlockState st = m.blocks.get(p);
+        if (st == null) return;
+        BlockEntity be = e.clientBes.get(p);
+        BlockEntityRenderer<BlockEntity> ber = be == null ? null : beRenderers.getRenderer(be);
+        if (st.getRenderShape() == RenderShape.INVISIBLE && ber == null) return;
+        Vector3d w = local.transformPosition(new Vector3d(p.getX() + .5, p.getY() + .5, p.getZ() + .5));
+        lp.set(ex + w.x, ey + w.y, ez + w.z);
+        int li = level == null ? light : LevelRenderer.getLightColor(level, lp);
+        ps.pushPose();
+        ps.translate(p.getX(), p.getY(), p.getZ());
+        boolean animated = st.getRenderShape() == RenderShape.ENTITYBLOCK_ANIMATED;
+        boolean staticPart = animated && STATIC_MODEL_MODS.contains(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(st.getBlock()).getNamespace());
+        if (staticPart) { renderBaked(st, ps, buf, li); ber = null; }
+        else if (st.getRenderShape() == RenderShape.MODEL || ber == null)
+            try { blocks.renderSingleBlock(st, ps, buf, li, OverlayTexture.NO_OVERLAY); } catch (Exception ignored) {}
+        if (ber != null) try { ber.render(be, pt, ps, buf, li, OverlayTexture.NO_OVERLAY); } catch (Throwable bex) { e.clientBes.remove(p); }
+        ps.popPose();
     }
 }

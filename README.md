@@ -47,9 +47,11 @@ Each material comes in four hollow shapes. The axis comes from the face you plac
 | Shape | Look | Strength |
 |---|---|---|
 | Bearing Joint | full hollow bearing | 1 |
-| Slab Joint | bottom half (a flat bearing or turntable) | 0.5 |
-| Panel Joint | thin vertical wall (a wheel or disk bearing) | 0.5 |
+| Slab Joint | bottom or top half (click the upper half of a side, or a ceiling, for top) | 0.5 |
+| Panel Joint | vertical half slab against the N/E/S/W side you place it on. Axis goes through the panel; sneak while placing for a vertical (door-hinge) axis | 0.5 |
 | Pin Joint | thin axle | 0.25 |
+
+Bearing blocks turn along with the part their joint moves. In the Joints tab each joint shows its world **X, Y, Z**, so you can match it to the block you see in-game (F3).
 
 Recipes: 3 Bearing Joints in a row give 6 Slab Joints, 3 stacked give 6 Panel Joints, and 1 gives 4 Pin Joints.
 
@@ -66,6 +68,14 @@ Scaling for a joint of total strength k (an **n×n** square of full joints has k
 - The bending (lever) it can hold grows with k^1.5, which is **n³** (27× for 3x3).
 
 Load counts gravity plus acceleration. If a joint stays over 100% load, it creaks, sparks and then **snaps**, and everything hanging from it falls off as blocks.
+
+## Walkers and footing
+A Colossus that stands on parts hanging from joints set to **Walk** is a walker. It falls over unless:
+1. at least one **foot** (a part holding the lowest blocks) contains a **gyro** (a Pocket Gyro or a gyro structure), and
+2. every joint from that foot up to the Hull Core has a **Servo Motor** strong enough to hold it, and
+3. there is **power** (gyros use energy all the time).
+
+Balance starts at the feet and is passed up the joints to the core. If power runs out, it tips over. It stands back up once power and footing return. The Overview checklist shows what's missing.
 
 ## Motors
 **Servo Motors** come in Timber, Cobble, Iron, Gilded and Diamond.
@@ -84,7 +94,7 @@ Load counts gravity plus acceleration. If a joint stays over 100% load, it creak
 | VI | Fusion Torus | 5x5x5 | 25,000 | Deuterium Cells |
 | VII | Zero-Point Core | 5x5x5 | 100,000 | one Nether Star primes it forever |
 
-Right-click an engine with fuel to fill it (sneak to use the whole stack). Hoppers work too. Right-click with an empty hand to see its status.
+Right-click an engine to open its screen. It works like a furnace: put fuel in the slot, and it burns into stored energy. Hoppers and pipes fill the slot too.
 
 **Multiblocks:** build a cube. The outside is casing, the inside is the core block, and the controller goes in the middle of one face, front facing out. Its front lights up when the structure is complete.
 

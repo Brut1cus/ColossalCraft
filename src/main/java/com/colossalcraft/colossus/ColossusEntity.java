@@ -57,6 +57,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private static final EntityDataAccessor<Float> ENERGY = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Boolean> HOVER = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> INFINITE = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Float> TILT = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
+    /** Most a fallen walker leans (radians). */
+    public static final double MAX_TILT = 1.45;
 
     public StructureModel model;
     public Map<BlockPos, BlockState> blocks = new HashMap<>();
@@ -64,6 +67,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public CompoundTag jointCfg = new CompoundTag();
 
     public double yaw, prevYaw, yawRate;
+    /** Tipping over (radians, towards the front). */
+    public double tilt, prevTilt, tiltRate;
+    private boolean warnedFall;
     public double walkPhase, prevWalkPhase, walkBlend, prevWalkBlend, spin, prevSpin, spinRate;
     public Vec3 vel = Vec3.ZERO;
     /** Client only: live block entities used for rendering. */
@@ -98,28 +104,45 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder b) {
-        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false);
+        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f);
     }
     public boolean hover() { return entityData.get(HOVER); }
     public float syncedEnergy() { return entityData.get(ENERGY); }
     public boolean syncedInfinite() { return entityData.get(INFINITE); }
 
     // ------------------------------------------------------------ transforms
+    /** Axis the Colossus tips around (local frame): top falls towards the front. */
+    public Vec3 tiltAxis() { Vec3 f = Vec3.atLowerCornerOf(model.forward.getNormal()); return new Vec3(f.z, 0, -f.x); }
+    public Matrix4d base(Vec3 pos, double yw, double tl) {
+        Matrix4d m = new Matrix4d().translate(pos.x, pos.y, pos.z).rotateY(-yw);
+        if (tl != 0) { Vec3 a = tiltAxis(); m.rotate(tl, a.x, a.y, a.z); }
+        return m.translate(-model.com.x, -model.com.y, -model.com.z);
+    }
     public Vec3 toWorld(Vec3 local, Vec3 pos, double yw) {
+        if (tilt != 0) { Vector3d v = base(pos, yw, tilt).transformPosition(new Vector3d(local.x, local.y, local.z)); return new Vec3(v.x, v.y, v.z); }
         Vec3 c = model.com; double dx = local.x - c.x, dy = local.y - c.y, dz = local.z - c.z;
         double cs = Math.cos(yw), sn = Math.sin(yw);
         return new Vec3(pos.x + dx * cs - dz * sn, pos.y + dy, pos.z + dx * sn + dz * cs);
     }
     public Vec3 toLocal(Vec3 world, Vec3 pos, double yw) {
+        if (tilt != 0) { Vector3d v = base(pos, yw, tilt).invert().transformPosition(new Vector3d(world.x, world.y, world.z)); return new Vec3(v.x, v.y, v.z); }
         double dx = world.x - pos.x, dy = world.y - pos.y, dz = world.z - pos.z;
         double cs = Math.cos(yw), sn = Math.sin(yw);
         return new Vec3(model.com.x + dx * cs + dz * sn, model.com.y + dy, model.com.z - dx * sn + dz * cs);
     }
-    public Matrix4d segWorld(int seg) {
-        Matrix4d m = new Matrix4d().translate(getX(), getY(), getZ()).rotateY(-yaw).translate(-model.com.x, -model.com.y, -model.com.z);
-        if (seg < art.length && art[seg] != null) m.mul(art[seg]);
+    public Matrix4d segWorld(int seg) { return segWorld(seg, position(), yaw, tilt, art); }
+    public Matrix4d segWorld(int seg, Vec3 pos, double yw, double tl, Matrix4d[] arts) {
+        Matrix4d m = base(pos, yw, tl);
+        if (seg < arts.length && arts[seg] != null) m.mul(arts[seg]);
         return m;
     }
+    public Matrix4d[] segWorlds(Vec3 pos, double yw, double tl, Matrix4d[] arts) {
+        Matrix4d[] out = new Matrix4d[model.segs.size()];
+        for (int i = 0; i < out.length; i++) out[i] = segWorld(i, pos, yw, tl, arts);
+        return out;
+    }
+    public Matrix4d[] currentArt() { return art; }
+    public static Matrix4d[] invert(Matrix4d[] w) { Matrix4d[] o = new Matrix4d[w.length]; for (int i = 0; i < w.length; i++) o[i] = new Matrix4d(w[i]).invert(); return o; }
     public Vec3 blockWorldCenter(BlockPos p) {
         Integer s = model.segOf.get(p);
         Vector3d v = segWorld(s == null ? 0 : s).transformPosition(new Vector3d(p.getX() + .5, p.getY() + .5, p.getZ() + .5));
@@ -172,27 +195,29 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         super.tick();
         if (!isRemoved()) ColossusCollision.all(level()).add(this); // client levels don't always fire onAddedToLevel
         if (model == null || blocks.isEmpty()) { if (!level().isClientSide) discard(); return; }
-        prevYaw = yaw; prevWalkPhase = walkPhase; prevWalkBlend = walkBlend; prevSpin = spin;
+        prevYaw = yaw; prevWalkPhase = walkPhase; prevWalkBlend = walkBlend; prevSpin = spin; prevTilt = tilt;
         if (level().isClientSide) {
-            yaw = entityData.get(YAW); walkPhase = entityData.get(WALK); walkBlend = entityData.get(BLEND); spin = entityData.get(SPIN);
-            if (tickCount < 3) { prevYaw = yaw; prevWalkPhase = walkPhase; prevSpin = spin; }
+            Vec3 last = clientLastPos == null ? position() : clientLastPos;
+            Matrix4d[] before = segWorlds(last, yaw, tilt, art);
+            yaw = entityData.get(YAW); walkPhase = entityData.get(WALK); walkBlend = entityData.get(BLEND); spin = entityData.get(SPIN); tilt = entityData.get(TILT);
+            if (tickCount < 3) { prevYaw = yaw; prevWalkPhase = walkPhase; prevSpin = spin; prevTilt = tilt; }
             art = model.transforms(walkPhase, walkBlend, spin, tickCount);
-            Vec3 last = clientLastPos == null ? position() : clientLastPos; clientLastPos = position();
+            clientLastPos = position();
             clientSpeed = clientSpeed * 0.7 + position().distanceTo(last) * 20 * 0.3;
-            com.colossalcraft.client.ClientHooks.carryLocalPlayer(this, last, prevYaw);
+            com.colossalcraft.client.ClientHooks.carryLocalPlayer(this, before, segWorlds(position(), yaw, tilt, art), yaw - prevYaw);
             return;
         }
-        Vec3 prevPos = position();
+        Matrix4d[] before = segWorlds(position(), yaw, tilt, art);
         Vec3 v0 = vel;
         physics();
         Vec3 accel = vel.subtract(v0).scale(20);
         art = model.transforms(walkPhase, walkBlend, spin, tickCount);
         setBoundingBox(makeBoundingBox());
-        carry(prevPos, prevYaw);
+        carry(before, segWorlds(position(), yaw, tilt, art), yaw - prevYaw);
         crush();
         checkJoints(accel);
         entityData.set(YAW, (float) yaw); entityData.set(WALK, (float) walkPhase); entityData.set(BLEND, (float) walkBlend);
-        entityData.set(SPIN, (float) spin); entityData.set(ENERGY, (float) energy);
+        entityData.set(SPIN, (float) spin); entityData.set(ENERGY, (float) energy); entityData.set(TILT, (float) tilt);
     }
 
     private Player pilot() { return getFirstPassenger() instanceof Player p ? p : null; }
@@ -230,7 +255,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         Direction fwd = model.forward; Direction dir = inFwd >= 0 ? fwd : fwd.getOpposite();
         double hT = Math.abs(inFwd), hCap = model.thrustCap[dir.ordinal()];
         draw += hT * model.thrustPow[dir.ordinal()];
-        boolean walkers = model.hasWalkers();
+        boolean walkers = model.hasWalkers() && tilt < 0.1;
         double stability = model.gyroCap <= 0 ? 0.25 : Math.min(1, model.gyroCap / M);
         double ground = onGroundC ? (walkers ? model.walkDrive() * Math.max(0.25, stability) : 0) + model.driveForce : 0;
         if (subFrac > 0.05 && !onGroundC) ground += model.driveForce * 0.5; // motors as propellers in water
@@ -243,6 +268,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         draw += Math.abs(inTurn) * (model.gyroPower + latPow * 0.5);
         if (model.joints.stream().anyMatch(j -> j.mode == StructureModel.SPIN && j.active())) draw += model.walkPower() * 0.2;
 
+        if (model.legged) draw += model.gyroPower; // gyros hold a legged Colossus up all the time
         double avail = model.infinite ? model.output : (energy > 0 ? model.output : 0);
         double ratio = draw <= 0 ? 1 : Math.min(1, avail / draw);
         if (!model.infinite && draw > 0) { ratio = Math.min(ratio, energy / draw); energy = Math.max(0, energy - (long) Math.ceil(draw * ratio)); }
@@ -267,6 +293,20 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         if (vel.length() > max) vel = vel.normalize().scale(max);
 
         // animation state
+        // ---- footing: a legged Colossus stays up only with a powered gyro in a foot and motors up to the core
+        boolean powered = model.output > 0 && (model.infinite || energy > 0) && ratio > 0;
+        boolean stable = !model.legged || (model.footingOk() && powered);
+        double oldTilt = tilt;
+        if (model.legged && onGroundC && !stable && tilt < MAX_TILT) {
+            if (tilt == 0) { tiltRate = 0.35; if (pilot != null && !warnedFall) { pilot.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                    "Losing balance! Walkers need a powered gyro in a foot and motors on every joint up to the Hull Core."), false); warnedFall = true; } }
+            double h = Math.max(1, model.com.y - model.localBounds.minY);
+            tiltRate += StructureModel.G / h * Math.sin(Math.max(tilt, 0.05)) * dt;
+            tilt = Math.min(MAX_TILT, tilt + tiltRate * dt);
+            if (tilt >= MAX_TILT) { tiltRate = 0; if (level() instanceof ServerLevel sl) sl.playSound(null, blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 1f, 0.5f); }
+        } else if (stable && tilt > 0) { tilt = Math.max(0, tilt - 0.5 * dt); tiltRate = 0; if (tilt == 0) warnedFall = false; }
+        if (tilt != oldTilt) liftOutOfGround();
+        if (tilt > 0.1) walkers = false;
         if (onGroundC && walkers && hT > 0 && ratio > 0) { walkPhase += (0.12 + vh * 0.03) * Math.signum(inFwd); walkBlend = Math.min(1, walkBlend + 0.1); }
         else walkBlend = Math.max(0, walkBlend - 0.08);
         double targetSpin = pilot != null && ratio > 0 && energy + (model.infinite ? 1 : 0) > 0 ? 0.15 + 0.6 * Math.max(hT, vT) : 0;
@@ -436,48 +476,95 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         if (broken > 0) sl.playSound(null, blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 1.5f, 0.6f);
     }
 
-    // ------------------------------------------------------------ riding entities
-    private boolean standsOn(Vec3 feetWorld, Vec3 pos, double yw) {
-        Vec3 l = toLocal(feetWorld, pos, yw);
-        int bx = (int) Math.floor(l.x), bz = (int) Math.floor(l.z);
-        for (int by = (int) Math.floor(l.y - 0.3); by >= (int) Math.floor(l.y - 1.2); by--) {
-            BlockPos p = new BlockPos(bx, by, bz);
-            if (model.solid.contains(p) && model.segOf.getOrDefault(p, 0) == 0) return l.y - (by + model.shapeBounds.get(p).maxY) <= 0.6 && l.y - (by + model.shapeBounds.get(p).maxY) >= -0.6;
+    /** After tipping, push up until no block is inside the ground. */
+    private void liftOutOfGround() {
+        List<AABB> boxes = surfaceBoxes(position(), yaw);
+        List<Vec3> centers = new ArrayList<>(); for (AABB bx : boxes) centers.add(bx.getCenter());
+        Map<Long, List<AABB>> world = gatherWorld(centers, 1.5);
+        for (int step = 0; step < 50; step++) {
+            double dy = step * 0.1;
+            boolean hit = false;
+            outer:
+            for (AABB bx : boxes) {
+                AABB sb = bx.move(0, dy, 0).deflate(0.03);
+                int cx = (int) Math.floor(sb.getCenter().x), cy = (int) Math.floor(sb.getCenter().y), cz = (int) Math.floor(sb.getCenter().z);
+                for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
+                    List<AABB> l = world.get(BlockPos.asLong(cx + x, cy + y, cz + z));
+                    if (l != null) for (AABB w : l) if (w.intersects(sb)) { hit = true; break outer; }
+                }
+            }
+            if (!hit) { if (dy > 0) setPos(getX(), getY() + dy, getZ()); return; }
         }
-        return false;
     }
-    public boolean entityStandsOn(Entity e, Vec3 pos, double yw) {
-        AABB b = e.getBoundingBox();
-        double y = b.minY;
-        return standsOn(new Vec3(b.getCenter().x, y, b.getCenter().z), pos, yw)
-                || standsOn(new Vec3(b.minX + .05, y, b.minZ + .05), pos, yw) || standsOn(new Vec3(b.maxX - .05, y, b.maxZ - .05), pos, yw)
-                || standsOn(new Vec3(b.minX + .05, y, b.maxZ - .05), pos, yw) || standsOn(new Vec3(b.maxX - .05, y, b.minZ + .05), pos, yw);
+
+    // ------------------------------------------------------------ riding entities
+    /** Which part a world point stands on (feet height), using inverse part transforms. -1 if none. */
+    public int segUnder(Vec3 pt, Matrix4d[] inv) {
+        for (int s = 0; s < inv.length; s++) {
+            Vector3d l = inv[s].transformPosition(new Vector3d(pt.x, pt.y, pt.z));
+            int bx = (int) Math.floor(l.x), bz = (int) Math.floor(l.z);
+            for (int by = (int) Math.floor(l.y - 0.3); by >= (int) Math.floor(l.y - 1.2); by--) {
+                BlockPos p = new BlockPos(bx, by, bz);
+                if (!model.solid.contains(p) || model.segOf.getOrDefault(p, 0) != s) continue;
+                double top = by + model.shapeBounds.get(p).maxY;
+                if (Math.abs(l.y - top) <= 0.6) return s;
+                break;
+            }
+        }
+        return -1;
     }
-    private boolean colossusRestsOn(ColossusEntity o, Vec3 pos, double yw) {
+    public int standingSeg(Entity e, Matrix4d[] inv) {
+        AABB b = e.getBoundingBox(); double y = b.minY;
+        Vec3[] pts = {new Vec3(b.getCenter().x, y, b.getCenter().z), new Vec3(b.minX + .05, y, b.minZ + .05), new Vec3(b.maxX - .05, y, b.maxZ - .05),
+                new Vec3(b.minX + .05, y, b.maxZ - .05), new Vec3(b.maxX - .05, y, b.minZ + .05)};
+        for (Vec3 p : pts) { int s = segUnder(p, inv); if (s >= 0) return s; }
+        return -1;
+    }
+    public boolean entityStandsOn(Entity e) { return standingSeg(e, invert(segWorlds(position(), yaw, tilt, art))) >= 0; }
+    private int colossusRestsOn(ColossusEntity o, Matrix4d[] inv) {
         int n = 0;
         for (BlockPos p : o.model.surface) {
             if (o.model.solid.contains(p.below())) continue;
-            Vec3 w = o.toWorld(new Vec3(p.getX() + .5, p.getY(), p.getZ() + .5), o.position(), o.yaw);
-            if (standsOn(w, pos, yw)) return true;
+            int s = segUnder(o.toWorld(new Vec3(p.getX() + .5, p.getY(), p.getZ() + .5), o.position(), o.yaw), inv);
+            if (s >= 0) return s;
             if (++n > 256) break;
         }
-        return false;
+        return -1;
     }
 
-    /** Move entities (and lighter Colossi) standing on us along with our motion. */
-    private void carry(Vec3 prevPos, double prevYw) {
-        double dyaw = yaw - prevYw;
-        Vec3 dp = position().subtract(prevPos);
-        if (dp.lengthSqr() < 1e-10 && Math.abs(dyaw) < 1e-8) return;
+    /** If an entity ended up inside our blocks (e.g. right after assembly), lift it onto them. */
+    public boolean unstick(Entity e) {
+        AABB eb = e.getBoundingBox();
+        double top = Double.NEGATIVE_INFINITY;
+        for (AABB b : boxesNear(eb.deflate(0.02))) top = Math.max(top, b.maxY);
+        if (top == Double.NEGATIVE_INFINITY || top - eb.minY > 1.6 || top <= eb.minY) return false;
+        e.setPos(e.getX(), top + 0.001, e.getZ());
+        Vec3 dm = e.getDeltaMovement(); e.setDeltaMovement(dm.x, Math.max(0, dm.y), dm.z);
+        return true;
+    }
+
+    /** Move one entity with the part it stands on. */
+    public void carryOne(Entity e, int seg, Matrix4d[] invBefore, Matrix4d[] after, double dyaw) {
+        Vector3d l = invBefore[seg].transformPosition(new Vector3d(e.getX(), e.getY(), e.getZ()));
+        Vector3d w = after[seg].transformPosition(l);
+        e.setPos(w.x, w.y, w.z);
+        e.setYRot(e.getYRot() + (float) Math.toDegrees(dyaw));
+    }
+
+    /** Move entities (and lighter Colossi) standing on any part along with that part's motion. */
+    private void carry(Matrix4d[] before, Matrix4d[] after, double dyaw) {
+        Matrix4d[] inv = invert(before);
         for (Entity e : level().getEntities(this, getBoundingBox().inflate(1, 3, 1))) {
             if (e.isPassenger() || e instanceof Player || e.noPhysics && !(e instanceof ColossusEntity)) continue;
-            boolean on = e instanceof ColossusEntity o ? (o.model != null && o.model.mass < model.mass && colossusRestsOn(o, prevPos, prevYw)) : entityStandsOn(e, prevPos, prevYw);
-            if (!on) continue;
-            Vec3 l = toLocal(e.position(), prevPos, prevYw);
-            Vec3 nw = toWorld(l, position(), yaw);
-            e.setPos(nw.x, nw.y, nw.z);
-            e.setYRot(e.getYRot() + (float) Math.toDegrees(dyaw));
-            if (e instanceof ColossusEntity o) { o.yaw += dyaw; o.prevYaw += dyaw; }
+            if (e instanceof ColossusEntity o) {
+                if (o.model == null || o.model.mass >= model.mass) continue;
+                int s = colossusRestsOn(o, inv);
+                if (s >= 0) { carryOne(o, s, inv, after, dyaw); o.yaw += dyaw; o.prevYaw += dyaw; }
+                continue;
+            }
+            int s = standingSeg(e, inv);
+            if (s >= 0) carryOne(e, s, inv, after, dyaw);
+            else unstick(e);
         }
     }
 
@@ -486,7 +573,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         double speed = vel.length() + Math.abs(yawRate) * model.radius;
         if (speed < 3) return;
         for (LivingEntity e : level().getEntitiesOfClass(LivingEntity.class, getBoundingBox())) {
-            if (e.isPassenger() || entityStandsOn(e, position(), yaw)) continue;
+            if (e.isPassenger() || entityStandsOn(e)) continue;
             if (boxesNear(e.getBoundingBox()).isEmpty()) continue;
             float dmg = (float) Math.max(1, Math.min(40, model.mass / 1000.0 * speed * 0.05));
             e.hurt(level().damageSources().source(CRUSHED, this), dmg);
@@ -570,6 +657,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
 
     // ------------------------------------------------------------ disassembly
     public boolean disassemble(Player who) {
+        double keepTilt = tilt; tilt = 0; // parks upright
         int k = Math.floorMod((int) Math.round(yaw / (Math.PI / 2)), 4);
         Rotation rot = new Rotation[]{Rotation.NONE, Rotation.CLOCKWISE_90, Rotation.CLOCKWISE_180, Rotation.COUNTERCLOCKWISE_90}[k];
         double snapped = Math.round(yaw / (Math.PI / 2)) * (Math.PI / 2);
@@ -579,7 +667,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         for (BlockPos p : blocks.keySet()) {
             BlockPos t = hw.offset(p.rotate(rot));
             if (!lv.getBlockState(t).canBeReplaced() || !lv.isInWorldBounds(t)) {
-                if (who != null) who.displayClientMessage(Component.literal("Can't land here: blocked at " + t.getX() + " " + t.getY() + " " + t.getZ()), true);
+                if (who != null) who.displayClientMessage(Component.literal("Can't park here: blocked at " + t.getX() + " " + t.getY() + " " + t.getZ()), true);
+                tilt = keepTilt;
                 return false;
             }
         }
@@ -680,7 +769,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         tag.putDouble("Yaw", yaw); tag.putDouble("YawRate", yawRate);
         tag.putDouble("VX", vel.x); tag.putDouble("VY", vel.y); tag.putDouble("VZ", vel.z);
         tag.putLong("Energy", energy); tag.putLong("EnergyStart", energyStart); tag.putBoolean("Hover", hover());
-        tag.putDouble("Walk", walkPhase); tag.putDouble("Spin", spin);
+        tag.putDouble("Walk", walkPhase); tag.putDouble("Spin", spin); tag.putDouble("Tilt", tilt);
     }
     @Override protected void readAdditionalSaveData(CompoundTag tag) {
         HolderGetter<Block> hg = level().holderLookup(Registries.BLOCK);
@@ -694,7 +783,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         yaw = prevYaw = tag.getDouble("Yaw"); yawRate = tag.getDouble("YawRate");
         vel = new Vec3(tag.getDouble("VX"), tag.getDouble("VY"), tag.getDouble("VZ"));
         energy = tag.getLong("Energy"); energyStart = tag.getLong("EnergyStart");
-        entityData.set(HOVER, tag.getBoolean("Hover")); walkPhase = tag.getDouble("Walk"); spin = tag.getDouble("Spin");
+        entityData.set(HOVER, tag.getBoolean("Hover")); walkPhase = tag.getDouble("Walk"); spin = tag.getDouble("Spin"); tilt = prevTilt = tag.getDouble("Tilt"); entityData.set(TILT, (float) tilt);
         entityData.set(YAW, (float) yaw);
         if (!blocks.isEmpty()) rebuild();
     }
@@ -718,5 +807,6 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         for (int i = 0; i < nb; i++) { long p = buf.readLong(); CompoundTag t = buf.readNbt(); if (t != null) bes.put(BlockPos.of(p), t); }
         rebuild();
         clientBes = null;
+        ColossusCollision.all(true).add(this); // collide as soon as it exists on the client
     }
 }

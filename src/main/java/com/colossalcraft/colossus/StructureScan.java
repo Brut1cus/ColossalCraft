@@ -30,6 +30,7 @@ public final class StructureScan {
         public final Map<BlockPos, CompoundTag> bes = new HashMap<>();
         public StructureModel model; public CompoundTag jointCfg = new CompoundTag(); public boolean hover = true;
         public boolean built; public int entityId = -1; public long liveEnergy = -1; public boolean infinite;
+        public BlockPos origin = BlockPos.ZERO; public ColossusEntity entity;
         public boolean ok() { return errors.isEmpty() && model != null; }
     }
 
@@ -39,7 +40,7 @@ public final class StructureScan {
     }
 
     public static Result scan(Level level, BlockPos heart) {
-        Result r = new Result();
+        Result r = new Result(); r.origin = heart;
         if (level.getBlockEntity(heart) instanceof HullCoreBlockEntity hc) { r.jointCfg = hc.joints.copy(); r.hover = hc.hover; }
         int max = Config.MAX_BLOCKS.get();
         ArrayDeque<BlockPos> q = new ArrayDeque<>(); Set<BlockPos> seen = new HashSet<>();
@@ -67,7 +68,7 @@ public final class StructureScan {
     public static Result fromEntity(ColossusEntity c) {
         Result r = new Result();
         r.blocks.putAll(c.blocks); r.bes.putAll(c.bes); r.jointCfg = c.jointCfg.copy(); r.hover = c.hover();
-        r.model = c.model; r.built = true; r.entityId = c.getId();
+        r.model = c.model; r.built = true; r.entityId = c.getId(); r.entity = c;
         r.liveEnergy = c.energy; r.infinite = c.model.infinite;
         analyze(r);
         return r;
@@ -85,6 +86,11 @@ public final class StructureScan {
             if (j.staticRatio > 1) r.warnings.add("Joint J" + j.id + " overloaded " + (int) (j.staticRatio * 100) + "%: it will snap!");
             if (j.mode != StructureModel.LOCKED && j.stalled()) r.warnings.add(j.motors == 0 ? "Joint J" + j.id + " is set to move, but no Servo Motor touches it."
                     : "Joint J" + j.id + " motors too weak: " + kilo(j.motorTorque) + " of " + kilo(j.reqTorque) + " N*m needed.");
+        }
+        if (m.legged && !m.footingOk()) {
+            StringBuilder why = new StringBuilder();
+            for (StructureModel.Foot f : m.feet) why.append(why.length() == 0 ? "" : "; ").append("part ").append(f.seg()).append(": ").append(f.problem());
+            r.warnings.add("It will fall over: needs a powered gyro in a foot with motors on every joint up to the core (" + why + ").");
         }
         if (m.hasWalkers() && m.gyroCap < m.mass) r.warnings.add("Gyros too weak for walking: " + (int) (100 * m.gyroCap / m.mass) + "% stable. Add gyros.");
         boolean anyThrust = false; for (double v : m.thrustCap) anyThrust |= v > 0;
@@ -127,10 +133,17 @@ public final class StructureScan {
             c.putDouble("Sub", j.subMass); c.putDouble("Ratio", j.staticRatio); c.putDouble("FCap", j.forceCap); c.putDouble("MCap", j.momentCap);
             c.putDouble("Torque", j.motorTorque); c.putDouble("Req", j.reqTorque); c.putInt("Motors", j.motors);
             c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putBoolean("Stalled", j.stalled());
+            BlockPos lp = BlockPos.of(j.key);
+            BlockPos wp = r.entity != null ? BlockPos.containing(r.entity.blockWorldCenter(lp)) : r.origin.offset(lp);
+            c.putInt("X", wp.getX()); c.putInt("Y", wp.getY()); c.putInt("Z", wp.getZ());
             ListTag ch = new ListTag(); for (int cs : j.childSegs) { CompoundTag x = new CompoundTag(); x.putInt("S", cs); ch.add(x); } c.put("Children", ch);
             js.add(c);
         }
         t.put("Joints", js);
+        t.putBoolean("Legged", m.legged); t.putBoolean("FootOK", m.footingOk()); t.putDouble("FootGyro", m.footingGyro);
+        ListTag feet = new ListTag();
+        for (StructureModel.Foot f : m.feet) { CompoundTag c = new CompoundTag(); c.putInt("Seg", f.seg()); c.putDouble("Gyro", f.gyro()); c.putBoolean("Ok", f.ok()); c.putString("Problem", f.problem()); feet.add(c); }
+        t.put("Feet", feet);
         ListTag en = new ListTag();
         for (StructureModel.EngineInfo e : m.engines) {
             CompoundTag c = new CompoundTag(); c.putString("Name", e.name()); c.putLong("Energy", e.energy()); c.putLong("Cap", e.capacity());

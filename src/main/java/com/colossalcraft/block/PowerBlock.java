@@ -39,23 +39,18 @@ public class PowerBlock extends BaseEntityBlock {
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new PowerBlockEntity(pos, state); }
     @Override protected BlockState rotate(BlockState s, Rotation r) { return s.setValue(FACING, r.rotate(s.getValue(FACING))); }
 
-    static ItemInteractionResult fuel(ItemStack stack, Level level, BlockPos pos, Player player) {
-        if (level.getBlockEntity(pos) instanceof PowerBlockEntity be && be.addFuel(stack, true)) {
-            if (!level.isClientSide) {
-                int n = player.isShiftKeyDown() ? stack.getCount() : 1;
-                for (int i = 0; i < n && be.addFuel(stack, false); i++) if (!player.getAbilities().instabuild) stack.shrink(1);
-                be.describe(player);
-            }
-            return ItemInteractionResult.sidedSuccess(level.isClientSide);
-        }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+    @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState s, BlockEntityType<T> type) {
+        return level.isClientSide || type != ModRegistry.POWER_BE.get() ? null : (l, p, st, be) -> PowerBlockEntity.serverTick(l, p, st, (PowerBlockEntity) be);
     }
 
-    @Override protected ItemInteractionResult useItemOn(ItemStack stack, BlockState s, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-        return fuel(stack, level, pos, player);
-    }
+    /** Right-click opens the furnace-like screen (fuel slot + energy). Gyro structures just report their status. */
     @Override protected InteractionResult useWithoutItem(BlockState s, Level level, BlockPos pos, Player player, BlockHitResult hit) {
-        if (!level.isClientSide && level.getBlockEntity(pos) instanceof PowerBlockEntity be) be.describe(player);
+        if (!level.isClientSide && level.getBlockEntity(pos) instanceof PowerBlockEntity be) {
+            if (be.tier() != null && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                sp.openMenu(be, buf -> buf.writeBlockPos(pos));
+                if (s.getBlock() instanceof ControllerBlock && !be.formed && !be.status.isEmpty()) be.describe(player);
+            } else be.describe(player);
+        }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
 }

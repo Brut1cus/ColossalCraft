@@ -51,19 +51,14 @@ public final class ClientHooks {
     }
 
     /** Client side: the local player is moved with the deck it stands on, and turned with the Colossus it pilots. */
-    public static void carryLocalPlayer(ColossusEntity c, Vec3 prevPos, double prevYaw) {
+    public static void carryLocalPlayer(ColossusEntity c, org.joml.Matrix4d[] before, org.joml.Matrix4d[] after, double dyaw) {
         LocalPlayer p = Minecraft.getInstance().player;
         if (p == null || p.level() != c.level()) return;
-        double dyaw = c.yaw - prevYaw;
         if (p.getVehicle() == c) { p.setYRot(p.getYRot() + (float) Math.toDegrees(dyaw)); p.yRotO = p.getYRot(); return; }
-        if (p.isPassenger()) return;
-        Vec3 dp = c.position().subtract(prevPos);
-        if (dp.lengthSqr() < 1e-10 && Math.abs(dyaw) < 1e-8) return;
-        if (!c.getBoundingBox().inflate(1, 3, 1).intersects(p.getBoundingBox())) return;
-        if (!c.entityStandsOn(p, prevPos, prevYaw)) return;
-        Vec3 l = c.toLocal(p.position(), prevPos, prevYaw);
-        Vec3 n = c.toWorld(l, c.position(), c.yaw);
-        p.setPos(n.x, n.y, n.z);
-        p.setYRot(p.getYRot() + (float) Math.toDegrees(dyaw));
+        if (p.isPassenger() || !c.getBoundingBox().inflate(1, 3, 1).intersects(p.getBoundingBox())) return;
+        org.joml.Matrix4d[] inv = ColossusEntity.invert(before);
+        int seg = c.standingSeg(p, inv);
+        if (seg >= 0) c.carryOne(p, seg, inv, after, dyaw);
+        else c.unstick(p);
     }
 }

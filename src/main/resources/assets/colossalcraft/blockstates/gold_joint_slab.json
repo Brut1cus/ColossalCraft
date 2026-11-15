@@ -1,13 +1,22 @@
 {
   "variants": {
-    "axis=x": {
+    "axis=x,top=false": {
       "model": "colossalcraft:block/gold_joint_slab_x"
     },
-    "axis=y": {
+    "axis=y,top=false": {
       "model": "colossalcraft:block/gold_joint_slab_y"
     },
-    "axis=z": {
+    "axis=z,top=false": {
       "model": "colossalcraft:block/gold_joint_slab_z"
+    },
+    "axis=x,top=true": {
+      "model": "colossalcraft:block/gold_joint_slab_top_x"
+    },
+    "axis=y,top=true": {
+      "model": "colossalcraft:block/gold_joint_slab_top_y"
+    },
+    "axis=z,top=true": {
+      "model": "colossalcraft:block/gold_joint_slab_top_z"
     }
   }
 }

@@ -68,36 +68,57 @@ def make(a, u, v, ra, ru, rv):
     lo = [0, 0, 0]; hi = [0, 0, 0]
     lo[a], hi[a] = ra; lo[u], hi[u] = ru; lo[v], hi[v] = rv
     return lo, hi
-def joint_elements(shape, axis):
+def joint_elements(shape, axis, xyz=None):
+    """xyz = [(x0,x1),(y0,y1),(z0,z1)] outer box; defaults by shape."""
     a, u, v = AX[axis]
-    outer = {'joint': ((0, 16), (0, 16), (0, 16)), 'joint_slab': None, 'joint_panel': ((4, 12), (0, 16), (0, 16)), 'joint_pin': ((0, 16), (5, 11), (5, 11))}[shape]
-    if shape == 'joint_slab':  # always the bottom half of the block
-        rng = [(0, 16), (0, 8), (0, 16)]
-        outer = (rng[a], rng[u], rng[v])
-    (a0, a1), (u0, u1), (v0, v1) = outer
+    if xyz is None:
+        xyz = {'joint': [(0, 16), (0, 16), (0, 16)], 'joint_slab': [(0, 16), (0, 8), (0, 16)]}.get(shape)
+        if shape == 'joint_pin':
+            xyz = [(5, 11), (5, 11), (5, 11)]; xyz[a] = (0, 16)
+    (a0, a1), (u0, u1), (v0, v1) = xyz[a], xyz[u], xyz[v]
     els = []
     if shape == 'joint_pin':
         els.append(box(*make(a, u, v, (a0, a1), (u0, u1), (v0, v1)), a))
         for c0, c1 in ((1, 3), (13, 15)): els.append(box(*make(a, u, v, (c0, c1), (u0 - 1, u1 + 1), (v0 - 1, v1 + 1)), a))
         return els
-    t = 2 if shape == 'joint_slab' else 3
+    t = 2 if min(u1 - u0, v1 - v0, a1 - a0) <= 8 else 3
     for ru, rv in (((u0, u1), (v0, v0 + t)), ((u0, u1), (v1 - t, v1)), ((u0, u0 + t), (v0 + t, v1 - t)), ((u1 - t, u1), (v0 + t, v1 - t))):
         els.append(box(*make(a, u, v, (a0, a1), ru, rv), a))
-    # axle through the hole
     cu, cv = (u0 + u1) / 2, (v0 + v1) / 2
     hs = max(0.5, min(2, (u1 - u0 - 2 * t) / 2 - 1, (v1 - v0 - 2 * t) / 2 - 1))
-    els.append(box(*make(a, u, v, (a0 - (1 if shape != 'joint' else 0), a1 + (1 if shape != 'joint' else 0)), (cu - hs, cu + hs), (cv - hs, cv + hs)), a))
+    ext = 0 if shape == 'joint' else 0.5
+    els.append(box(*make(a, u, v, (max(0, a0 - ext), min(16, a1 + ext)), (cu - hs, cu + hs), (cv - hs, cv + hs)), a))
     return els
+PANEL_BOX = {'north': [(0, 16), (0, 16), (0, 8)], 'south': [(0, 16), (0, 16), (8, 16)], 'west': [(0, 8), (0, 16), (0, 16)], 'east': [(8, 16), (0, 16), (0, 16)]}
 SHAPES = [('joint', 'Bearing Joint'), ('joint_slab', 'Slab Joint'), ('joint_panel', 'Panel Joint'), ('joint_pin', 'Pin Joint')]
 for m in MATS:
     for sh, title in SHAPES:
         n = f'{m}_{sh}'
-        for axis in 'xyz':
-            w(f'{A}/models/block/{n}_{axis}.json', {'parent': 'minecraft:block/block', 'textures': {'end': tex(f'{m}_joint_end'), 'side': tex(f'{m}_joint_side'), 'particle': tex(f'{m}_joint_side')},
-                                                   'elements': joint_elements(sh, axis)})
-        w(f'{A}/blockstates/{n}.json', {'variants': {f'axis={ax}': {'model': f'{NS}:block/{n}_{ax}'} for ax in 'xyz'}})
+        tx = {'end': tex(f'{m}_joint_end'), 'side': tex(f'{m}_joint_side'), 'particle': tex(f'{m}_joint_side')}
+        def model(name, els): w(f'{A}/models/block/{name}.json', {'parent': 'minecraft:block/block', 'textures': tx, 'elements': els})
+        variants = {}
+        if sh == 'joint_slab':
+            for top in (False, True):
+                for axis in 'xyz':
+                    mn = f'{n}_{"top_" if top else ""}{axis}'
+                    model(mn, joint_elements(sh, axis, [(0, 16), (8, 16) if top else (0, 8), (0, 16)]))
+                    variants[f'axis={axis},top={"true" if top else "false"}'] = {'model': f'{NS}:block/{mn}'}
+            item = f'{n}_x'
+        elif sh == 'joint_panel':
+            for side, xyz in PANEL_BOX.items():
+                for axis in 'xyz':
+                    mn = f'{n}_{side}_{axis}'
+                    model(mn, joint_elements(sh, axis, xyz))
+                    variants[f'axis={axis},facing={side}'] = {'model': f'{NS}:block/{mn}'}
+            item = f'{n}_north_z'
+        else:
+            for axis in 'xyz':
+                model(f'{n}_{axis}', joint_elements(sh, axis))
+                variants[f'axis={axis}'] = {'model': f'{NS}:block/{n}_{axis}'}
+            item = f'{n}_x'
+        w(f'{A}/blockstates/{n}.json', {'variants': variants})
         blocks.append(n); NAMES[n] = f'{JN[m]} {title}'
-        w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}_x'})
+        w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{item}'})
 for m in MATS: cube_all(f'{m}_motor', name=f'{JN[m]} Servo Motor')
 # --- engines ---
 for n, nm in [('ember_boiler', 'Ember Boiler'), ('blaze_combustor', 'Blaze Combustor'), ('redstone_dynamo', 'Redstone Dynamo')]:

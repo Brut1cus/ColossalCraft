@@ -36,11 +36,4 @@ public class ControllerBlock extends PowerBlock {
 
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(FACING, FORMED); }
 
-    @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState s, BlockEntityType<T> type) {
-        return level.isClientSide || type != ModRegistry.POWER_BE.get() ? null : (l, p, st, be) -> PowerBlockEntity.serverTick(l, p, st, (PowerBlockEntity) be);
-    }
-
-    @Override protected ItemInteractionResult useItemOn(ItemStack stack, BlockState s, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-        return engine == null ? ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION : fuel(stack, level, pos, player);
-    }
 }
