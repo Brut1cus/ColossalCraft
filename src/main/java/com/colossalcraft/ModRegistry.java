@@ -73,6 +73,7 @@ public final class ModRegistry {
     /** Every joint: material -> shape -> block. */
     public static final Map<MaterialTier, Map<JointShape, DeferredBlock<JointBlock>>> JOINT_SHAPES = new EnumMap<>(MaterialTier.class);
     public static final Map<MaterialTier, DeferredBlock<MotorBlock>> MOTORS = new EnumMap<>(MaterialTier.class);
+    public static final List<DeferredBlock<GearboxBlock>> GEARBOXES = new ArrayList<>();
     static {
         cat = Cat.JOINTS;
         for (MaterialTier t : MaterialTier.values()) {
@@ -81,6 +82,10 @@ public final class ModRegistry {
             JOINT_SHAPES.put(t, m); JOINTS.put(t, m.get(JointShape.FULL));
         }
         for (MaterialTier t : MaterialTier.values()) MOTORS.put(t, block(t.id + "_motor", p -> new MotorBlock(t, p), metal()));
+        GEARBOXES.add(block("overdrive_gearbox", p -> new GearboxBlock(0.5, 0.95, "1:2 speed-up", p), metal()));
+        GEARBOXES.add(block("spur_gearbox", p -> new GearboxBlock(2, 0.95, "2:1", p), metal()));
+        GEARBOXES.add(block("planetary_gearbox", p -> new GearboxBlock(5, 0.9, "5:1", p), metal()));
+        GEARBOXES.add(block("worm_drive", p -> new GearboxBlock(20, 0.6, "20:1", p), metal()));
         cat = Cat.POWER;
     }
 

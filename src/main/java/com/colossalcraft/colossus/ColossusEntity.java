@@ -58,6 +58,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private static final EntityDataAccessor<Boolean> HOVER = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> INFINITE = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Float> TILT = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> TILT_DIR = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
     /** Most a fallen walker leans (radians). */
     public static final double MAX_TILT = 1.45;
 
@@ -69,6 +70,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public double yaw, prevYaw, yawRate;
     /** Tipping over (radians, towards the front). */
     public double tilt, prevTilt, tiltRate;
+    /** Direction it falls (local, radians from +X towards +Z). */
+    public double tiltDir = Double.NaN;
     private boolean warnedFall;
     public double walkPhase, prevWalkPhase, walkBlend, prevWalkBlend, spin, prevSpin, spinRate;
     public Vec3 vel = Vec3.ZERO;
@@ -104,7 +107,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder b) {
-        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f);
+        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f);
     }
     public boolean hover() { return entityData.get(HOVER); }
     public float syncedEnergy() { return entityData.get(ENERGY); }
@@ -112,7 +115,10 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
 
     // ------------------------------------------------------------ transforms
     /** Axis the Colossus tips around (local frame): top falls towards the front. */
-    public Vec3 tiltAxis() { Vec3 f = Vec3.atLowerCornerOf(model.forward.getNormal()); return new Vec3(f.z, 0, -f.x); }
+    public Vec3 tiltAxis() {
+        Vec3 f = Double.isNaN(tiltDir) ? Vec3.atLowerCornerOf(model.forward.getNormal()) : new Vec3(Math.cos(tiltDir), 0, Math.sin(tiltDir));
+        return new Vec3(f.z, 0, -f.x);
+    }
     public Matrix4d base(Vec3 pos, double yw, double tl) {
         Matrix4d m = new Matrix4d().translate(pos.x, pos.y, pos.z).rotateY(-yw);
         if (tl != 0) { Vec3 a = tiltAxis(); m.rotate(tl, a.x, a.y, a.z); }
@@ -200,6 +206,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             Vec3 last = clientLastPos == null ? position() : clientLastPos;
             Matrix4d[] before = segWorlds(last, yaw, tilt, art);
             yaw = entityData.get(YAW); walkPhase = entityData.get(WALK); walkBlend = entityData.get(BLEND); spin = entityData.get(SPIN); tilt = entityData.get(TILT);
+            float td = entityData.get(TILT_DIR); tiltDir = td == -999 ? Double.NaN : td;
             if (tickCount < 3) { prevYaw = yaw; prevWalkPhase = walkPhase; prevSpin = spin; prevTilt = tilt; }
             art = model.transforms(walkPhase, walkBlend, spin, tickCount);
             clientLastPos = position();
@@ -217,7 +224,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         crush();
         checkJoints(accel);
         entityData.set(YAW, (float) yaw); entityData.set(WALK, (float) walkPhase); entityData.set(BLEND, (float) walkBlend);
-        entityData.set(SPIN, (float) spin); entityData.set(ENERGY, (float) energy); entityData.set(TILT, (float) tilt);
+        entityData.set(SPIN, (float) spin); entityData.set(ENERGY, (float) energy); entityData.set(TILT, (float) tilt); entityData.set(TILT_DIR, (float) (Double.isNaN(tiltDir) ? -999 : tiltDir));
     }
 
     private Player pilot() { return getFirstPassenger() instanceof Player p ? p : null; }
@@ -295,11 +302,15 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         // animation state
         // ---- footing: a legged Colossus stays up only with a powered gyro in a foot and motors up to the core
         boolean powered = model.output > 0 && (model.infinite || energy > 0) && ratio > 0;
-        boolean stable = !model.legged || (model.footingOk() && powered);
+        boolean stable = !model.legged || (model.footingOk() && powered && model.balanced());
         double oldTilt = tilt;
         if (model.legged && onGroundC && !stable && tilt < MAX_TILT) {
-            if (tilt == 0) { tiltRate = 0.35; if (pilot != null && !warnedFall) { pilot.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                    "Losing balance! Walkers need a powered gyro in a foot and motors on every joint up to the Hull Core."), false); warnedFall = true; } }
+            if (tilt == 0) {
+                Vec3 off = model.balanceOffset;
+                tiltDir = off.lengthSqr() > 1e-6 ? Math.atan2(off.z, off.x) : Math.atan2(model.forward.getStepZ(), model.forward.getStepX());
+                tiltRate = 0.35; if (pilot != null && !warnedFall) { pilot.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                    model.balanced() ? "Losing balance! Walkers need a powered gyro in the Hull Core's part and motors on every leg joint."
+                            : "Tipping over! The centre of mass is not over the feet."), false); warnedFall = true; } }
             double h = Math.max(1, model.com.y - model.localBounds.minY);
             tiltRate += StructureModel.G / h * Math.sin(Math.max(tilt, 0.05)) * dt;
             tilt = Math.min(MAX_TILT, tilt + tiltRate * dt);
@@ -307,9 +318,12 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         } else if (stable && tilt > 0) { tilt = Math.max(0, tilt - 0.5 * dt); tiltRate = 0; if (tilt == 0) warnedFall = false; }
         if (tilt != oldTilt) liftOutOfGround();
         if (tilt > 0.1) walkers = false;
-        if (onGroundC && walkers && hT > 0 && ratio > 0) { walkPhase += (0.12 + vh * 0.03) * Math.signum(inFwd); walkBlend = Math.min(1, walkBlend + 0.1); }
+        if (onGroundC && walkers && hT > 0 && ratio > 0) { walkPhase += 2 * Math.PI * model.gaitSpeed / 20 * model.gaitScale() * Math.signum(inFwd); walkBlend = Math.min(1, walkBlend + 0.1); }
         else walkBlend = Math.max(0, walkBlend - 0.08);
         double targetSpin = pilot != null && ratio > 0 && energy + (model.infinite ? 1 : 0) > 0 ? 0.15 + 0.6 * Math.max(hT, vT) : 0;
+        double spinCap = Double.MAX_VALUE;
+        for (StructureModel.Joint j : model.joints) if (j.mode == StructureModel.SPIN && j.active()) spinCap = Math.min(spinCap, Math.toRadians(j.maxSpeed) / 20);
+        targetSpin = Math.min(targetSpin, spinCap);
         spinRate += (targetSpin - spinRate) * 0.05; spin += spinRate;
 
         moveWithCollision(vel.scale(dt));

@@ -24,6 +24,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public final class Net {
@@ -49,7 +50,8 @@ public final class Net {
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
     /** Hull Core screen button (client -> server). entity = -1 for a Hull Core block, else the built Colossus.
-     *  actions: 0 rescan, 1 set joint mode (value), 2 set joint swing angle (value), 3 toggle hover, 4 build, 5 park */
+     *  actions: 0 rescan, 1 set joint mode, 2 set swing angle, 3 toggle hover, 4 build, 5 park,
+     *  6 set keyframe (value = index << 16 | angle + 180), 7 set phase, 8 set speed (x100), 9 set gait speed (x100), 10 toggle loop */
     public record HullAction(BlockPos pos, int entity, int action, int joint, int value) implements CustomPacketPayload {
         public static final Type<HullAction> TYPE = new Type<>(id("hull_action"));
         public static final StreamCodec<ByteBuf, HullAction> CODEC = StreamCodec.composite(BlockPos.STREAM_CODEC, HullAction::pos, ByteBufCodecs.VAR_INT, HullAction::entity,
@@ -148,13 +150,14 @@ public final class Net {
             if (sp.distanceToSqr(Vec3.atCenterOf(a.pos())) > 100 || !(sp.level().getBlockEntity(a.pos()) instanceof HullCoreBlockEntity hc)) return;
             StructureScan.Result r = StructureScan.scan(sp.level(), a.pos());
             switch (a.action()) {
-                case 1, 2 -> {
+                case 1, 2, 6, 7, 8, 10 -> {
                     if (a.joint() >= 0 && a.joint() < r.model.joints.size()) {
                         String key = StructureModel.jointKey(r.model.joints.get(a.joint()).key);
                         hc.joints.put(key, applyJoint(hc.joints.getCompound(key), a)); hc.setChanged();
                     }
                 }
                 case 3 -> { hc.hover = !hc.hover; hc.setChanged(); }
+                case 9 -> { hc.joints.put(StructureModel.GAIT, gait(hc.joints.getCompound(StructureModel.GAIT), a.value())); hc.setChanged(); }
                 case 4 -> { if (ColossusEntity.assemble(sp.level(), a.pos(), sp)) { closeScreen(sp, a.pos()); return; } }
                 default -> {}
             }
@@ -162,23 +165,38 @@ public final class Net {
         });
     }
 
+    private static CompoundTag gait(CompoundTag g, int value) { g = g.copy(); g.putInt("Speed", Math.max(5, Math.min(400, value))); return g; }
+
     private static CompoundTag applyJoint(CompoundTag c, HullAction a) {
         c = c.copy();
-        if (a.action() == 1) c.putByte("Mode", (byte) Math.max(0, Math.min(StructureModel.MODES.length - 1, a.value())));
-        else c.putInt("Amp", Math.max(5, Math.min(120, a.value())));
+        switch (a.action()) {
+            case 1 -> c.putByte("Mode", (byte) Math.max(0, Math.min(StructureModel.MODES.length - 1, a.value())));
+            case 2 -> c.putInt("Amp", Math.max(5, Math.min(120, a.value())));
+            case 6 -> {
+                int idx = a.value() >> 16, ang = Math.max(-180, Math.min(180, (a.value() & 0xFFFF) - 180));
+                int[] k = Arrays.copyOf(c.getIntArray("Keys"), StructureModel.KEYS);
+                if (idx >= 0 && idx < k.length) k[idx] = ang;
+                c.putIntArray("Keys", k);
+            }
+            case 7 -> c.putInt("Phase", Math.floorMod(a.value(), 360));
+            case 8 -> c.putInt("SpeedX", Math.max(25, Math.min(400, a.value())));
+            case 10 -> c.putBoolean("Loop", !c.getBoolean("Loop"));
+            default -> {}
+        }
         return c;
     }
 
     private static void onBuiltAction(ServerPlayer sp, HullAction a) {
         ColossusEntity c = colossusNear(sp, a.entity()); if (c == null) return;
         switch (a.action()) {
-            case 1, 2 -> {
+            case 1, 2, 6, 7, 8, 10 -> {
                 if (a.joint() >= 0 && a.joint() < c.model.joints.size()) {
                     String key = StructureModel.jointKey(c.model.joints.get(a.joint()).key);
                     CompoundTag cfg = c.jointCfg.copy(); cfg.put(key, applyJoint(cfg.getCompound(key), a)); c.setJointCfg(cfg);
                 }
             }
             case 3 -> c.toggleHover();
+            case 9 -> { CompoundTag cfg = c.jointCfg.copy(); cfg.put(StructureModel.GAIT, gait(cfg.getCompound(StructureModel.GAIT), a.value())); c.setJointCfg(cfg); }
             case 5 -> { if (c.disassemble(sp)) { closeScreen(sp, BlockPos.ZERO); sp.displayClientMessage(Component.literal("Parked: the Colossus is blocks again."), true); return; } }
             default -> {}
         }

@@ -290,19 +290,71 @@ public class ColossusTests {
     }
 
     @GameTest(template = "empty16", timeoutTicks = 140)
-    public static void walkerWithGyroOnlyInCoreFalls(GameTestHelper h) {
+    public static void walkerWithCoreGyroStands(GameTestHelper h) {
         walker(h, false, true);
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        h.assertTrue(r.model.footingOk() && r.model.balanced(), "core gyro walker should be stable: " + r.warnings);
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
-        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); h.assertTrue(c.tilt > 1.0, "a core gyro alone should not hold it, tilt " + c.tilt); h.succeed(); });
+        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); h.assertTrue(c.tilt == 0 && c.onGroundC, "should stand, tilt " + c.tilt); h.succeed(); });
     }
 
     @GameTest(template = "empty16", timeoutTicks = 140)
-    public static void walkerWithFootGyrosStands(GameTestHelper h) {
+    public static void walkerWithFootGyrosOnlyFalls(GameTestHelper h) {
         walker(h, true, false);
         StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
-        h.assertTrue(r.model.legged && r.model.footingOk(), "footing should be OK: " + r.model.feet);
+        h.assertTrue(r.model.legged && !r.model.footingOk(), "foot gyros alone should not count now");
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
-        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); ColosalCraftLog(c); h.assertTrue(c.tilt == 0 && c.onGroundC, "should stand, tilt " + c.tilt); h.succeed(); });
+        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); ColosalCraftLog(c); h.assertTrue(c.tilt > 1.0, "should fall, tilt " + c.tilt); h.succeed(); });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 140)
+    public static void walkerWithHeavyOverhangTips(GameTestHelper h) {
+        walker(h, false, true);
+        for (int x = 5; x <= 9; x++) for (int z = 2; z <= 4; z++) h.setBlock(x, 6, z, Blocks.IRON_BLOCK);
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        ColossalCraft.LOG.info("[test] overhang com={} support={} offset={}", r.model.com, r.model.support, r.model.balanceOffset);
+        h.assertTrue(r.model.footingOk() && !r.model.balanced(), "should be unbalanced");
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); h.assertTrue(c.tilt > 1.0 && Math.sin(c.tiltDir) < -0.9, "should tip towards the overhang (-Z): tilt " + c.tilt + " dir " + c.tiltDir); h.succeed(); });
+    }
+
+    @GameTest(template = "empty16")
+    public static void gearboxMultipliesTorque(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        h.setBlock(7, 5, 7, ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
+        for (int y = 2; y <= 4; y++) h.setBlock(7, y, 7, Blocks.STONE_BRICKS);
+        h.setBlock(8, 5, 7, ModRegistry.GEARBOXES.get(2).get()); // planetary 5:1, touches the joint
+        h.setBlock(9, 5, 7, ModRegistry.MOTORS.get(MaterialTier.IRON).get()); // motor touches the gearbox only
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        StructureModel.Joint j = r.model.joints.get(0);
+        h.assertTrue(Math.abs(j.motorTorque - 150_000 * 5 * 0.9) < 1, "torque " + j.motorTorque);
+        h.assertTrue(Math.abs(j.maxSpeed - 60 * 6 / 5.0) < 0.01, "speed " + j.maxSpeed);
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 40)
+    public static void lavaBucketGivesBucketBack(GameTestHelper h) {
+        h.setBlock(5, 1, 5, ModRegistry.EMBER_BOILER.get());
+        var be = (com.colossalcraft.block.PowerBlockEntity) h.getBlockEntity(new BlockPos(5, 1, 5));
+        be.fuel.insertItem(0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.LAVA_BUCKET), false);
+        h.runAfterDelay(5, () -> {
+            h.assertTrue(be.fuel.getStackInSlot(0).is(net.minecraft.world.item.Items.BUCKET), "bucket not returned: " + be.fuel.getStackInSlot(0));
+            h.assertTrue(be.energy == 20000L * 40L, "energy " + be.energy);
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16")
+    public static void groundContactIsReported(GameTestHelper h) {
+        ship(h, 0);
+        h.setBlock(5, 5, 5, Blocks.STONE_BRICKS);
+        for (int y = 0; y <= 4; y++) h.setBlock(5, y, 5, Blocks.DIRT); // a dirt pillar to the floor
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        ColossalCraft.LOG.info("[test] contact blocks={} hasDirt={} dirtTagged={} contacts={}", r.blocks.size(), r.blocks.values().stream().anyMatch(st -> st.is(Blocks.DIRT)),
+                Blocks.DIRT.defaultBlockState().is(StructureScan.NATURAL), r.contacts.size());
+        boolean told = r.warnings.stream().anyMatch(w -> w.contains("natural ground")) || r.errors.stream().anyMatch(e -> e.contains("Touches the ground"));
+        h.assertTrue(!r.contacts.isEmpty() && told, "contact not reported: " + r.errors + r.warnings);
+        h.succeed();
     }
     @GameTest(template = "empty16")
     public static void lockedLegsDontTip(GameTestHelper h) {

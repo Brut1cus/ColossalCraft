@@ -24,8 +24,13 @@ import java.util.*;
  */
 public class StructureModel {
     public static final double G = 9.81;
-    public static final String[] MODES = {"LOCKED", "WALK A", "WALK B", "SPIN", "SWAY"};
-    public static final int LOCKED = 0, WALK_A = 1, WALK_B = 2, SPIN = 3, SWAY = 4;
+    public static final String[] MODES = {"LOCKED", "WALK A", "WALK B", "SPIN", "SWAY", "PROGRAM"};
+    public static final int LOCKED = 0, WALK_A = 1, WALK_B = 2, SPIN = 3, SWAY = 4, PROGRAM = 5;
+    public static final int KEYS = 8;
+    /** Reserved key in the joint config for whole-walker gait settings. */
+    public static final String GAIT = "_gait";
+    /** Steps per second (one full leg cycle). */
+    public double gaitSpeed = 0.5;
 
     public static class Seg {
         public int id, parentJoint = -1, depth;
@@ -42,8 +47,14 @@ public class StructureModel {
         public final List<Integer> childSegs = new ArrayList<>();
         public Vec3 pivot = Vec3.ZERO, subCom = Vec3.ZERO;
         public double subMass, motorTorque, motorPower, motorDrive, reqTorque, forceCap, momentCap, staticRatio;
+        /** Fastest the gears let this joint turn (degrees per second). 0 = no motor. */
+        public double maxSpeed;
+        /** Program: keyframe angles (degrees), phase offset (degrees), speed factor, play even when standing still. */
+        public int[] keys = new int[KEYS]; public int phase; public double speedFactor = 1; public boolean loop;
+        /** Gear ratios seen by this joint's motors (for the screen). */
+        public final List<Double> ratios = new ArrayList<>();
         public boolean stalled() { return mode != LOCKED && !childSegs.isEmpty() && (motorTorque <= 0 || motorTorque < reqTorque); }
-        public boolean active() { return mode != LOCKED && !stalled(); }
+        public boolean active() { return mode != LOCKED && !childSegs.isEmpty() && !stalled(); }
     }
     public record EngineInfo(String name, long energy, long capacity, int output, boolean running, String note, boolean zeroPoint) {}
 
@@ -143,6 +154,8 @@ public class StructureModel {
             CompoundTag jc = cfg.getCompound(jointKey(j.key));
             j.mode = Math.max(0, Math.min(MODES.length - 1, jc.getByte("Mode")));
             if (jc.contains("Amp")) j.amp = jc.getInt("Amp");
+            int[] k = jc.getIntArray("Keys"); for (int i = 0; i < Math.min(KEYS, k.length); i++) j.keys[i] = k[i];
+            j.phase = jc.getInt("Phase"); if (jc.contains("SpeedX")) j.speedFactor = jc.getInt("SpeedX") / 100.0; j.loop = jc.getBoolean("Loop");
             joints.add(j);
         }
 
@@ -209,13 +222,38 @@ public class StructureModel {
         }
         for (Joint j : joints) j.subCom = j.subMass > 0 ? j.subCom.scale(1 / j.subMass) : j.pivot;
 
+        if (cfg.contains(GAIT)) gaitSpeed = Math.max(0.05, cfg.getCompound(GAIT).getInt("Speed") / 100.0);
+        // ---- gears: from each joint walk through touching gearboxes; a motor gets the ratio of the gearbox it touches ----
+        Map<BlockPos, double[]> motorGear = new HashMap<>(); // motor -> {joint, ratio, efficiency}
+        for (Joint j : joints) {
+            ArrayDeque<BlockPos> gq = new ArrayDeque<>(); Map<BlockPos, double[]> seen = new HashMap<>();
+            for (BlockPos jp : j.blocks) for (Direction d : Direction.values()) {
+                BlockPos n = jp.relative(d); BlockState ns = blocks.get(n);
+                if (ns == null) continue;
+                if (ns.getBlock() instanceof MotorBlock) motorGear.putIfAbsent(n, new double[]{j.id, 1, 1});
+                else if (ns.getBlock() instanceof GearboxBlock g && !seen.containsKey(n)) { seen.put(n, new double[]{g.ratio, g.efficiency}); gq.add(n); }
+            }
+            while (!gq.isEmpty()) {
+                BlockPos gp = gq.poll(); double[] cur = seen.get(gp);
+                for (Direction d : Direction.values()) {
+                    BlockPos n = gp.relative(d); BlockState ns = blocks.get(n);
+                    if (ns == null) continue;
+                    if (ns.getBlock() instanceof MotorBlock) motorGear.putIfAbsent(n, new double[]{j.id, cur[0], cur[1]});
+                    else if (ns.getBlock() instanceof GearboxBlock g && !seen.containsKey(n) && seen.size() < 64) { seen.put(n, new double[]{cur[0] * g.ratio, cur[1] * g.efficiency}); gq.add(n); }
+                }
+            }
+        }
         // ---- parts: motors, engines, thrusters, gyros, seat ----
         for (var e : blocks.entrySet()) {
             BlockPos p = e.getKey(); BlockState s = e.getValue(); Block b = s.getBlock();
             if (b instanceof MotorBlock mb) {
-                Integer cl = null;
-                for (Direction d : Direction.values()) { cl = clusterOf.get(p.relative(d)); if (cl != null) break; }
-                if (cl != null) { Joint j = joints.get(cl); j.motors++; j.motorTorque += mb.tier.motorTorque; j.motorPower += mb.tier.motorPower; j.motorDrive += mb.tier.driveForce; }
+                double[] mg = motorGear.get(p);
+                if (mg != null) {
+                    Joint j = joints.get((int) mg[0]); double ratio = mg[1], eff = mg[2];
+                    j.motors++; j.motorTorque += mb.tier.motorTorque * ratio * eff; j.motorPower += mb.tier.motorPower; j.motorDrive += mb.tier.driveForce;
+                    double sp = mb.tier.motorRpm * 6 / ratio;
+                    j.maxSpeed = j.maxSpeed == 0 ? sp : Math.min(j.maxSpeed, sp); j.ratios.add(ratio);
+                }
                 else { driveMotors++; driveForce += mb.tier.driveForce; drivePower += mb.tier.motorPower; }
             } else if (b instanceof ColossalBattery cb) {
                 CompoundTag tag = this.bes.get(p); long en = tag == null ? 0 : tag.getLong("Energy");
@@ -248,18 +286,31 @@ public class StructureModel {
         footing();
     }
 
-    /** Feet = parts that hold the lowest blocks. Legged = some foot is not the core part. */
+    /** Footing and balance, worked out from the feet up.
+     *  Feet = parts holding the lowest blocks. A walker stands if:
+     *  1) the Hull Core's part has a gyro (it needs power while running),
+     *  2) every joint from each foot up to the core has a strong enough motor,
+     *  3) the centre of mass is over the feet (the support area), widened a little by the gyro. */
     private void footing() {
         int minY = Integer.MAX_VALUE;
         for (BlockPos p : solid) minY = Math.min(minY, p.getY());
         Set<Integer> footSegs = new TreeSet<>();
-        for (BlockPos p : solid) if (p.getY() == minY) footSegs.add(segOf.getOrDefault(p, 0));
-        // only walkers: stands on parts below joints AND has joints set to Walk (a ship's hanging rudder doesn't count)
-        legged = footSegs.stream().anyMatch(sg -> sg != 0) && joints.stream().anyMatch(j -> j.mode == WALK_A || j.mode == WALK_B);
+        int x0 = Integer.MAX_VALUE, z0 = Integer.MAX_VALUE, x1 = Integer.MIN_VALUE, z1 = Integer.MIN_VALUE;
+        for (BlockPos p : solid) if (p.getY() == minY) {
+            footSegs.add(segOf.getOrDefault(p, 0));
+            x0 = Math.min(x0, p.getX()); z0 = Math.min(z0, p.getZ()); x1 = Math.max(x1, p.getX() + 1); z1 = Math.max(z1, p.getZ() + 1);
+        }
+        legged = footSegs.stream().anyMatch(sg -> sg != 0) && joints.stream().anyMatch(j -> j.mode == WALK_A || j.mode == WALK_B || j.mode == PROGRAM);
+        coreGyro = segGyro.getOrDefault(0, 0.0);
         if (!legged) return;
+        support = new AABB(x0, minY, z0, x1, minY + 1, z1);
+        double margin = coreGyro <= 0 ? 0 : 0.25 + 1.5 * Math.min(1, coreGyro / mass);
+        AABB area = support.inflate(margin, 0, margin);
+        double cx = Math.max(area.minX, Math.min(area.maxX, com.x)), cz = Math.max(area.minZ, Math.min(area.maxZ, com.z));
+        balanceOffset = new Vec3(com.x - cx, 0, com.z - cz);
+        boolean pathsOk = true;
         for (int sg : footSegs) {
-            double g = segGyro.getOrDefault(sg, 0.0);
-            String problem = g <= 0 ? "no gyro in this foot" : null;
+            String problem = null;
             int cur = sg, guard = 0;
             while (problem == null && cur > 0 && guard++ < 1000) {
                 Seg seg = segs.get(cur);
@@ -269,12 +320,35 @@ public class StructureModel {
                 else if (j.motorTorque < j.reqTorque) problem = "joint J" + j.id + " motor too weak";
                 cur = Math.max(0, j.parentSeg);
             }
-            boolean ok = problem == null;
-            feet.add(new Foot(sg, g, ok, ok ? "" : problem));
-            if (ok) footingGyro += g;
+            feet.add(new Foot(sg, 0, problem == null, problem == null ? "" : problem));
+            pathsOk &= problem == null;
         }
+        footingGyro = coreGyro > 0 && pathsOk ? coreGyro : 0;
     }
+    public double coreGyro;
+    public AABB support;
+    /** How far (blocks) the centre of mass sits outside the support area. Zero when balanced. */
+    public Vec3 balanceOffset = Vec3.ZERO;
+    public boolean balanced() { return !legged || balanceOffset.lengthSqr() < 1e-6; }
     public boolean footingOk() { return !legged || footingGyro > 0; }
+
+    /** Degrees per second this joint's movement asks for at the current gait speed. */
+    public double neededSpeed(Joint j) {
+        double cps = gaitSpeed;
+        return switch (j.mode) {
+            case WALK_A, WALK_B -> j.amp * 2 * Math.PI * cps;
+            case PROGRAM -> { int mx = 0; for (int i = 0; i < KEYS; i++) mx = Math.max(mx, Math.abs(j.keys[(i + 1) % KEYS] - j.keys[i])); yield mx * KEYS * cps * j.speedFactor; }
+            case SWAY -> j.amp * 0.5 * 0.06 * 20;
+            case SPIN -> 360;
+            default -> 0;
+        };
+    }
+    /** Fraction of the asked gait speed the gears allow (1 = full speed). */
+    public double gaitScale() {
+        double sc = 1;
+        for (Joint j : joints) if ((j.mode == WALK_A || j.mode == WALK_B || j.mode == PROGRAM) && j.active()) { double need = neededSpeed(j); if (need > 0) sc = Math.min(sc, j.maxSpeed / need); }
+        return sc;
+    }
 
     private void addEngine(BlockPos p, EngineTier t, boolean running, String note) {
         CompoundTag tag = bes.get(p);
@@ -290,8 +364,8 @@ public class StructureModel {
 
     public static Vec3 axisVec(Direction.Axis a) { return a == Direction.Axis.X ? new Vec3(1, 0, 0) : a == Direction.Axis.Y ? new Vec3(0, 1, 0) : new Vec3(0, 0, 1); }
 
-    public boolean hasWalkers() { for (Joint j : joints) if ((j.mode == WALK_A || j.mode == WALK_B) && !j.stalled()) return true; return false; }
-    public double walkDrive() { double d = 0; for (Joint j : joints) if ((j.mode == WALK_A || j.mode == WALK_B) && !j.stalled()) d += j.motorDrive; return d; }
+    public boolean hasWalkers() { for (Joint j : joints) if ((j.mode == WALK_A || j.mode == WALK_B || j.mode == PROGRAM) && !j.stalled()) return true; return false; }
+    public double walkDrive() { double d = 0; for (Joint j : joints) if ((j.mode == WALK_A || j.mode == WALK_B || j.mode == PROGRAM) && !j.stalled()) d += j.motorDrive; return d; }
     public double walkPower() { double d = 0; for (Joint j : joints) if (j.active()) d += j.motorPower; return d; }
     public double maxDraw() { double d = drivePower + gyroPower + walkPower(); for (double v : thrustPow) d += v; return d; }
 
@@ -304,6 +378,14 @@ public class StructureModel {
             case WALK_B -> amp * Math.sin(walkPhase + Math.PI) * walkBlend;
             case SPIN -> spin;
             case SWAY -> amp * 0.5 * Math.sin(time * 0.06 + j.id * 0.9);
+            case PROGRAM -> {
+                double f = walkPhase / (2 * Math.PI) * j.speedFactor + j.phase / 360.0;
+                if (j.loop) f = time / 20.0 * gaitSpeed * j.speedFactor + j.phase / 360.0;
+                f = f - Math.floor(f);
+                double idx = f * KEYS; int i0 = (int) Math.floor(idx) % KEYS, i1 = (i0 + 1) % KEYS; double t = idx - Math.floor(idx);
+                double deg = j.keys[i0] * (1 - t) + j.keys[i1] * t;
+                yield Math.toRadians(deg) * (j.loop ? 1 : walkBlend);
+            }
             default -> 0;
         };
     }

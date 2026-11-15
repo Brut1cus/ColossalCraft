@@ -33,11 +33,18 @@ public class PowerBlockEntity extends BlockEntity implements net.minecraft.world
     public final net.neoforged.neoforge.items.ItemStackHandler fuel = new net.neoforged.neoforge.items.ItemStackHandler(1) {
         @Override public boolean isItemValid(int slot, ItemStack stack) { EngineTier t = tier(); return t != null && t.fuelValue(stack) != 0; }
         @Override protected void onContentsChanged(int slot) { setChanged(); }
+        /** Pipes/hoppers may only pull out leftovers (empty buckets), never fuel. */
+        @Override public ItemStack extractItem(int slot, int amount, boolean simulate) { return isItemValid(slot, getStackInSlot(slot)) ? ItemStack.EMPTY : super.extractItem(slot, amount, simulate); }
     };
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, PowerBlockEntity be) {
         ItemStack st = be.fuel.getStackInSlot(0);
-        if (!st.isEmpty() && be.addFuel(st, true)) { be.addFuel(st, false); be.fuel.extractItem(0, 1, false); }
+        if (!st.isEmpty() && be.addFuel(st, true)) {
+            be.addFuel(st, false);
+            ItemStack leftover = st.getCraftingRemainingItem(); // lava bucket -> empty bucket
+            ItemStack now = st.copy(); now.shrink(1);
+            be.fuel.setStackInSlot(0, now.isEmpty() ? leftover.copy() : now);
+        }
         if (!(state.getBlock() instanceof ControllerBlock) || level.getGameTime() % 20 != 0) return;
         ControllerBlock c = (ControllerBlock) state.getBlock();
         String msg = c.def.validate(level, pos, state.getValue(ControllerBlock.FACING));

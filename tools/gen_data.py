@@ -261,3 +261,23 @@ w(f'{D}/recipe/kinetic_dynamo.json', {'neoforge:conditions': [{'type': 'neoforge
     'key': {'A': {'item': 'create:andesite_alloy'}, 'C': {'item': 'create:andesite_casing'}, 'H': {'item': 'create:shaft'}, 'R': {'item': f'{NS}:redstone_dynamo'}},
     'result': {'id': f'{NS}:kinetic_dynamo', 'count': 1}})
 print('compat data done')
+
+# --- gearboxes + natural ground tag ---
+for n, nm in [('overdrive_gearbox', 'Overdrive Gearbox (1:2, faster)'), ('spur_gearbox', 'Spur Gearbox (2:1)'), ('planetary_gearbox', 'Planetary Gearbox (5:1)'), ('worm_drive', 'Worm Drive (20:1)')]:
+    cube_all(n, name=nm); item_from_block(n)
+    w(f'{D}/loot_table/blocks/{n}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{n}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
+lang = json.load(open(f'{A}/lang/en_us.json'))
+for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]
+lang[f'block.{NS}.flux_accumulator'] = 'Flux Accumulator'; lang[f'block.{NS}.kinetic_dynamo'] = 'Kinetic Dynamo'
+w(f'{A}/lang/en_us.json', lang)
+w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in blocks if b not in ('sky_sail', 'kinetic_dynamo', 'gantry_scaffold')] + [{'id': f'{NS}:kinetic_dynamo', 'required': False}]})
+shaped('spur_gearbox', ['SIS', 'ICI', 'SIS'], {'S': S, 'I': 'minecraft:iron_ingot', 'C': 'minecraft:copper_ingot'}, 2)
+shaped('overdrive_gearbox', ['SGS', 'GBG', 'SGS'], {'S': S, 'G': 'minecraft:gold_ingot', 'B': 'spur_gearbox'})
+shaped('planetary_gearbox', ['SBS', 'BDB', 'SBS'], {'S': S, 'B': 'spur_gearbox', 'D': 'minecraft:diamond'})
+shaped('worm_drive', ['SBS', 'RPR', 'SBS'], {'S': S, 'B': 'minecraft:iron_block', 'R': 'minecraft:redstone', 'P': 'planetary_gearbox'})
+w(f'{D}/tags/block/natural_ground.json', {'values': ['#minecraft:dirt', '#minecraft:sand', '#minecraft:base_stone_overworld', '#minecraft:base_stone_nether',
+    'minecraft:gravel', 'minecraft:snow', 'minecraft:snow_block', 'minecraft:powder_snow', 'minecraft:ice', 'minecraft:packed_ice', 'minecraft:blue_ice',
+    'minecraft:clay', 'minecraft:end_stone', 'minecraft:short_grass', 'minecraft:tall_grass', 'minecraft:fern', 'minecraft:large_fern', 'minecraft:dead_bush',
+    'minecraft:sculk', 'minecraft:soul_sand', 'minecraft:soul_soil', 'minecraft:mycelium', 'minecraft:podzol', 'minecraft:mud', 'minecraft:bedrock',
+    '#minecraft:flowers']})
+print('gear data done')

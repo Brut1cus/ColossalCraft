@@ -53,6 +53,12 @@ public final class SimpleParts {
         public MotorBlock(MaterialTier t, Properties p) { super(p); tier = t; }
     }
 
+    /** Gearbox: placed between Servo Motors and a joint. Multiplies torque by ratio (times efficiency) and divides speed by ratio. Chains multiply. */
+    public static class GearboxBlock extends Block {
+        public final double ratio, efficiency; public final String label;
+        public GearboxBlock(double ratio, double efficiency, String label, Properties p) { super(p); this.ratio = ratio; this.efficiency = efficiency; this.label = label; }
+    }
+
     /** Thruster. FACING = nozzle direction; push goes the other way. */
     public static class ThrusterBlock extends DirectionalBlock {
         public final ThrusterTier tier;

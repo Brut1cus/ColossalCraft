@@ -193,3 +193,23 @@ for y in range(16):
         if x % 4 == 0 or y % 4 == 0: px(gd, x, y, hx(0x8a9096))
 save(gd, B, 'gantry_scaffold_deck')
 print('scaffold textures done')
+
+# --- gearboxes: steel housing with a gear face, accent by type ---
+def gear_face(seed, accent, teeth, name):
+    im = base(STEEL, seed); bevel(im, STEEL); rivets(im, STEEL)
+    for k in range(teeth):
+        a = 2 * math.pi * k / teeth
+        for r in (5.5, 6.5):
+            x = int(round(7.5 + r * math.cos(a))); y = int(round(7.5 + r * math.sin(a)))
+            if 0 <= x < 16 and 0 <= y < 16: px(im, x, y, shade(accent, 0.8))
+    circle(im, 8, 8, 5, shade(accent, 0.9)); circle(im, 8, 8, 3.5, shade(STEEL, 0.6)); circle(im, 8, 8, 1.6, shade(accent, 1.2))
+    save(im, B, name)
+gear_face(700, hx(0x46ff7e), 8, 'overdrive_gearbox')
+gear_face(701, hx(0xd9d9d9), 10, 'spur_gearbox')
+gear_face(702, hx(0x3aa0ff), 14, 'planetary_gearbox')
+wd = base(STEEL, 703); bevel(wd, STEEL); rivets(wd, STEEL)
+for y in range(3, 13):
+    for x in range(3, 13):
+        if (x + y) % 3 == 0: px(wd, x, y, hx(0xffb43a))
+rect(wd, 7, 2, 8, 13, shade(STEEL, 1.3)); save(wd, B, 'worm_drive')
+print('gear textures done')

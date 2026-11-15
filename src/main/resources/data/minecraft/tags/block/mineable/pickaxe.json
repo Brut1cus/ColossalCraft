@@ -55,6 +55,10 @@
     "colossalcraft:ion_lance",
     "colossalcraft:graviton_lens",
     "colossalcraft:flux_accumulator",
+    "colossalcraft:overdrive_gearbox",
+    "colossalcraft:spur_gearbox",
+    "colossalcraft:planetary_gearbox",
+    "colossalcraft:worm_drive",
     {
       "id": "colossalcraft:kinetic_dynamo",
       "required": false

@@ -69,13 +69,36 @@ Scaling for a joint of total strength k (an **n×n** square of full joints has k
 
 Load counts gravity plus acceleration. If a joint stays over 100% load, it creaks, sparks and then **snaps**, and everything hanging from it falls off as blocks.
 
-## Walkers and footing
-A Colossus that stands on parts hanging from joints set to **Walk** is a walker. It falls over unless:
-1. at least one **foot** (a part holding the lowest blocks) contains a **gyro** (a Pocket Gyro or a gyro structure), and
-2. every joint from that foot up to the Hull Core has a **Servo Motor** strong enough to hold it, and
-3. there is **power** (gyros use energy all the time).
+## Walkers and balance
+A Colossus that stands on parts hanging from joints set to **Walk** or **Program** is a walker. Balance is worked out from the feet up. It stays standing only if:
+1. the **Hull Core's part** has a **gyro** (a Pocket Gyro or a gyro structure) with **power**,
+2. every joint from each foot up to the core has a strong enough **Servo Motor**, and
+3. the **centre of mass is over the feet**. The gyro widens that area a little.
 
-Balance starts at the feet and is passed up the joints to the core. If power runs out, it tips over. It stands back up once power and footing return. The Overview checklist shows what's missing.
+Otherwise it tips over towards its heavy side. The Overview checklist and the **Top** view in the Joints tab (the cyan box is the feet, + is the weight) show what's wrong.
+
+## Joints view (2D schematic)
+The Joints tab draws the whole Colossus from the side (X or Z) or from the top:
+- **green** is the core part, **blue** marks the other parts, **yellow** marks bearings, and **red** marks problems.
+- Click a joint marker to select it.
+- Red X marks show where the build touches natural ground. Build on Gantry Scaffold instead.
+
+## Animate tab
+- **Gait speed** is how many steps per second the walker takes.
+- For each joint: **Use Program**, then set **8 keyframe angles** (they play over one step), a **phase** (180° for the opposite leg), a **speed** factor, and **Loop** (plays even when standing still, for idle animations).
+- The screen shows how fast each joint has to turn and how fast its gears allow. If gears are too slow, the whole gait slows down to match.
+
+## Gearboxes
+Place a gearbox between a Servo Motor and a joint (motor touches gearbox, gearbox touches joint). Gearboxes in a chain multiply.
+
+| Gearbox | Ratio | Torque | Speed |
+|---|---|---|---|
+| Overdrive Gearbox | 1:2 | ×0.5 | ×2 |
+| Spur Gearbox | 2:1 | ×1.9 | ×½ |
+| Planetary Gearbox | 5:1 | ×4.5 | ×⅕ |
+| Worm Drive | 20:1 | ×12 | ×1/20 |
+
+Motor top speeds (before gears): Timber 30 RPM, Cobble 40, Iron 60, Gilded 120, Diamond 120 (1 RPM = 6°/s).
 
 ## Motors
 **Servo Motors** come in Timber, Cobble, Iron, Gilded and Diamond.
@@ -94,7 +117,7 @@ Balance starts at the feet and is passed up the joints to the core. If power run
 | VI | Fusion Torus | 5x5x5 | 25,000 | Deuterium Cells |
 | VII | Zero-Point Core | 5x5x5 | 100,000 | one Nether Star primes it forever |
 
-Right-click an engine to open its screen. It works like a furnace: put fuel in the slot, and it burns into stored energy. Hoppers and pipes fill the slot too.
+Right-click an engine to open its screen. It works like a furnace: put fuel in the slot, and it burns into stored energy. A lava bucket gives the empty bucket back. Hoppers and pipes fill the slot too.
 
 **Multiblocks:** build a cube. The outside is casing, the inside is the core block, and the controller goes in the middle of one face, front facing out. Its front lights up when the structure is complete.
 
