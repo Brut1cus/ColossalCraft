@@ -75,6 +75,23 @@ public class StructureModel {
         public boolean stalled() { return !ball && mode != LOCKED && !childSegs.isEmpty() && (motorTorque <= 0 || motorTorque < reqTorque); }
         public boolean active() { return mode != LOCKED && !childSegs.isEmpty() && !stalled(); }
     }
+    /** What a joint is for and which mode it should use: {role text, recommended mode, -1 = any}. */
+    public Object[] role(Joint j) {
+        if (j.ball) return new Object[]{"Ankle (ball joint): keeps the foot level by itself. Its mode is ignored; set its Limit (±5° is tight).", -1};
+        if (j.childSegs.isEmpty()) return new Object[]{"Nothing hangs from this joint.", -1};
+        boolean footBelow = j.footShare > 0;
+        if (footBelow && j.axis == Direction.Axis.Y) return new Object[]{"Twists a whole leg: walkers can't step with it. Use Locked.", LOCKED};
+        if (footBelow) {
+            for (LegChain L : legChains) {
+                int k = L.joints().indexOf(j.id);
+                if (k == 0) return new Object[]{"Hip: swings the leg forward and back. Use Leg (needs a motor).", LEG};
+                if (k > 0) return new Object[]{"Knee: bends the leg and holds the weight up. Use Leg (needs a motor).", LEG};
+            }
+            return new Object[]{"Hip or knee of a leg: use Leg so the leg can step (needs a motor).", LEG};
+        }
+        if (j.blades > 0) return new Object[]{"Rotor: blades on it make thrust. Use Spin.", SPIN};
+        return new Object[]{"Arm, tail or turret: Locked (rigid), Spin (keeps turning) or Sway (idle motion).", -1};
+    }
     public record Thruster(BlockPos pos, Direction push, double force, double power, int seg) {}
     /** Motors of the same material and axis touching each other: one bigger motor (n x n grid). */
     public record MotorCluster(List<BlockPos> blocks, MaterialTier tier, Direction.Axis axis, int k, int n, Vec3 center, int joint, double ratio) {}
@@ -487,9 +504,9 @@ public class StructureModel {
             while (cur > 0 && guard++ < 1000) {
                 Seg sg = segs.get(cur); if (sg.parentJoint < 0) break;
                 Joint j = joints.get(sg.parentJoint);
-                if (isLegMode(j.mode) && j.axis != Direction.Axis.Y) chain.add(0, j.id);
+                if (isLegMode(j.mode) && !j.ball && j.axis != Direction.Axis.Y) chain.add(0, j.id); // ball joints level themselves, never IK
                 cur = Math.max(0, j.parentSeg); body = cur;
-                if (!chain.isEmpty() && !isLegMode(j.mode)) break;
+                if (!chain.isEmpty() && !isLegMode(j.mode) && !j.ball) break;
             }
             if (chain.isEmpty() || !usedHips.add(chain.get(0))) continue;
             Joint hipJ = joints.get(chain.get(0));

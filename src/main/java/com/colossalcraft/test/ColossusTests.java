@@ -470,11 +470,14 @@ public class ColossusTests {
             ColossusEntity b = ColossusEntity.below(h.getLevel(), ap);
             h.assertTrue(b == c, "hoist doesn't see the Colossus");
             b.holdBy(ap);
-            h.runAfterDelay(40, () -> {
+            h.runAfterDelay(90, () -> {
                 h.assertTrue(c.heldBy() != null && !c.onGroundC, "not held");
+                double top = c.getY() + (c.model.localBounds.maxY - c.model.com.y);
+                ColossalCraft.LOG.info("[test] hoist top={} hoist={}", top, ap.getY());
+                h.assertTrue(top > ap.getY() - 0.3 && top <= ap.getY() + 1e-3, "should be winched right up to the hoist, top=" + top + " hoist=" + ap.getY());
                 h.assertTrue(c.disassemble(null), "park failed");
-                h.assertBlockPresent(Blocks.AIR, new BlockPos(7, 1, 7));      // a gap under the parked deck
-                h.assertBlockPresent(Blocks.OAK_PLANKS, new BlockPos(7, 2, 7));
+                h.assertBlockPresent(Blocks.AIR, new BlockPos(7, 2, 7));      // the deck moved up, a big gap under it
+                h.assertBlockNotPresent(Blocks.AIR, new BlockPos(7, 11, 7)); // the top sits right under the hoist
                 h.succeed();
             });
         });
@@ -712,19 +715,52 @@ public class ColossusTests {
         h.assertTrue(r.model.legChains.size() == 2, "expected 2 legs, got " + r.model.legChains.size());
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7)), null), "assemble failed");
         double[] start = new double[3]; double[] jitter = {0}; net.minecraft.world.phys.Vec3[] lastV = {null};
+        double[] slide = {0}; int[] bothUp = {0}; net.minecraft.world.phys.Vec3[][] lastF = {null}; WalkerController.State[][] lastS = {null};
         h.runAfterDelay(30, () -> { ColossusEntity c = find(h); start[0] = c.getZ(); start[1] = c.getY(); c.autopilot = true; c.setInput(1, 0, false, false); lastV[0] = c.vel; });
         for (int t = 31; t <= 200; t++) { int tt = t; h.runAfterDelay(t, () -> {
             ColossusEntity c = find(h);
+            if (tt == 130) c.setInput(0, 0, false, false); // stop before the test area's wall, then stand
             net.minecraft.world.phys.Vec3 dv = c.vel.subtract(lastV[0]); lastV[0] = c.vel;
             jitter[0] += dv.length();
+            var w = c.walker;
+            if (lastF[0] != null) for (int i = 0; i < w.foot.length; i++)
+                if (w.state[i] == WalkerController.State.STANCE && lastS[0][i] == WalkerController.State.STANCE) slide[0] = Math.max(slide[0], w.foot[i].subtract(lastF[0][i]).length());
+            int up = 0; for (var st : w.state) if (st != WalkerController.State.STANCE) up++;
+            if (up == w.state.length) bothUp[0]++;
+            lastF[0] = w.foot.clone(); lastS[0] = w.state.clone();
             if (tt % 10 == 0) ColossalCraft.LOG.info("[test] big mech t={} pos={} vel={} tilt={} feet={}", tt, c.position(), c.vel, c.tilt, c.walker.status);
         }); }
         h.runAfterDelay(202, () -> {
             ColossusEntity c = find(h);
-            ColossalCraft.LOG.info("[test] big mech dz={} dy={} jitter(sum |dv|)={} tilt={}", c.getZ() - start[0], c.getY() - start[1], jitter[0], c.tilt);
+            ColossalCraft.LOG.info("[test] big mech dz={} dy={} jitter(sum |dv|)={} tilt={} maxStanceSlide={} bothUpTicks={}", c.getZ() - start[0], c.getY() - start[1], jitter[0], c.tilt, slide[0], bothUp[0]);
+            h.assertTrue(slide[0] < 0.02, "a planted foot slid " + slide[0]);
+            h.assertTrue(bothUp[0] == 0, "both feet were off the ground for " + bothUp[0] + " ticks");
             h.assertTrue(c.getZ() - start[0] < -2.0, "big mech should walk forward, dz=" + (c.getZ() - start[0]));
             h.assertTrue(c.tilt == 0, "big mech fell over");
             h.assertTrue(Math.abs(c.getY() - start[1]) < 1.0, "big mech sank or rose: " + (c.getY() - start[1]));
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 260)
+    public static void bigMechClimbsAStep(GameTestHelper h) {
+        bigMech(h, true);
+        for (int x = 0; x < 16; x++) for (int z = 0; z <= 4; z++) h.setBlock(x, 1, z, Blocks.STONE); // a 1-block step ahead
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7)), null), "assemble failed");
+        double[] y0 = {0}, pen = {0};
+        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); y0[0] = c.getY(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        for (int t = 31; t <= 230; t++) { int tt = t; h.runAfterDelay(t, () -> {
+            ColossusEntity c = find(h);
+            if (tt == 190) c.setInput(0, 0, false, false);
+            double p = WalkerController.maxLegPenetration(c);
+            if (p > pen[0]) { pen[0] = p; ColossalCraft.LOG.info("[test] step t={} penetration {} feet {}", tt, p, c.walker.status); }
+        }); }
+        h.runAfterDelay(232, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] step climb dy={} z={} tilt={} maxPen={}", c.getY() - y0[0], c.getZ(), c.tilt, pen[0]);
+            h.assertTrue(pen[0] < 0.15, "a leg sank into the ground by " + pen[0]);
+            h.assertTrue(c.tilt == 0, "fell over on the step");
+            h.assertTrue(c.getY() - y0[0] > 0.6, "should have climbed the step, dy=" + (c.getY() - y0[0]));
             h.succeed();
         });
     }

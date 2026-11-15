@@ -1,5 +1,6 @@
 package com.colossalcraft.colossus;
 
+import com.colossalcraft.ColossalCraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -30,7 +31,9 @@ public class WalkerController {
     public State[] state = new State[0];
     public Vec3[] foot = new Vec3[0];        // world contact point of each foot (centre of the soles, on the ground)
     private Vec3[] swingFrom = new Vec3[0], swingTo = new Vec3[0];
-    private double[] swingT = new double[0];
+    private double[] swingT = new double[0], swingLift = new double[0];
+    /** How far each foot's IK target is raised so no block of the leg sinks into the ground (lowest-point collision). */
+    private double[] footRaise = new double[0];
     public boolean[] slipping = new boolean[0];
     private int nextGroup = 0, waitingGroup = -1;
     private Vec3 track;
@@ -67,7 +70,7 @@ public class WalkerController {
         if (h == legsHash && state.length == m.legChains.size()) return;
         legsHash = h;
         int n = m.legChains.size();
-        state = new State[n]; foot = new Vec3[n]; swingFrom = new Vec3[n]; swingTo = new Vec3[n]; swingT = new double[n]; slipping = new boolean[n];
+        state = new State[n]; foot = new Vec3[n]; swingFrom = new Vec3[n]; swingTo = new Vec3[n]; swingT = new double[n]; swingLift = new double[n]; footRaise = new double[n]; slipping = new boolean[n];
         for (int i = 0; i < n; i++) { state[i] = State.AIR; foot[i] = footFromPose(c, i); }
         track = null; nextGroup = 0; waitingGroup = -1;
     }
@@ -86,11 +89,26 @@ public class WalkerController {
     public static double groundY(Level level, double x, double y, double z) {
         BlockPos.MutableBlockPos mp = new BlockPos.MutableBlockPos();
         int bx = (int) Math.floor(x), bz = (int) Math.floor(z);
+        boolean open = false; // a surface only counts with open space above it (not the inside of a wall)
         for (int by = (int) Math.floor(y + 1.0); by >= (int) Math.floor(y) - 3; by--) {
             mp.set(bx, by, bz);
             BlockState s = level.getBlockState(mp);
             VoxelShape sh = s.getCollisionShape(level, mp);
-            if (!sh.isEmpty()) return by + sh.max(net.minecraft.core.Direction.Axis.Y);
+            if (sh.isEmpty()) open = true;
+            else if (open || sh.max(net.minecraft.core.Direction.Axis.Y) < 0.99) return by + sh.max(net.minecraft.core.Direction.Axis.Y);
+        }
+        return Double.NaN;
+    }
+    /** Ground under (x, z) searching down from 'top' for 'depth' blocks. NaN if none. */
+    public static double groundFrom(Level level, double x, double top, double z, int depth) {
+        BlockPos.MutableBlockPos mp = new BlockPos.MutableBlockPos();
+        int bx = (int) Math.floor(x), bz = (int) Math.floor(z), t = (int) Math.floor(top);
+        boolean open = false;
+        for (int by = t; by >= t - depth; by--) {
+            mp.set(bx, by, bz);
+            VoxelShape sh = level.getBlockState(mp).getCollisionShape(level, mp);
+            if (sh.isEmpty()) open = true;
+            else if (open) { double y = by + sh.max(net.minecraft.core.Direction.Axis.Y); if (y <= top + 1e-6) return y; }
         }
         return Double.NaN;
     }
@@ -141,6 +159,7 @@ public class WalkerController {
         Vec3 vCmd = fW.scale(Math.max(-1, Math.min(1, fwd)) * vMax);
 
         if (launchTicks > 0) launchTicks--;
+        for (int i = 0; i < n; i++) footRaise[i] = Math.max(0, footRaise[i] - 0.05);
         Vec3[] H = new Vec3[n];
         for (int i = 0; i < n; i++) H[i] = hip(c, i);
 
@@ -155,7 +174,7 @@ public class WalkerController {
             } else if (state[i] == State.SWING) {
                 swingT[i] += dt / swingDur;
                 double t = Math.min(1, swingT[i]);
-                double lift = 0.2 * m.legChains.get(i).length();
+                double lift = swingLift[i];
                 Vec3 p = swingFrom[i].add(swingTo[i].subtract(swingFrom[i]).scale(t)).add(0, Math.sin(Math.PI * t) * lift, 0);
                 foot[i] = p;
                 if (t >= 1) {
@@ -188,6 +207,18 @@ public class WalkerController {
                         double stepLen = Math.min(stepMax, Math.max(vCmd.length(), vh.length()) * cycle);
                         Vec3 to = hipProj.add(dir.scale(stepLen * 0.5)).add(vh.scale(swingDur * 0.5)); // Raibert-style placement
                         Vec3 off = to.subtract(hipProj); if (off.length() > stepMax) to = hipProj.add(off.normalize().scale(stepMax));
+                        // land on the real ground there (up a step or down a slope), and lift high enough to clear what is in between
+                        double top = Math.min(H[i].y - 0.3, foot[i].y + 2.5);
+                        double gy = soleGround(c, i, new Vec3(to.x, top - 1, to.z));
+                        if (!Double.isNaN(gy) && gy > foot[i].y - 3) to = new Vec3(to.x, gy, to.z);
+                        else to = foot[i]; // a wall or a drop there: step in place
+                        double clear = Math.max(foot[i].y, to.y);
+                        for (int s = 1; s < 4; s++) {
+                            Vec3 q = foot[i].add(to.subtract(foot[i]).scale(s / 4.0));
+                            double qy = soleGround(c, i, new Vec3(q.x, top - 1, q.z));
+                            if (!Double.isNaN(qy)) clear = Math.max(clear, qy);
+                        }
+                        swingLift[i] = 0.2 * m.legChains.get(i).length() + (clear - Math.max(foot[i].y, to.y)) + 0.1;
                         swingFrom[i] = foot[i]; swingTo[i] = to; swingT[i] = 0; state[i] = State.SWING;
                     }
                     nextGroup = G + 1;
@@ -214,14 +245,20 @@ public class WalkerController {
         }
         if (track == null || track.subtract(com).multiply(1, 0, 1).length() > 1.5) track = new Vec3(com.x, 0, com.z);
         track = track.add(vCmd.scale(dt));
-        boolean waiting = waitingGroup >= 0 && !(biped && insideSupport(others(planted, waitingGroup, m), com, liftR + 1));
+        boolean waiting = waitingGroup >= 0; // a step is due but the weight isn't over the other feet yet
         List<Vec3> support = new ArrayList<>();
         if (waitingGroup >= 0) support.addAll(others(planted, waitingGroup, m));
         else for (int i : planted) support.add(foot[i]);
         Vec3 desired = track;
         if (!support.isEmpty()) {
             Vec3 sc = Vec3.ZERO; for (Vec3 p : support) sc = sc.add(p); sc = sc.scale(1.0 / support.size());
-            if (waiting) { desired = new Vec3(sc.x, 0, sc.z); track = new Vec3(com.x, 0, com.z); }
+            if (waiting) {
+                // stop going forward and lean just far enough over the feet that will carry the weight
+                Vec3 o = new Vec3(com.x - sc.x, 0, com.z - sc.z);
+                double r = Math.max(0, liftR - 0.35);
+                if (o.length() > r) o = o.normalize().scale(r);
+                desired = new Vec3(sc.x + o.x, 0, sc.z + o.z); track = desired;
+            }
             else {
                 // shift sideways only as far as needed to be within balance range of the supporting feet (the gyro covers the rest)
                 double lat = sc.subtract(desired).dot(rW);
@@ -241,7 +278,17 @@ public class WalkerController {
             if (tAway > 0.95 * reachH) track = track.subtract(od.scale(tAway - 0.95 * reachH));
         }
         if (waiting) vDes = Vec3.ZERO;
-        else desired = new Vec3(track.x, 0, track.z).add(rW.scale(desired.subtract(track).dot(rW)));
+        else {
+            desired = new Vec3(track.x, 0, track.z).add(rW.scale(desired.subtract(track).dot(rW)));
+            // with every foot down, keep the weight within reach of the support area in all directions (not only sideways)
+            if (!support.isEmpty() && !insideSupport(support, desired, Math.max(0.3, liftR - 0.35))) {
+                Vec3 q = closestOnSupport(support, desired);
+                Vec3 o = desired.subtract(q); double r = Math.max(0.3, liftR - 0.35);
+                desired = q.add(o.normalize().scale(r)); track = desired;
+                Vec3 toward = new Vec3(desired.x - com.x, 0, desired.z - com.z);
+                if (toward.lengthSqr() > 1e-6 && vDes.dot(toward) < 0) vDes = vDes.subtract(toward.normalize().scale(vDes.dot(toward.normalize())));
+            }
+        }
         Vec3 aDes = new Vec3(desired.x - com.x, 0, desired.z - com.z).scale(KP).add(vDes.subtract(vh).scale(KD));
 
         // ---- 4. ground reaction limits: grip and hip torque sideways; knee torque upwards
@@ -261,6 +308,8 @@ public class WalkerController {
             }
         }
         Vec3 Fdem = aDes.scale(M);
+        // never ask the feet for more than they can grip: planted feet stay put instead of dragging along
+        if (Fdem.length() > 0.8 * fricSum) Fdem = Fdem.normalize().scale(0.8 * fricSum);
         Vec3 Fh = Fdem.length() > capSum ? (Fdem.length() < 1e-9 ? Vec3.ZERO : Fdem.normalize().scale(capSum)) : Fdem;
         boolean slip = Fdem.length() > fricSum + 1e-6 && fricSum <= capSum + 1e-6;
         for (int i : planted) slipping[i] = slip;
@@ -288,13 +337,13 @@ public class WalkerController {
                 Vec3 hp = hip(c, i), e = effectorWorld(c, i), d = hp.subtract(e);
                 double len = d.length();
                 double maxL = L.joints().size() > 1 ? maxReach(m, L) : L.hip().distanceTo(L.effector());
-                double minL = L.joints().size() > 1 ? 0.5 * maxL : 0.97 * maxL;
+                double minL = L.joints().size() > 1 ? minReach(m, L) : 0.97 * maxL;
                 double target = len > maxL ? maxL : len < minL ? minL : len;
                 if (target == len || len < 1e-6) continue;
                 Vec3 ci = d.scale((target - len) / len);
                 double tan = Math.sqrt(d.x * d.x + d.z * d.z) / Math.max(1e-6, Math.abs(d.y));
                 double muS = 1.25 * Math.min(L.mu(), groundMu(level, foot[i]));
-                if (tan > muS) { foot[i] = foot[i].add(-ci.x, 0, -ci.z); slipping[i] = true; ci = new Vec3(0, ci.y, 0); }
+                if (L.joints().size() == 1 && tan > muS) { foot[i] = foot[i].add(-ci.x, 0, -ci.z); slipping[i] = true; ci = new Vec3(0, ci.y, 0); }
                 corr = corr.add(ci); k++;
             }
             if (k == 0) break;
@@ -306,10 +355,13 @@ public class WalkerController {
 
         // ---- 6. IK and balance check
         solveAllIK(c);
-        List<Vec3> feetDown = new ArrayList<>(); for (int i : planted) feetDown.add(foot[i]);
+        keepLegsOutOfGround(c);
+        // tipping: the weight must stay over the feet. A foot in mid-step counts where it will land (it is about to catch the weight).
+        List<Vec3> feetDown = new ArrayList<>();
+        for (int i = 0; i < n; i++) if (state[i] == State.STANCE) feetDown.add(foot[i]); else if (state[i] == State.SWING) feetDown.add(swingTo[i]);
         boolean outside = !insideSupport(feetDown, c.position(), 0.5 + margin(m) + (biped ? 0.75 : 0));
-        outsideTicks = outside ? outsideTicks + 1 : 0;
-        unbalanced = outsideTicks > 20;
+        outsideTicks = outside ? outsideTicks + 1 : Math.max(0, outsideTicks - 2);
+        unbalanced = outsideTicks > 30;
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < n; i++) sb.append(i == 0 ? "" : " ").append(state[i] == State.STANCE ? (slipping[i] ? "SLIP" : "DOWN") : state[i] == State.SWING ? "STEP" : "AIR");
         status = sb + (waiting ? "  shifting weight" : "");
@@ -321,7 +373,89 @@ public class WalkerController {
     /** Where the IK effector (ankle or foot) must be for foot i's contact point. */
     private Vec3 effectorWorld(ColossusEntity c, int i) {
         StructureModel.LegChain L = c.model.legChains.get(i);
-        return foot[i].add(levelOffset(c, L.foot(), L.effector()));
+        return foot[i].add(levelOffset(c, L.foot(), L.effector())).add(0, i < footRaise.length ? footRaise[i] : 0, 0);
+    }
+    /** Shortest the leg can get: every joint below the hip bent to its limit (same way). */
+    private static double minReach(StructureModel m, StructureModel.LegChain L) {
+        double best = 0;
+        for (int sgn = -1; sgn <= 1; sgn += 2) {
+            Matrix4d all = new Matrix4d();
+            for (int k = 1; k < L.joints().size(); k++) all.mul(jt(m.joints.get(L.joints().get(k)), sgn * L.limits()[k]));
+            Vector3d e = all.transformPosition(new Vector3d(L.effector().x, L.effector().y, L.effector().z));
+            best = Math.max(best, new Vec3(e.x, e.y, e.z).distanceTo(L.hip()));
+        }
+        return Math.max(best, 0.3 * maxReach(m, L));
+    }
+    /** Parts of leg i (everything between the hip and the foot). */
+    private static List<Integer> legSegs(StructureModel m, StructureModel.LegChain L) {
+        List<Integer> out = new ArrayList<>();
+        int cur = L.footSeg(), guard = 0, hipId = L.joints().get(0);
+        while (cur > 0 && guard++ < 1000) {
+            out.add(cur);
+            StructureModel.Seg sg = m.segs.get(cur);
+            if (sg.parentJoint < 0 || sg.parentJoint == hipId) break;
+            cur = Math.max(0, m.joints.get(sg.parentJoint).parentSeg);
+        }
+        return out;
+    }
+    /** How deep the lowest corner of any block of leg i is inside the ground (0 if none). */
+    private static double legPenetration(ColossusEntity c, StructureModel.LegChain L, Matrix4d[] W) {
+        Level level = c.level();
+        BlockPos.MutableBlockPos mp = new BlockPos.MutableBlockPos();
+        double deepest = 0;
+        for (int sgi : legSegs(c.model, L)) {
+            Matrix4d w = W[sgi];
+            for (BlockPos b : c.model.segs.get(sgi).blocks) {
+                if (c.model.segs.get(sgi).blocks.contains(b.below())) continue; // only the bottom faces
+                for (int k = 0; k < 4; k++) {
+                    double lx = b.getX() + ((k & 1) == 0 ? 0.05 : 0.95), lz = b.getZ() + ((k & 2) == 0 ? 0.05 : 0.95);
+                    Vector3d pt = w.transformPosition(new Vector3d(lx, b.getY() + 0.02, lz));
+                    double py = pt.y;
+                    // inside a block? climb its column to the surface. A column taller than one block is a wall, not ground: lifting won't help.
+                    double surface = Double.NaN;
+                    for (int up = 0; up < 3; up++) {
+                        mp.set((int) Math.floor(pt.x), (int) Math.floor(py) + up, (int) Math.floor(pt.z));
+                        VoxelShape sh = level.getBlockState(mp).getCollisionShape(level, mp);
+                        if (sh.isEmpty()) break;
+                        double topY = mp.getY() + sh.max(net.minecraft.core.Direction.Axis.Y), botY = mp.getY() + sh.min(net.minecraft.core.Direction.Axis.Y);
+                        if (up == 0 && (pt.y < botY - 1e-6 || pt.y >= topY)) break;
+                        surface = topY;
+                    }
+                    if (!Double.isNaN(surface) && surface - pt.y <= 1.0) deepest = Math.max(deepest, surface - pt.y);
+                }
+            }
+        }
+        return Math.min(1.5, deepest);
+    }
+    /** Deepest any leg block is inside the ground right now (for tests and debugging). */
+    public static double maxLegPenetration(ColossusEntity c) {
+        Matrix4d[] W = c.freshSegWorlds(); double d = 0;
+        for (StructureModel.LegChain L : c.model.legChains) d = Math.max(d, legPenetration(c, L, W));
+        return d;
+    }
+    /** Lowest-point collision: if any block of a leg ends up in the ground, raise that foot's target and solve again. */
+    private void keepLegsOutOfGround(ColossusEntity c) {
+        StructureModel m = c.model;
+        boolean digi = m.gaitMode == StructureModel.GAIT_DIGI;
+        for (int pass = 0; pass < 3; pass++) {
+            Matrix4d[] W = c.freshSegWorlds();
+            boolean any = false;
+            for (int i = 0; i < m.legChains.size(); i++) {
+                if (state[i] == State.AIR) continue;
+                double pen = legPenetration(c, m.legChains.get(i), W);
+                if (pen < 0.01) continue;
+                footRaise[i] = Math.min(2.0, footRaise[i] + pen); any = true;
+                StructureModel.LegChain L = m.legChains.get(i);
+                Matrix4d inv = new Matrix4d(c.segWorld(L.bodySeg())).invert();
+                Vec3 tw = effectorWorld(c, i);
+                Vector3d t = inv.transformPosition(new Vector3d(tw.x, tw.y, tw.z));
+                double[] ang = new double[L.joints().size()];
+                for (int k = 0; k < ang.length; k++) { double a = m.ikAngles[L.joints().get(k)]; ang[k] = Double.isNaN(a) ? 0 : a; }
+                solve(m, L, new Vec3(t.x, t.y, t.z), ang, digi);
+                for (int k = 0; k < ang.length; k++) m.ikAngles[L.joints().get(k)] = ang[k];
+            }
+            if (!any) break;
+        }
     }
     private static double maxReach(StructureModel m, StructureModel.LegChain L) {
         double sum = 0; Vec3 prev = L.hip();
@@ -500,6 +634,19 @@ public class WalkerController {
         double best = Double.MAX_VALUE;
         for (int i = 0; i < hull.size(); i++) best = Math.min(best, segDist(hull.get(i), hull.get((i + 1) % hull.size()), q));
         return best <= r;
+    }
+    /** Nearest point (y = 0) of the support area (feet hull) to p. */
+    public static Vec3 closestOnSupport(List<Vec3> feet, Vec3 p) {
+        if (insideSupport(feet, p, 0)) return new Vec3(p.x, 0, p.z);
+        double best = Double.MAX_VALUE; Vec3 out = new Vec3(feet.get(0).x, 0, feet.get(0).z);
+        for (int i = 0; i < feet.size(); i++) for (int j = i; j < feet.size(); j++) { // every edge between feet covers the hull's edges
+            double[] a = {feet.get(i).x, feet.get(i).z}, b = {feet.get(j).x, feet.get(j).z};
+            double dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+            double t = l2 < 1e-12 ? 0 : Math.max(0, Math.min(1, ((p.x - a[0]) * dx + (p.z - a[1]) * dz) / l2));
+            double qx = a[0] + t * dx, qz = a[1] + t * dz, d = (qx - p.x) * (qx - p.x) + (qz - p.z) * (qz - p.z);
+            if (d < best) { best = d; out = new Vec3(qx, 0, qz); }
+        }
+        return out;
     }
     private static double cross(double[] o, double[] a, double[] b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
     private static double segDist(double[] a, double[] b, double[] p) {

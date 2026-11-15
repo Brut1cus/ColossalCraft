@@ -102,6 +102,8 @@ public final class StructureScan {
         else if ((r.liveEnergy >= 0 ? r.liveEnergy : m.energy) <= 0 && !m.infinite) r.warnings.add("Engines are empty: add fuel.");
         for (StructureModel.Joint j : m.joints) {
             if (j.staticRatio > 1) r.warnings.add("Joint J" + j.id + " overloaded " + (int) (j.staticRatio * 100) + "% by what hangs below it: it will snap!");
+            { Object[] ro = m.role(j); int rec = (Integer) ro[1], cm = j.mode == StructureModel.WALK_B ? StructureModel.LEG : j.mode == StructureModel.PROGRAM ? 0 : j.mode;
+              if (rec >= 0 && rec != cm && (rec != StructureModel.LEG || m.locoControllers > 0)) r.warnings.add("Joint J" + j.id + ": " + ((String) ro[0]).split(":")[0] + " - set its Mode to " + (rec == 0 ? "Locked" : rec == 1 ? "Leg" : "Spin") + " (Locomotion Controller, Joints tab)."); }
             if (j.standRatio > 1) r.warnings.add("Joint J" + j.id + " overloaded " + (int) (j.standRatio * 100) + "% when standing (carries " + tons(j.standMass) + " from above): it will snap!");
             if (j.footShare > 0 && !j.ball && StructureModel.isLegMode(j.mode) && j.motors > 0 && j.motorTorque < j.standTorque)
                 r.warnings.add("Joint J" + j.id + " motors can't hold the weight standing: " + kilo(j.motorTorque) + " of " + kilo(j.standTorque) + " N*m.");
@@ -217,7 +219,7 @@ public final class StructureScan {
                 c.putBoolean("LegHip", true); c.putDouble("Grip", L.mu()); c.putDouble("Push", L.hipTorque() / Math.max(0.5, L.length()));
                 c.putDouble("Carry", L.vCap()); c.putDouble("LegLen", L.length()); c.putInt("LegJoints", L.joints().size());
             }
-            c.putInt("Blades", j.blades); c.putBoolean("Ball", j.ball); c.putInt("Group", j.group);
+            c.putInt("Blades", j.blades); c.putBoolean("Ball", j.ball); { Object[] ro = m.role(j); c.putString("Role", (String) ro[0]); c.putInt("RecMode", (Integer) ro[1]); } c.putInt("Group", j.group);
             c.putIntArray("Keys", j.keys.clone()); c.putInt("Phase", j.phase); c.putInt("SpeedX", (int) Math.round(j.speedFactor * 100)); c.putBoolean("Loop", j.loop);
             ListTag ch = new ListTag(); for (int cs : j.childSegs) { CompoundTag x = new CompoundTag(); x.putInt("S", cs); ch.add(x); } c.put("Children", ch);
             js.add(c);

@@ -151,6 +151,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         return new Vec3(model.com.x + dx * cs + dz * sn, model.com.y + dy, model.com.z - dx * sn + dz * cs);
     }
     public Matrix4d segWorld(int seg) { return segWorld(seg, position(), yaw, tilt, art); }
+    /** Where every part is right now, from the latest IK angles (not last tick's pose). */
+    public Matrix4d[] freshSegWorlds() { return segWorlds(position(), yaw, tilt, model.transforms(walkPhase, walkBlend, spin, tickCount)); }
     public Matrix4d segWorld(int seg, Vec3 pos, double yw, double tl, Matrix4d[] arts) {
         Matrix4d m = base(pos, yw, tl);
         if (seg < arts.length && arts[seg] != null) m.mul(arts[seg]);
@@ -430,7 +432,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public static void releaseFrom(Level level, BlockPos hoist) {
         for (ColossusEntity c : ColossusCollision.all(level)) if (hoist.equals(c.heldBy())) c.holdBy(null);
     }
-    /** Held by a hoist: no falling, stands upright, and is lifted until there is a block of air under it. */
+    /** Held by a hoist: no falling, stands upright, and is winched up as high as it can go (top just under the hoist). */
     private void heldPhysics() {
         BlockPos h = heldBy();
         BlockState hs = level().getBlockState(h);
@@ -440,10 +442,11 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         List<AABB> boxes = surfaceBoxes(position(), yaw);
         List<Vec3> centers = new ArrayList<>(); for (AABB bx : boxes) centers.add(bx.getCenter());
         Map<Long, List<AABB>> world = gatherWorld(centers, 2.2);
-        double probe = sweep(1, boxes, world, -1.0);
-        if (probe > -0.999 && getY() + (model.localBounds.maxY - model.com.y) < h.getY()) {
-            double lift = sweep(1, boxes, world, 0.1);
-            setPos(getX(), getY() + lift, getZ());
+        // winch up as far as it can go: until the top is just under the hoist, or something above blocks it
+        double room = h.getY() - 0.02 - (getY() + (model.localBounds.maxY - model.com.y));
+        if (room > 0.001) {
+            double lift = sweep(1, boxes, world, Math.min(0.1, room));
+            if (lift > 0) setPos(getX(), getY() + lift, getZ());
         }
         onGroundC = false;
     }

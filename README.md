@@ -83,11 +83,26 @@ A walker is a Hull (a rigid body) plus legs (chains of joints). The Hull never m
 3. **Balance controller:** works out the force the Hull needs (follow the pilot's speed, keep the weight over the feet), then splits it over the planted feet.
 4. **Ground reaction limits:** each foot can push sideways at most *grip × load*, and at most *hip motor torque ÷ hip height*. Grip is the lower of the foot block's and the ground's: about 0.8 normally, 0.02-0.04 on ice. A stiff leg also pushes along itself, so it only holds while tan(leg angle) ≤ grip. Past that the foot **slides**.
 5. **Hull dynamics:** the Hull moves only from those forces plus gravity and thrust. Legs are rigid struts: the Hull can't get further from a planted foot than the leg reaches, and it brakes before it would.
-6. **Gait:** before a foot lifts, the Hull stops and moves its weight over the foot that will carry it. Then the foot lifts, swings in an arc to a spot ahead (further at higher speed), and plants. Repeat.
+6. **Gait:** before a foot lifts, the Hull stops going forward and leans just far enough over the foot that will carry it. Planted feet never slide with the body. Then the foot lifts, swings in an arc to a spot ahead (further at higher speed), and plants. Repeat.
+
+7. **Terrain:** a step lands on the real ground there (up a step, down a slope) and lifts high enough to clear what's in between. If any leg block would end up inside the ground, that foot is raised. A wall or a drop of more than 1.5 blocks makes the foot step in place.
 
 Set each **hip** (and any **knee**) joint to **Leg**, with a foot under it. Left/right step groups are automatic. The Swing setting is the joint's angle limit. The HUD shows each foot: DOWN, STEP, SLIP.
 
 What it needs: grippy feet, hip motors strong enough to push the Hull, joints strong enough to carry the whole weight on one leg, and a powered gyro in the core part (below).
+
+## Which mode for which joint?
+The Joints tab tells you for each joint (and the scan warns if it's wrong):
+| Joint | Mode |
+|---|---|
+| Hip (top joint of a leg) | **Leg**, with a Servo Motor |
+| Knee (any joint lower in the leg) | **Leg**, with a Servo Motor |
+| Ankle **Ball Joint** | no mode (shows "auto"). It levels the foot by itself. Set its Limit, e.g. ±5° |
+| Joint that twists a whole leg (vertical axis) | **Locked** |
+| Arms, tails, turrets | **Locked** (rigid), **Spin** (keeps turning) or **Sway** (idle motion) |
+| Rotor with blades | **Spin** |
+
+**Locked** means the joint never moves: the parts on both sides act like one solid piece.
 
 ## Locomotion Controller
 Joint setup moved here from the Hull Core. One per walker.
@@ -124,7 +139,7 @@ The Joints tab (in the Locomotion Controller) is a 3D view of the whole Colossus
 - Red X marks show where the build touches natural ground. Build on Gantry Scaffold instead.
 
 ## Gantry Hoist
-Hang a **Gantry Hoist** above where the Colossus stands (up to 32 blocks up, usually on top of a scaffold frame). Right-click it to grab the Colossus below: it lifts it until there is air under it, holds it upright, and shows a chain. **Park** while it's held and the blocks stay off the ground, so you can **Build** it again later without picking up terrain. Right-click again to let go.
+Hang a **Gantry Hoist** above where the Colossus stands (up to 32 blocks up, usually on top of a scaffold frame). Right-click it to grab the Colossus below: it winches it up as high as it can go (its top right under the hoist, or until something above blocks it), holds it upright, and shows a chain. **Park** while it's held and the blocks stay off the ground, so you can **Build** it again later without picking up terrain. Right-click again to let go.
 
 ## Jets, propellers and rotors
 - **Jets (thrusters)** push along the way they actually point, even on a turning part (thrust vectoring). Jets placed off-center also turn the Colossus.

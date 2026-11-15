@@ -127,10 +127,13 @@ public class HullCoreScreen extends Screen {
         int idx = 0; for (int i = 0; i < MODE_CYCLE.length; i++) if (MODE_CYCLE[i] == mode) idx = i;
         int next = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length];
         int by = top() + H - 52, w = (W - NAV - 8 - 174) / 2 - 2;
-        Button mb = Button.builder(Component.literal("Mode: " + MODE_NAMES[mode]), z -> send(1, selected, next)).bounds(x, by, w, 14).build();
-        mb.setTooltip(Tooltip.create(Component.literal(MODE_HELP[mode] + "  (click for " + MODE_NAMES[next] + ")")));
+        boolean ball = j.getBoolean("Ball");
+        Button mb = Button.builder(Component.literal(ball ? "Mode: auto" : "Mode: " + MODE_NAMES[mode]), z -> send(1, selected, next)).bounds(x, by, w, 14).build();
+        mb.setTooltip(Tooltip.create(Component.literal(ball ? "Ball joints level the part below them on their own: no mode to set."
+                : MODE_HELP[mode] + "  (click for " + MODE_NAMES[next] + ")\n\nLocked: rigid, never moves.\nLeg: hips and knees of walking legs.\nSpin: keeps turning (rotors, wheels).\nSway: gentle idle motion.")));
+        mb.active = !ball;
         addRenderableWidget(mb);
-        int lim = Math.max(20, Math.min(90, j.getInt("Amp") * 2)), li = 0;
+        int lim = Math.max(5, Math.min(90, j.getInt("Amp") * 2)), li = 0;
         for (int i = 0; i < LIMITS.length; i++) if (LIMITS[i] <= lim) li = i;
         int nextLim = LIMITS[(li + 1) % LIMITS.length];
         Button lb = Button.builder(Component.literal("Limit \u00B1" + lim + "\u00B0"), z -> send(2, selected, nextLim / 2)).bounds(x + w + 4, by, w, 14).build();
@@ -500,13 +503,14 @@ public class HullCoreScreen extends Screen {
                     "Turning force needed to keep the rig up from this joint while standing (bent knees need more). Straight legs need little.");
         }
         int iy = y + 82;
-        String[] modeTxt = {"Locked: rigid", "Leg: IK-driven, foot pushes the Hull", "Leg: IK-driven, foot pushes the Hull", "Spin: turns while powered", "Sway: idle motion", "Program (old setting)"};
-        for (var mln : font.split(Component.literal(modeTxt[Math.max(0, Math.min(5, j.getInt("Mode")))]), dw)) { g.drawString(font, mln, dx, iy, TXT, false); iy += 10; }
+        int rec = j.getInt("RecMode"), cm = j.getInt("Mode"); if (cm == 2) cm = 1; if (cm == 5) cm = 0;
+        boolean good = rec < 0 || rec == cm;
+        for (var mln : font.split(Component.literal(j.getString("Role")), dw)) { g.drawString(font, mln, dx, iy, TXT, false); iy += 10; }
+        if (!good) { g.drawString(font, "\u25B6 Set Mode to " + MODE_NAMES[rec] + " (now " + MODE_NAMES[cm] + ")", dx, iy, WARN, false); iy += 10; }
         iy += 1;
         if (j.getBoolean("LegHip")) {
             g.drawString(font, String.format("Foot grip %.2f%s", j.getDouble("Grip"), j.getDouble("Grip") < 0.3 ? "  (slippery!)" : ""), dx, iy, j.getDouble("Grip") < 0.3 ? WARN : TXT, false); iy += 11;
-            g.drawString(font, "Push up to " + StructureScan.kilo(j.getDouble("Push")) + "N", dx, iy, TXT, false); iy += 11;
-            g.drawString(font, "Carries up to " + StructureScan.tons(j.getDouble("Carry") / 9.81), dx, iy, j.getDouble("Carry") < data.getDouble("Mass") * 9.81 ? WARN : TXT, false); iy += 11;
+            g.drawString(font, "Push " + StructureScan.kilo(j.getDouble("Push")) + "N, carries " + StructureScan.tons(j.getDouble("Carry") / 9.81), dx, iy, j.getDouble("Carry") < data.getDouble("Mass") * 9.81 ? WARN : TXT, false); iy += 11;
             g.drawString(font, String.format("Leg %.1f blocks, %d joint%s", j.getDouble("LegLen"), j.getInt("LegJoints"), j.getInt("LegJoints") == 1 ? "" : "s (knee)"), dx, iy, DIM, false); iy += 11;
         } else if (j.getInt("Blades") > 0) {
             g.drawString(font, j.getInt("Blades") + " blades on this rotor", dx, iy, TXT, false); iy += 11;
