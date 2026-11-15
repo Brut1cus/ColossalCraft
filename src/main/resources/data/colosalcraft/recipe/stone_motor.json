@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CMC",
+    "MRM",
+    "CPC"
+  ],
+  "key": {
+    "M": {
+      "tag": "minecraft:stone_crafting_materials"
+    },
+    "C": {
+      "item": "colosalcraft:colossteel_ingot"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "P": {
+      "item": "minecraft:copper_ingot"
+    }
+  },
+  "result": {
+    "id": "colosalcraft:stone_motor",
+    "count": 1
+  }
+}

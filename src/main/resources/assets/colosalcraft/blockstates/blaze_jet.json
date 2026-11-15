@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "colosalcraft:block/blaze_jet"
+    },
+    "facing=south": {
+      "model": "colosalcraft:block/blaze_jet",
+      "y": 180
+    },
+    "facing=east": {
+      "model": "colosalcraft:block/blaze_jet",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "colosalcraft:block/blaze_jet",
+      "y": 270
+    },
+    "facing=up": {
+      "model": "colosalcraft:block/blaze_jet",
+      "x": 270
+    },
+    "facing=down": {
+      "model": "colosalcraft:block/blaze_jet",
+      "x": 90
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "colosalcraft:block/ion_drive_front",
+    "side": "colosalcraft:block/void_casing",
+    "top": "colosalcraft:block/void_casing"
+  }
+}

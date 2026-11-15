@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "facing=north,formed=false": {
+      "model": "colosalcraft:block/zero_point_core"
+    },
+    "facing=north,formed=true": {
+      "model": "colosalcraft:block/zero_point_core_on"
+    },
+    "facing=east,formed=false": {
+      "model": "colosalcraft:block/zero_point_core",
+      "y": 90
+    },
+    "facing=east,formed=true": {
+      "model": "colosalcraft:block/zero_point_core_on",
+      "y": 90
+    },
+    "facing=south,formed=false": {
+      "model": "colosalcraft:block/zero_point_core",
+      "y": 180
+    },
+    "facing=south,formed=true": {
+      "model": "colosalcraft:block/zero_point_core_on",
+      "y": 180
+    },
+    "facing=west,formed=false": {
+      "model": "colosalcraft:block/zero_point_core",
+      "y": 270
+    },
+    "facing=west,formed=true": {
+      "model": "colosalcraft:block/zero_point_core_on",
+      "y": 270
+    }
+  }
+}

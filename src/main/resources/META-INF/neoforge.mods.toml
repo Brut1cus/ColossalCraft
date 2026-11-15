@@ -1,0 +1,45 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+
+[[mods]]
+modId="colosalcraft"
+version="${file.jarVersion}"
+displayName="ColosalCraft"
+authors="ColosalCraft"
+description='''Build mechanized Colossi - mechs, ships, robots and creatures - from any blocks, then bring them to life.'''
+
+[[mixins]]
+config="colosalcraft.mixins.json"
+
+[[accessTransformers]]
+file="META-INF/accesstransformer.cfg"
+
+[[dependencies.colosalcraft]]
+modId="neoforge"
+type="required"
+versionRange="[21.1.0,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.colosalcraft]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1,1.21.2)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.colosalcraft]]
+modId="create"
+type="optional"
+versionRange="[6.0.0,)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.colosalcraft]]
+modId="valkyrienskies"
+type="discouraged"
+reason="Both mods move blocks as ships and hook the same game code. Use one or the other."
+versionRange="[0,)"
+ordering="NONE"
+side="BOTH"

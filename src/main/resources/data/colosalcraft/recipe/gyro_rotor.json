@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SGS",
+    "GMG",
+    "SGS"
+  ],
+  "key": {
+    "S": {
+      "item": "colosalcraft:colossteel_ingot"
+    },
+    "G": {
+      "item": "colosalcraft:small_gyro"
+    },
+    "M": {
+      "item": "colosalcraft:iron_motor"
+    }
+  },
+  "result": {
+    "id": "colosalcraft:gyro_rotor",
+    "count": 2
+  }
+}

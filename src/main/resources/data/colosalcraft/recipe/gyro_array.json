@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SRS",
+    "RGR",
+    "SRS"
+  ],
+  "key": {
+    "S": {
+      "item": "colosalcraft:colossteel_ingot"
+    },
+    "R": {
+      "item": "colosalcraft:gyro_rotor"
+    },
+    "G": {
+      "item": "colosalcraft:small_gyro"
+    }
+  },
+  "result": {
+    "id": "colosalcraft:gyro_array",
+    "count": 1
+  }
+}

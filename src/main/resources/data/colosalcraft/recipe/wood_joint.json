@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "MCM",
+    "C C",
+    "MCM"
+  ],
+  "key": {
+    "M": {
+      "tag": "minecraft:planks"
+    },
+    "C": {
+      "item": "colosalcraft:colossteel_ingot"
+    }
+  },
+  "result": {
+    "id": "colosalcraft:wood_joint",
+    "count": 4
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "colosalcraft:block/diamond_joint"
+    },
+    "axis=z": {
+      "model": "colosalcraft:block/diamond_joint",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "colosalcraft:block/diamond_joint",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "facing=north,formed=false": {
+      "model": "colosalcraft:block/grand_gyroscope"
+    },
+    "facing=north,formed=true": {
+      "model": "colosalcraft:block/grand_gyroscope_on"
+    },
+    "facing=east,formed=false": {
+      "model": "colosalcraft:block/grand_gyroscope",
+      "y": 90
+    },
+    "facing=east,formed=true": {
+      "model": "colosalcraft:block/grand_gyroscope_on",
+      "y": 90
+    },
+    "facing=south,formed=false": {
+      "model": "colosalcraft:block/grand_gyroscope",
+      "y": 180
+    },
+    "facing=south,formed=true": {
+      "model": "colosalcraft:block/grand_gyroscope_on",
+      "y": 180
+    },
+    "facing=west,formed=false": {
+      "model": "colosalcraft:block/grand_gyroscope",
+      "y": 270
+    },
+    "facing=west,formed=true": {
+      "model": "colosalcraft:block/grand_gyroscope_on",
+      "y": 270
+    }
+  }
+}

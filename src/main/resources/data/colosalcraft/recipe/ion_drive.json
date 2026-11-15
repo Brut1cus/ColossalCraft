@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SES",
+    "VDV",
+    "SES"
+  ],
+  "key": {
+    "S": {
+      "item": "colosalcraft:colossteel_ingot"
+    },
+    "E": {
+      "item": "minecraft:ender_eye"
+    },
+    "V": {
+      "item": "colosalcraft:void_casing"
+    },
+    "D": {
+      "item": "colosalcraft:redstone_dynamo"
+    }
+  },
+  "result": {
+    "id": "colosalcraft:ion_drive",
+    "count": 1
+  }
+}

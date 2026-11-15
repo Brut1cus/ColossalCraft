@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "colosalcraft:block/steam_vent"
+    },
+    "facing=south": {
+      "model": "colosalcraft:block/steam_vent",
+      "y": 180
+    },
+    "facing=east": {
+      "model": "colosalcraft:block/steam_vent",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "colosalcraft:block/steam_vent",
+      "y": 270
+    },
+    "facing=up": {
+      "model": "colosalcraft:block/steam_vent",
+      "x": 270
+    },
+    "facing=down": {
+      "model": "colosalcraft:block/steam_vent",
+      "x": 90
+    }
+  }
+}

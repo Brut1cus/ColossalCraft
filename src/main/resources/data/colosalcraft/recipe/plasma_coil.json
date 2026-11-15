@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "EDE",
+    "ABA"
+  ],
+  "key": {
+    "A": {
+      "item": "colosalcraft:reactor_alloy"
+    },
+    "B": {
+      "item": "minecraft:blaze_rod"
+    },
+    "E": {
+      "item": "colosalcraft:ender_coil"
+    },
+    "D": {
+      "item": "colosalcraft:deuterium_cell"
+    }
+  },
+  "result": {
+    "id": "colosalcraft:plasma_coil",
+    "count": 2
+  }
+}

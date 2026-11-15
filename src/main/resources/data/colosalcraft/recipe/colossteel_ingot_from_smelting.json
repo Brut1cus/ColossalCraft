@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "ingredient": {
+    "item": "colosalcraft:colossteel_blend"
+  },
+  "result": {
+    "id": "colosalcraft:colossteel_ingot"
+  },
+  "experience": 0.5,
+  "cookingtime": 200
+}

@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "colosalcraft:block/kinetic_dynamo"
+    },
+    "axis=z": {
+      "model": "colosalcraft:block/kinetic_dynamo",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "colosalcraft:block/kinetic_dynamo",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

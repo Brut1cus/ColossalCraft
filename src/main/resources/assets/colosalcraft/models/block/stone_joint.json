@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "colosalcraft:block/stone_joint_end",
+    "side": "colosalcraft:block/stone_joint_side"
+  }
+}

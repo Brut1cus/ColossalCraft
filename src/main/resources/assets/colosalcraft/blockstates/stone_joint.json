@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "colosalcraft:block/stone_joint"
+    },
+    "axis=z": {
+      "model": "colosalcraft:block/stone_joint",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "colosalcraft:block/stone_joint",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

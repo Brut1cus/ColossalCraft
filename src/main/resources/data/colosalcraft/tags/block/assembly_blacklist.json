@@ -1,0 +1,28 @@
+{
+  "values": [
+    "#minecraft:dirt",
+    "#minecraft:base_stone_overworld",
+    "#minecraft:base_stone_nether",
+    "#minecraft:sand",
+    "minecraft:gravel",
+    "minecraft:bedrock",
+    "minecraft:end_stone",
+    "minecraft:snow",
+    "minecraft:snow_block",
+    "minecraft:clay",
+    "minecraft:ice",
+    "minecraft:packed_ice",
+    "minecraft:short_grass",
+    "minecraft:tall_grass",
+    "minecraft:end_portal",
+    "minecraft:end_portal_frame",
+    "minecraft:nether_portal",
+    "minecraft:end_gateway",
+    "minecraft:sculk",
+    "minecraft:mycelium",
+    "minecraft:soul_sand",
+    "minecraft:soul_soil",
+    "minecraft:magma_block",
+    "minecraft:bedrock"
+  ]
+}

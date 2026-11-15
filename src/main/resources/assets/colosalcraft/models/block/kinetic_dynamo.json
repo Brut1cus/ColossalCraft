@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "colosalcraft:block/kinetic_dynamo_end",
+    "side": "colosalcraft:block/kinetic_dynamo_side"
+  }
+}
