@@ -69,17 +69,22 @@ Scaling for a joint of total strength k (an **n×n** square of full joints has k
 
 Load counts gravity plus acceleration. If a joint stays over 100% load, it creaks, sparks and then **snaps**, and everything hanging from it falls off as blocks.
 
-## Walkers: walking from the feet
-Set each hip joint to **Leg**. Left and right legs get opposite timing automatically (quadrupeds trot diagonally). While walking:
-- each foot sweeps from front to back while it is down (stance), and that backward sweep pushes the body forward;
-- speed comes from how far the feet sweep: leg length × swing angle × gait speed;
-- the push comes from the leg motors (torque ÷ leg length), so a heavy walker with weak motors speeds up slowly;
-- feet swinging forward through the air don't push.
+## Walkers: physics-driven legs
+A walker is a Hull (a rigid body) plus legs (chains of joints). The Hull never moves because a leg "animates". It moves because planted feet push against the ground.
 
-**Program** joints with a foot below them also push this way.
+1. **Contact:** a foot that touches the ground is *planted*, and its world position is locked.
+2. **IK:** each tick the leg joints are solved so the leg reaches from the Hull's hip to its foot (within each joint's limit). What you see is that solution.
+3. **Balance controller:** works out the force the Hull needs (follow the pilot's speed, keep the weight over the feet), then splits it over the planted feet.
+4. **Ground reaction limits:** each foot can push sideways at most *grip × load*, and at most *hip motor torque ÷ hip height*. Grip is the lower of the foot block's and the ground's: about 0.8 normally, 0.02-0.04 on ice. A stiff leg also pushes along itself, so it only holds while tan(leg angle) ≤ grip. Past that the foot **slides**.
+5. **Hull dynamics:** the Hull moves only from those forces plus gravity and thrust. Legs are rigid struts: the Hull can't get further from a planted foot than the leg reaches, and it brakes before it would.
+6. **Gait:** before a foot lifts, the Hull stops and moves its weight over the foot that will carry it. Then the foot lifts, swings in an arc to a spot ahead (further at higher speed), and plants. Repeat.
+
+Set each **hip** (and any **knee**) joint to **Leg**, with a foot under it. Left/right step groups are automatic. The Swing setting is the joint's angle limit. The HUD shows each foot: DOWN, STEP, SLIP.
+
+What it needs: grippy feet, hip motors strong enough to push the Hull, joints strong enough to carry the whole weight on one leg, and a powered gyro in the core part (below).
 
 ## Walkers and balance
-A Colossus that stands on parts hanging from joints set to **Leg** or **Program** is a walker. Balance is worked out from the feet up. It stays standing only if:
+A Colossus that stands on parts hanging from joints set to **Leg** or **Program** is a walker. It stays standing only if:
 1. the **Hull Core's part** has a **gyro** (a Pocket Gyro or a gyro structure) with **power**,
 2. every joint from each foot up to the core has a strong enough **Servo Motor**, and
 3. the **centre of mass is over the feet**. The gyro widens that area a little.

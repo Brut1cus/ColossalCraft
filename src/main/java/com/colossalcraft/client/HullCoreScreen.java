@@ -29,7 +29,7 @@ public class HullCoreScreen extends Screen {
     private static final String[] MODE_NAMES = {"Locked", "Leg", "Leg", "Spin", "Sway", "Program"};
     private static final String[] MODE_HELP = {
             "Doesn't move. Use for rigid parts.",
-            "Leg hip: the foot plants and pushes the body. Timing is automatic.",
+            "Leg joint (hip or knee): the foot plants, IK bends the leg, ground grip pushes the Hull. Swing = joint limit.",
             "Hip of a leg (old setting).",
             "Turns all the time while powered: propellers, wheels, turrets.",
             "Slow idle motion: tails, antennae, heads.",

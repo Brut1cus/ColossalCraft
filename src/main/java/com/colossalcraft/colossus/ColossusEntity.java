@@ -87,6 +87,11 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public float inFwd, inTurn; public boolean inUp, inDown; private int inputAge = 100;
     /** Tests/automation: keep the last input even with no pilot. */
     public boolean autopilot;
+    /** Physics walker (feet, balance, gait, IK). */
+    public final WalkerController walker = new WalkerController();
+    private boolean bodyOnly;
+    private static final EntityDataAccessor<CompoundTag> IK = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    public String walkerStatus() { return entityData.get(IK).getString("S"); }
 
     public ColossusEntity(EntityType<?> type, Level level) { super(type, level); noPhysics = true; }
 
@@ -109,7 +114,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder b) {
-        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f).define(HELD, java.util.Optional.empty());
+        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f).define(HELD, java.util.Optional.empty()).define(IK, new CompoundTag());
     }
     public boolean hover() { return entityData.get(HOVER); }
     public float syncedEnergy() { return entityData.get(ENERGY); }
@@ -210,6 +215,13 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             yaw = entityData.get(YAW); walkPhase = entityData.get(WALK); walkBlend = entityData.get(BLEND); spin = entityData.get(SPIN); tilt = entityData.get(TILT);
             float td = entityData.get(TILT_DIR); tiltDir = td == -999 ? Double.NaN : td;
             if (tickCount < 3) { prevYaw = yaw; prevWalkPhase = walkPhase; prevSpin = spin; prevTilt = tilt; }
+            CompoundTag ik = entityData.get(IK);
+            if (model.ikAngles != null) {
+                System.arraycopy(model.ikAngles, 0, model.ikPrev, 0, model.ikAngles.length);
+                int[] bits = ik.getIntArray("A");
+                for (int i = 0; i < model.ikAngles.length; i++) model.ikAngles[i] = i < bits.length ? Float.intBitsToFloat(bits[i]) : Double.NaN;
+            }
+            model.ikT = 1;
             art = model.transforms(walkPhase, walkBlend, spin, tickCount);
             clientLastPos = position();
             clientSpeed = clientSpeed * 0.7 + position().distanceTo(last) * 20 * 0.3;
@@ -313,35 +325,29 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         Vec3 fwW = new Vec3(fwL.x * cs - fwL.z * sn, 0, fwL.x * sn + fwL.z * cs);
         double vh = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
         double lift = model.sails * 0.5 * 1.225 * vh * vh * LS;
-        Vec3 F = thrust.scale(ratio).add(0, -M * g + buoy + lift, 0).add(fwW.scale(Math.signum(inFwd) * hT * groundF * ratio));
-        vel = vel.add(F.scale(dt / M));
+        boolean powered = model.output > 0 && (model.infinite || energy > 0) && ratio > 0;
+        boolean stable = !model.legged || (model.footingOk() && powered && model.balanced());
+        boolean useWalker = walker.usable(model) && model.legged && stable && tilt < 0.1;
+        if (!useWalker) {
+            walker.release(model);
+            Vec3 F = thrust.scale(ratio).add(0, -M * g + buoy + lift, 0).add(fwW.scale(Math.signum(inFwd) * hT * groundF * ratio));
+            vel = vel.add(F.scale(dt / M));
+        }
 
         double I = M * (r * r + 1) / 3;
         yawRate += (-inTurn * turnTorque * ratio - torqueY * ratio) / I * dt;
         yawRate = Math.max(-1.5, Math.min(1.5, yawRate)) * (inTurn == 0 && Math.abs(torqueY) < 1 ? 0.8 : 0.95);
 
-        // ---- footing: a walker stays up only with a powered gyro in the core part, motors up every leg, and its weight over its feet
-        boolean powered = model.output > 0 && (model.infinite || energy > 0) && ratio > 0;
-        boolean stable = !model.legged || (model.footingOk() && powered && model.balanced());
-
-        // ---- walking from the feet: planted feet push the body; speed comes from leg motion, force from leg motors
-        boolean kinematic = false;
-        if (onGroundC && walkers && stable && hT > 0 && ratio > 0) {
-            double dPhase = 2 * Math.PI * model.gaitSpeed / 20 * model.gaitScale() * Math.signum(inFwd);
-            double[] st = model.legStep(walkPhase, walkPhase + dPhase, fwL.scale(Math.signum(inFwd)), tickCount);
-            if (st[2] > 0) {
-                Vec3 vk = new Vec3(st[0] * cs - st[1] * sn, 0, st[0] * sn + st[1] * cs).scale(20);
-                double dvMax = st[2] * ratio / M * dt;
-                Vec3 diff = new Vec3(vk.x - vel.x, 0, vk.z - vel.z);
-                if (diff.length() > dvMax) diff = diff.normalize().scale(dvMax);
-                vel = vel.add(diff);
-                kinematic = true;
-            }
-            walkPhase += dPhase; walkBlend = Math.min(1, walkBlend + 0.1);
-        } else walkBlend = Math.max(0, walkBlend - 0.08);
-
-        double hd = kinematic ? 1.0 : onGroundC ? 0.85 : subFrac > 0.05 ? 0.93 : 0.985;
-        vel = new Vec3(vel.x * hd, vel.y * (subFrac > 0.05 ? 0.9 : 0.995), vel.z * hd);
+        // ---- walking: the physics walker moves the Hull only through what its planted feet push against the ground
+        if (useWalker) {
+            Vec3 ext = thrust.scale(ratio).add(0, buoy + lift, 0);
+            walker.step(this, ext, ratio, inFwd);
+            if (walker.unbalanced) stable = false; // weight left the feet: it tips
+            walkBlend = 0;
+        } else {
+            double hd = onGroundC ? 0.85 : subFrac > 0.05 ? 0.93 : 0.985;
+            vel = new Vec3(vel.x * hd, vel.y * (subFrac > 0.05 ? 0.9 : 0.995), vel.z * hd);
+        }
         double max = Config.MAX_SPEED.get();
         if (vel.length() > max) vel = vel.normalize().scale(max);
 
@@ -373,8 +379,16 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         double targetSpin = (pilot != null || autopilot) && ratio > 0 && energy + (model.infinite ? 1 : 0) > 0 ? Math.max(0.15, rotThr) * spinCap : 0;
         spinRate += (targetSpin - spinRate) * 0.05; spin += spinRate;
 
-        moveWithCollision(vel.scale(dt));
+        if (!useWalker) moveWithCollision(vel.scale(dt));
         rotateWithCollision(yaw + yawRate * dt);
+        // share the IK angles and foot states with clients
+        CompoundTag ik = new CompoundTag();
+        if (useWalker && model.ikAngles != null) {
+            int[] bits = new int[model.ikAngles.length];
+            for (int i = 0; i < bits.length; i++) bits[i] = Float.floatToIntBits((float) model.ikAngles[i]);
+            ik.putIntArray("A", bits); ik.putString("S", walker.status);
+        }
+        entityData.set(IK, ik);
     }
 
     // ------------------------------------------------------------ gantry hoist
@@ -448,6 +462,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         List<AABB> out = new ArrayList<>(model.surface.size());
         double e = 0.499;
         for (BlockPos p : model.surface) {
+            if (bodyOnly && model.legSegs.contains(model.segOf.getOrDefault(p, 0))) continue; // legs touch the world through their feet only
             Vec3 c = toWorld(new Vec3(p.getX() + .5, p.getY() + .5, p.getZ() + .5), pos, yw);
             out.add(new AABB(c.x - e, c.y - e, c.z - e, c.x + e, c.y + e, c.z + e));
         }
@@ -485,6 +500,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private static List<AABB> shift(List<AABB> boxes, double x, double y, double z) {
         List<AABB> o = new ArrayList<>(boxes.size()); for (AABB b : boxes) o.add(b.move(x, y, z)); return o;
     }
+
+    /** Move the Hull with collision, ignoring the legs (the walker controller handles feet). */
+    void moveBody(Vec3 d) { bodyOnly = true; try { moveWithCollision(d); } finally { bodyOnly = false; } }
 
     private void moveWithCollision(Vec3 d) {
         List<AABB> boxes = surfaceBoxes(position(), yaw);

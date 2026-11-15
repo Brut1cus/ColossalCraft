@@ -39,9 +39,10 @@ public final class ClientEvents {
                         "COLOSSUS  " + StructureScan.tons(c.model.mass) + "",
                         "ENERGY " + en + "   OUT " + StructureScan.kilo(c.model.output) + " CJ/t",
                         String.format("SPEED %.1f m/s   ALT %d", speed, (int) c.getY()),
-                        "HOVER " + (c.hover() ? "ON" : "OFF") + "   [G] Hull Core  [H] hover  [C] down  [K] park  [V] leave"};
+                        "HOVER " + (c.hover() ? "ON" : "OFF") + "   [G] Hull Core  [H] hover  [C] down  [K] park  [V] leave",
+                        c.walkerStatus().isEmpty() ? "" : "FEET  " + c.walkerStatus()};
                 int y = 6;
-                for (String s : lines) { g.fill(4, y - 2, 8 + mc.font.width(s), y + 9, 0x90000000); g.drawString(mc.font, s, 6, y, 0xFF7CFF9E, false); y += 11; }
+                for (String s : lines) { if (s.isEmpty()) continue; g.fill(4, y - 2, 8 + mc.font.width(s), y + 9, 0x90000000); g.drawString(mc.font, s, 6, y, 0xFF7CFF9E, false); y += 11; }
             });
         }
     }

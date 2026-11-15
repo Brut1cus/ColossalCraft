@@ -54,6 +54,7 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
     @Override public void render(ColossusEntity e, float yawIgnored, float pt, PoseStack ps, MultiBufferSource buf, int light) {
         StructureModel m = e.model; if (m == null) return;
         double yaw = Mth.lerp(pt, e.prevYaw, e.yaw);
+        m.ikT = pt; // smooth IK angles between ticks
         Matrix4d[] art = m.transforms(Mth.lerp(pt, e.prevWalkPhase, e.walkPhase), Mth.lerp(pt, e.prevWalkBlend, e.walkBlend), Mth.lerp(pt, e.prevSpin, e.spin), e.tickCount + pt);
         double ex = Mth.lerp(pt, e.xo, e.getX()), ey = Mth.lerp(pt, e.yo, e.getY()), ez = Mth.lerp(pt, e.zo, e.getZ());
         var level = Minecraft.getInstance().level;
@@ -76,6 +77,7 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         double[] angles = new double[m.joints.size()];
         double wp = Mth.lerp(pt, e.prevWalkPhase, e.walkPhase), wb = Mth.lerp(pt, e.prevWalkBlend, e.walkBlend), spn = Mth.lerp(pt, e.prevSpin, e.spin);
         for (StructureModel.Joint j : m.joints) angles[j.id] = m.angle(j, wp, wb, spn, e.tickCount + pt);
+        m.ikT = 1;
         Matrix4d[] segM = new Matrix4d[m.segs.size()];
         for (int i = 0; i < segM.length; i++) segM[i] = new Matrix4d(baseM).mul(art[i]);
         for (StructureModel.Seg s : m.segs) {

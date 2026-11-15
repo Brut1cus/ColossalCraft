@@ -70,6 +70,17 @@ public class StructureModel {
     /** Motor and gearbox blocks that turn: {joint id, ratio (turns per joint turn)}. */
     public final Map<BlockPos, double[]> spinParts = new HashMap<>();
     public final Set<Integer> footSegs = new TreeSet<>();
+    /**
+     * A leg for the walker controller: joints set to Leg on the way from the body down to a foot (top first).
+     * hip/foot are rest positions (local). length = hip to foot. minLen < length if the leg has a knee.
+     * hipTorque limits sideways push (torque / hip height); vCap = what the weakest joint can carry straight down; mu = foot friction.
+     */
+    public record LegChain(List<Integer> joints, int footSeg, int bodySeg, Vec3 hip, Vec3 foot, double length, double minLen,
+                           double hipTorque, double vCap, double mu, int group, double[] limits) {}
+    public final List<LegChain> legChains = new ArrayList<>();
+    public final Set<Integer> legSegs = new HashSet<>();
+    /** IK joint angles from the walker controller (radians, NaN = not driven), and the previous tick's, for smooth drawing. */
+    public double[] ikAngles, ikPrev; public double ikT = 1;
     public record EngineInfo(String name, long energy, long capacity, int output, boolean running, String note, boolean zeroPoint) {}
 
     public final Map<BlockPos, BlockState> blocks;
@@ -396,6 +407,39 @@ public class StructureModel {
         left.sort(byFront); rightL.sort(byFront);
         for (int i = 0; i < left.size(); i++) left.get(i).autoPhase = (i % 2) * 0.5;
         for (int i = 0; i < rightL.size(); i++) rightL.get(i).autoPhase = ((i + 1) % 2) * 0.5;
+        // ---- leg chains for the physics walker
+        Set<Integer> usedHips = new HashSet<>();
+        for (int fs : footSegs) {
+            if (fs == 0) continue;
+            List<Integer> chain = new ArrayList<>();
+            int cur = fs, guard = 0, body = 0;
+            while (cur > 0 && guard++ < 1000) {
+                Seg sg = segs.get(cur); if (sg.parentJoint < 0) break;
+                Joint j = joints.get(sg.parentJoint);
+                if (isLegMode(j.mode) && j.axis != Direction.Axis.Y) chain.add(0, j.id);
+                cur = Math.max(0, j.parentSeg); body = cur;
+                if (!chain.isEmpty() && !isLegMode(j.mode)) break;
+            }
+            if (chain.isEmpty() || !usedHips.add(chain.get(0))) continue;
+            Joint hipJ = joints.get(chain.get(0));
+            body = Math.max(0, hipJ.parentSeg);
+            double fx = 0, fz = 0, mu = 0; int n = 0;
+            for (BlockPos p : segs.get(fs).blocks) if (p.getY() == minY && solid.contains(p)) {
+                fx += p.getX() + .5; fz += p.getZ() + .5; n++;
+                float slip = blocks.get(p).getBlock().getFriction(); // vanilla: 0.6 normal, 0.98 ice
+                mu += Math.max(0.02, Math.min(1.2, 2.0 * (1 - slip)));
+            }
+            if (n == 0) continue;
+            Vec3 foot = new Vec3(fx / n, minY, fz / n);
+            double len = foot.distanceTo(hipJ.pivot);
+            double vCap = Double.MAX_VALUE; double[] lim = new double[chain.size()];
+            for (int i = 0; i < chain.size(); i++) { Joint j = joints.get(chain.get(i)); vCap = Math.min(vCap, j.forceCap); lim[i] = Math.toRadians(Math.max(20, Math.min(90, j.amp * 2))); }
+            int group = hipJ.autoPhase >= 0.25 ? 1 : 0;
+            legChains.add(new LegChain(chain, fs, body, hipJ.pivot, foot, len, chain.size() > 1 ? len * 0.6 : len * 0.97, hipJ.motorTorque, vCap, mu / n, group, lim));
+            int c2 = fs, g2 = 0;
+            while (c2 > 0 && g2++ < 1000) { legSegs.add(c2); Seg sg = segs.get(c2); if (sg.parentJoint < 0 || sg.parentJoint == hipJ.id) break; c2 = Math.max(0, joints.get(sg.parentJoint).parentSeg); }
+        }
+        ikAngles = new double[joints.size()]; Arrays.fill(ikAngles, Double.NaN); ikPrev = ikAngles.clone();
     }
 
     /**
@@ -464,6 +508,10 @@ public class StructureModel {
 
     /** Hinge angle (radians) for a joint given the animation state. */
     public double angle(Joint j, double walkPhase, double walkBlend, double spin, double time) {
+        if (ikAngles != null && j.id < ikAngles.length && !Double.isNaN(ikAngles[j.id])) {
+            double a1 = ikAngles[j.id], a0 = ikPrev != null && j.id < ikPrev.length && !Double.isNaN(ikPrev[j.id]) ? ikPrev[j.id] : a1;
+            return a0 + (a1 - a0) * ikT;
+        }
         if (!j.active()) return 0;
         double amp = Math.toRadians(j.amp);
         return switch (j.mode) {

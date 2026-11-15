@@ -109,6 +109,12 @@ public final class StructureScan {
             if (m.coreGyro <= 0) r.warnings.add("It will fall over: put a gyro in the Hull Core's part (walkers balance from the core).");
             for (StructureModel.Foot f : m.feet) if (!f.ok()) r.warnings.add("It will fall over: foot part " + f.seg() + " - " + f.problem() + ".");
             if (!m.balanced()) r.warnings.add(String.format("It will tip over: the centre of mass is %.1f blocks outside its feet. Move weight over the legs or widen the stance.", m.balanceOffset.length()));
+            for (StructureModel.LegChain L : m.legChains) {
+                if (L.mu() < 0.3) r.warnings.add(String.format("Foot under J%d is slippery (grip %.2f): it will slide instead of pushing. Use a grippy block for the foot.", L.joints().get(0), L.mu()));
+                if (L.vCap() < m.mass * StructureModel.G) r.warnings.add("Leg at J" + L.joints().get(0) + " can't carry the whole weight on one foot while the other steps (joint too weak).");
+                if (L.hipTorque() <= 0) r.warnings.add("Leg at J" + L.joints().get(0) + " has no motor at the hip: it can't push.");
+            }
+            if (m.legChains.isEmpty() && m.legged) r.warnings.add("No legs found: set the hip (and knee) joints to Leg, with a foot under them.");
             if (m.gaitScale() < 0.999) r.warnings.add(String.format("Joints are geared too slow for the gait: walking runs at %.0f%% speed. Use a lower gear ratio or slow the gait.", m.gaitScale() * 100));
         }
         if (m.hasWalkers() && m.gyroCap < m.mass) r.warnings.add("Gyros too weak for walking: " + (int) (100 * m.gyroCap / m.mass) + "% stable. Add gyros.");

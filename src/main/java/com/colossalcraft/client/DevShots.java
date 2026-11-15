@@ -117,7 +117,7 @@ public final class DevShots {
             case 205 -> shot("4_built_joints");
             case 207 -> { mc.setScreen(null); server(sp -> { ColossusEntity c = colossus(); if (c != null) sp.startRiding(c, true); }); }
             case 212 -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
-            case 262 -> shot("5_walking_back");
+            case 240 -> shot("5a_walking_step"); case 250 -> shot("5b_walking_step"); case 262 -> shot("5_walking_back");
             case 264 -> mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
             case 275 -> shot("6_walking_front");
             case 277 -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
@@ -127,7 +127,7 @@ public final class DevShots {
             case 352 -> mc.stop();
             default -> {}
         }
-        if (t > 212 && t < 300) server(sp -> { ColossusEntity c = colossus(); if (c != null) c.setInput(1f, t > 240 && t < 255 ? 0.6f : 0f, false, false); if (c != null && t % 20 == 0) ColossalCraft.LOG.info("[devshots] walk t={} pos={} ground={} phase={}", t, c.position(), c.onGroundC, c.walkPhase); });
+        if (t > 212 && t < 300) server(sp -> { ColossusEntity c = colossus(); if (c != null) c.setInput(1f, 0f, false, false); if (c != null && t % 10 == 0) ColossalCraft.LOG.info("[devshots] feet {} pos {} tilt {}", c.walker.status, c.position(), c.tilt); if (c != null && t % 20 == 0) ColossalCraft.LOG.info("[devshots] walk t={} pos={} ground={} phase={}", t, c.position(), c.onGroundC, c.walkPhase); });
     }
 
     /** Two-legged test walker. Legs hang from iron bearing joints (X axis) driven by iron motors. */

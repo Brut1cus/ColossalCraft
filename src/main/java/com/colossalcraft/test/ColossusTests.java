@@ -1,5 +1,7 @@
 package com.colossalcraft.test;
 
+import com.colossalcraft.colossus.WalkerController;
+
 import com.colossalcraft.ColossalCraft;
 import com.colossalcraft.ModRegistry;
 import com.colossalcraft.colossus.ColossusEntity;
@@ -487,5 +489,50 @@ public class ColossusTests {
         be.fuel.setStackInSlot(0, new net.minecraft.world.item.ItemStack(ModRegistry.ENRICHED_FUEL_CELL.get(), 5));
         h.assertTrue(be.fuelPipe.extractItem(0, 64, false).isEmpty(), "pipes must not pull fuel out");
         h.succeed();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 160)
+    public static void plantedFeetDontMove(GameTestHelper h) {
+        walker(h, false, true);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] maxSlide = {0}; int[] stanceTicks = {0};
+        net.minecraft.world.phys.Vec3[][] last = {null};
+        h.runAfterDelay(20, () -> { ColossusEntity c = find(h); c.autopilot = true; c.setInput(1, 0, false, false); last[0] = new net.minecraft.world.phys.Vec3[c.walker.foot.length]; });
+        for (int t = 21; t <= 80; t++) h.runAfterDelay(t, () -> {
+            ColossusEntity c = find(h);
+            for (int i = 0; i < c.walker.foot.length; i++) {
+                if (c.walker.state[i] == WalkerControllerAccess.STANCE && last[0][i] != null) { maxSlide[0] = Math.max(maxSlide[0], c.walker.foot[i].distanceTo(last[0][i])); stanceTicks[0]++; }
+                last[0][i] = c.walker.state[i] == WalkerControllerAccess.STANCE ? c.walker.foot[i] : null;
+            }
+        });
+        h.runAfterDelay(82, () -> {
+            ColossalCraft.LOG.info("[test] planted feet: max slide {} over {} stance ticks, status {}", maxSlide[0], stanceTicks[0], find(h).walker.status);
+            h.assertTrue(stanceTicks[0] > 20 && maxSlide[0] < 1e-6, "planted feet moved: " + maxSlide[0]);
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 200)
+    public static void walkerSlipsOnIce(GameTestHelper h) {
+        walker(h, false, true);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) h.setBlock(x, 0, z, Blocks.BLUE_ICE);
+        double[] maxAcc = {0}, z0 = {0}; boolean[] slipped = {false};
+        net.minecraft.world.phys.Vec3[] lastV = {null};
+        h.runAfterDelay(20, () -> { ColossusEntity c = find(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); lastV[0] = c.vel; });
+        for (int t = 21; t <= 100; t++) h.runAfterDelay(t, () -> {
+            ColossusEntity c = find(h);
+            net.minecraft.world.phys.Vec3 dv = c.vel.subtract(lastV[0]); lastV[0] = c.vel;
+            maxAcc[0] = Math.max(maxAcc[0], Math.sqrt(dv.x * dv.x + dv.z * dv.z) * 20);
+            slipped[0] |= c.walker.status.contains("SLIP");
+        });
+        h.runAfterDelay(102, () -> {
+            ColossusEntity c = find(h);
+            double muG = 2 * (1 - Blocks.BLUE_ICE.getFriction()) * 9.81;
+            ColossalCraft.LOG.info("[test] ice dz={} maxAcc={} (grip limit {}) slipped={}", c.getZ() - z0[0], maxAcc[0], muG, slipped[0]);
+            h.assertTrue(slipped[0], "feet should slip on ice");
+            h.assertTrue(maxAcc[0] <= muG * 1.5 + 0.05, "accelerated faster than ice grip allows: " + maxAcc[0]);
+            h.succeed();
+        });
     }
 }
