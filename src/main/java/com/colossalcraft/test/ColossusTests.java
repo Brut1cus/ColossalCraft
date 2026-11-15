@@ -666,9 +666,9 @@ public class ColossusTests {
         h.setBlock(8, 10, 7, ModRegistry.SMALL_GYRO.get());
         h.setBlock(7, 10, 6, ModRegistry.LOCOMOTION_CONTROLLER.get());
         BlockState hipJ = ModRegistry.JOINTS.get(MaterialTier.DIAMOND).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
-        BlockState kneeJ = ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+        BlockState kneeJ = ModRegistry.JOINTS.get(MaterialTier.DIAMOND).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
         var mot = ModRegistry.MOTORS.get(MaterialTier.DIAMOND).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
-        var ball = ModRegistry.JOINT_SHAPES.get(MaterialTier.IRON).get(com.colossalcraft.block.SimpleParts.JointShape.BALL).get().defaultBlockState();
+        var ball = ModRegistry.JOINT_SHAPES.get(MaterialTier.DIAMOND).get(com.colossalcraft.block.SimpleParts.JointShape.BALL).get().defaultBlockState();
         for (int x : new int[]{4, 10}) {
             h.setBlock(x, 8, 7, hipJ); h.setBlock(x, 9, 7, mot);                 // hip on the torso side, motor above it on the torso
             h.setBlock(x, 7, 7, Blocks.STONE_BRICKS); h.setBlock(x, 6, 7, Blocks.STONE_BRICKS); // thigh
@@ -681,6 +681,27 @@ public class ColossusTests {
         var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 10, 7));
         for (StructureModel.Joint j : r.model.joints) if (!j.ball) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.LEG); hc.joints.put(StructureModel.jointKey(j.key), c); }
         hc.setChanged();
+    }
+
+    @GameTest(template = "empty16")
+    public static void standingLoadsFromTheFeetUp(GameTestHelper h) {
+        bigMech(h, true);
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7))).model;
+        java.util.Map<Integer, java.util.List<StructureModel.Joint>> byY = new java.util.TreeMap<>();
+        for (StructureModel.Joint j : m.joints) {
+            ColossalCraft.LOG.info("[test] J{} y={} ball={} share={} stand={} standTq={} hang={} swingTq={}", j.id, j.pivot.y, j.ball, j.footShare, j.standMass, j.standTorque, j.subMass, j.reqTorque);
+            byY.computeIfAbsent((int) Math.floor(j.pivot.y), k -> new java.util.ArrayList<>()).add(j);
+        }
+        double prev = -1;
+        for (var e : byY.entrySet()) { // top to bottom order is reversed: lower y first
+            var l = e.getValue();
+            h.assertTrue(l.size() == 2, "expected a pair of joints at y=" + e.getKey());
+            h.assertTrue(Math.abs(l.get(0).standMass - l.get(1).standMass) < 1e-6, "legs should carry the same: " + l.get(0).standMass + " vs " + l.get(1).standMass);
+            h.assertTrue(Math.abs(l.get(0).footShare - 0.5) < 1e-6, "each foot should carry half, got " + l.get(0).footShare);
+            if (prev >= 0) h.assertTrue(l.get(0).standMass < prev, "upper joint should carry less than the one below");
+            prev = l.get(0).standMass;
+        }
+        h.succeed();
     }
 
     @GameTest(template = "empty16", timeoutTicks = 260)

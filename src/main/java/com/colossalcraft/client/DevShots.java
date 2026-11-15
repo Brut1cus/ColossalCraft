@@ -100,7 +100,7 @@ public final class DevShots {
             case 112 -> shot("1_overview");
             case 113 -> server(sp -> Net.openLocoParked(sp, base.offset(1, 8, 1)));
             case 115 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(0); }
-            case 117 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(0); }
+            case 117 -> { if (mc.screen instanceof HullCoreScreen s) { s.setTab(0); s.selectLegJoint(); } }
             case 130 -> shot("2_joints");
             case 131 -> { if (mc.screen instanceof HullCoreScreen s) s.turnView(-70, 20, 1.4); }
             case 132 -> shot("2b_joints_rotated");
@@ -146,7 +146,7 @@ public final class DevShots {
         for (int side : new int[]{-1, 1}) { lv.setBlockAndUpdate(ground.offset(side, 0, 0), ModRegistry.GANTRY_SCAFFOLD.get().defaultBlockState()); lv.setBlockAndUpdate(ground.offset(side, 0, -1), ModRegistry.GANTRY_SCAFFOLD.get().defaultBlockState()); }
         BlockPos b = ground.above();
         for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) for (int y = 5; y <= 6; y++) lv.setBlockAndUpdate(b.offset(x, y, z), Blocks.SPRUCE_PLANKS.defaultBlockState());
-        BlockState joint = ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+        BlockState joint = ModRegistry.JOINTS.get(MaterialTier.DIAMOND).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
         for (int side : new int[]{-1, 1}) {
             lv.setBlockAndUpdate(b.offset(side, 4, 0), joint);
             var mot = ModRegistry.MOTORS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);

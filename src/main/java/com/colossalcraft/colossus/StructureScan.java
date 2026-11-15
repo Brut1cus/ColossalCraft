@@ -101,7 +101,10 @@ public final class StructureScan {
         if (m.output <= 0) r.warnings.add("No running engine: no power.");
         else if ((r.liveEnergy >= 0 ? r.liveEnergy : m.energy) <= 0 && !m.infinite) r.warnings.add("Engines are empty: add fuel.");
         for (StructureModel.Joint j : m.joints) {
-            if (j.staticRatio > 1) r.warnings.add("Joint J" + j.id + " overloaded " + (int) (j.staticRatio * 100) + "%: it will snap!");
+            if (j.staticRatio > 1) r.warnings.add("Joint J" + j.id + " overloaded " + (int) (j.staticRatio * 100) + "% by what hangs below it: it will snap!");
+            if (j.standRatio > 1) r.warnings.add("Joint J" + j.id + " overloaded " + (int) (j.standRatio * 100) + "% when standing (carries " + tons(j.standMass) + " from above): it will snap!");
+            if (j.footShare > 0 && !j.ball && StructureModel.isLegMode(j.mode) && j.motors > 0 && j.motorTorque < j.standTorque)
+                r.warnings.add("Joint J" + j.id + " motors can't hold the weight standing: " + kilo(j.motorTorque) + " of " + kilo(j.standTorque) + " N*m.");
             if (j.mode != StructureModel.LOCKED && j.stalled()) r.warnings.add(j.motors == 0 ? "Joint J" + j.id + " is set to move, but no Servo Motor touches it."
                     : "Joint J" + j.id + " motors too weak: " + kilo(j.motorTorque) + " of " + kilo(j.reqTorque) + " N*m needed.");
         }
@@ -202,7 +205,7 @@ public final class StructureScan {
             CompoundTag c = new CompoundTag();
             c.putInt("Id", j.id); c.putInt("Parent", j.parentSeg); c.putString("Tier", j.tier.id); c.putInt("K", j.k); c.putDouble("Area", j.area); c.putString("Axis", j.axis.getName());
             c.putDouble("Sub", j.subMass); c.putDouble("Ratio", j.staticRatio); c.putDouble("FCap", j.forceCap); c.putDouble("MCap", j.momentCap);
-            c.putDouble("Torque", j.motorTorque); c.putDouble("Req", j.reqTorque); c.putInt("Motors", j.motors);
+            c.putDouble("Torque", j.motorTorque); c.putDouble("Req", j.reqTorque); c.putDouble("Stand", j.standMass); c.putDouble("StandTq", j.standTorque); c.putDouble("StandRatio", j.standRatio); c.putDouble("Share", j.footShare); c.putInt("Motors", j.motors);
             c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putBoolean("Stalled", j.stalled());
             BlockPos lp = BlockPos.of(j.key);
             BlockPos wp = r.entity != null ? BlockPos.containing(r.entity.blockWorldCenter(lp)) : r.origin.offset(lp);

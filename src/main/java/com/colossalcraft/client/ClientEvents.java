@@ -64,9 +64,13 @@ public final class ClientEvents {
 
     @EventBusSubscriber(modid = ColossalCraft.MODID, value = Dist.CLIENT)
     public static final class GameBus {
+        private static boolean wasRiding;
         @SubscribeEvent public static void tick(ClientTickEvent.Post e) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
+            boolean riding = mc.player.getVehicle() instanceof ColossusEntity;
+            if (riding && !wasRiding) mc.gui.setOverlayMessage(net.minecraft.network.chat.Component.literal("Press " + PILOT.getTranslatedKeyMessage().getString() + " to leave"), false); // Shift lowers, it doesn't dismount
+            wasRiding = riding;
             while (PILOT.consumeClick()) PacketDistributor.sendToServer(new Net.PilotAction(0));
             while (DISASSEMBLE.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(1));
             while (SCREEN.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(3));

@@ -55,6 +55,11 @@ public class StructureModel {
         public final List<Integer> childSegs = new ArrayList<>();
         public Vec3 pivot = Vec3.ZERO, subCom = Vec3.ZERO;
         public double subMass, motorTorque, motorPower, motorDrive, reqTorque, forceCap, momentCap, staticRatio;
+        /** Standing estimate (feet on the ground): weight this joint carries from above (kg), turning force on its axis (N*m),
+         *  load vs strength, and the share of the whole rig's weight its feet carry (0-1). */
+        public double standMass, standTorque, standRatio, footShare;
+        /** Motor torque needed to hold this joint: lifted (swing) or standing, whichever is bigger. */
+        public double needTorque() { return Math.max(reqTorque, standTorque); }
         /** Fastest the gears let this joint turn (degrees per second). 0 = no motor. */
         public double maxSpeed;
         /** Program: keyframe angles (degrees), phase offset (degrees), speed factor, play even when standing still. */
@@ -360,7 +365,52 @@ public class StructureModel {
             double f = j.subMass * G, mo = j.subMass * G * Math.sqrt(r.x * r.x + r.z * r.z);
             j.staticRatio = j.subMass <= 0 ? 0 : Math.max(f / j.forceCap, mo / j.momentCap);
         }
+        standLoads();
         footing();
+    }
+
+    /** Standing loads, worked out from the feet up. Each foot carries a share of the whole weight
+     *  (equal legs placed evenly get equal shares, shifted toward the foot nearer the centre of mass).
+     *  A joint then carries its feet's share minus everything below it, so the ankle carries the most. */
+    private void standLoads() {
+        int minY = Integer.MAX_VALUE;
+        for (BlockPos p : solid) minY = Math.min(minY, p.getY());
+        Map<Integer, Vec3> contact = new TreeMap<>();
+        Map<Integer, Integer> cnt = new HashMap<>();
+        for (BlockPos p : solid) if (p.getY() == minY) {
+            int sg = segOf.getOrDefault(p, 0);
+            contact.merge(sg, new Vec3(p.getX() + .5, minY, p.getZ() + .5), Vec3::add); cnt.merge(sg, 1, Integer::sum);
+        }
+        if (contact.isEmpty() || mass <= 0) return;
+        List<Integer> ids = new ArrayList<>(contact.keySet());
+        int n = ids.size();
+        Vec3[] pt = new Vec3[n]; double mx = 0, mz = 0;
+        for (int i = 0; i < n; i++) { pt[i] = contact.get(ids.get(i)).scale(1.0 / cnt.get(ids.get(i))); mx += pt[i].x / n; mz += pt[i].z / n; }
+        // even split, nudged so the shares balance the centre of mass (least change from even)
+        double cxx = 0, cxz = 0, czz = 0;
+        for (Vec3 q : pt) { double dx = q.x - mx, dz = q.z - mz; cxx += dx * dx; cxz += dx * dz; czz += dz * dz; }
+        double ex = com.x - mx, ez = com.z - mz, eps = 1e-6, det = (cxx + eps) * (czz + eps) - cxz * cxz;
+        double lx = ((czz + eps) * ex - cxz * ez) / det, lz = ((cxx + eps) * ez - cxz * ex) / det;
+        double[] w = new double[n]; double sum = 0;
+        for (int i = 0; i < n; i++) { w[i] = Math.max(0, 1.0 / n + lx * (pt[i].x - mx) + lz * (pt[i].z - mz)); sum += w[i]; }
+        for (int i = 0; i < n; i++) w[i] = sum <= 0 ? 1.0 / n : w[i] / sum;
+        for (Joint j : joints) {
+            double share = 0; Vec3 fp = Vec3.ZERO;
+            for (int i = 0; i < n; i++) {
+                int cur = ids.get(i), guard = 0; boolean under = false;
+                while (cur > 0 && guard++ < 1000) { Seg sg = segs.get(cur); if (sg.parentJoint < 0) break; if (sg.parentJoint == j.id) { under = true; break; } cur = Math.max(0, joints.get(sg.parentJoint).parentSeg); }
+                if (under) { share += w[i]; fp = fp.add(pt[i].scale(w[i])); }
+            }
+            j.footShare = share;
+            if (share <= 0) continue;
+            fp = fp.scale(1 / share);
+            double up = share * mass * G, down = j.subMass * G;
+            j.standMass = Math.max(0, share * mass - j.subMass);
+            // turning force on the joint: ground push at the feet, minus the weight of what is below the joint
+            Vec3 tq = fp.subtract(j.pivot).cross(new Vec3(0, up, 0)).add(j.subCom.subtract(j.pivot).cross(new Vec3(0, -down, 0)));
+            j.standTorque = Math.abs(tq.dot(axisVec(j.axis)));
+            j.standRatio = Math.max(j.standMass * G / j.forceCap, tq.length() / j.momentCap);
+        }
     }
 
     /** Footing and balance, worked out from the feet up.
@@ -398,7 +448,7 @@ public class StructureModel {
                 // only joints that move the leg need motors; Locked joints are rigid, ball joints are passive
                 if (isLegMode(j.mode) && !j.ball) {
                     if (j.motors == 0) problem = "joint J" + j.id + " has no motor";
-                    else if (j.motorTorque < j.reqTorque) problem = "joint J" + j.id + " motor too weak";
+                    else if (j.motorTorque < j.needTorque()) problem = "joint J" + j.id + " motor too weak";
                 }
                 cur = Math.max(0, j.parentSeg);
             }

@@ -64,6 +64,8 @@ public class HullCoreScreen extends Screen {
     public void setData(CompoundTag d) { data = d; rebuild(); }
     public void setTab(int t) { tab = t; scroll = 0; rebuild(); }
     public void setView(int v) { view = v; preset(v); rebuild(); }
+    /** Select the lowest-numbered joint that has a foot below it (dev screenshots). */
+    public void selectLegJoint() { for (Tag t : list("Joints")) if (((CompoundTag) t).getDouble("Share") > 0 && !((CompoundTag) t).getBoolean("Ball")) { selected = ((CompoundTag) t).getInt("Id"); rebuild(); return; } }
     public void turnView(double dyaw, double dpitch, double zoom) { camYaw += dyaw; camPitch = Math.max(-90, Math.min(90, camPitch + dpitch)); camZoom *= zoom; }
     private void preset(int v) { camYaw = v == 1 ? 90 : 0; camPitch = v == 2 ? 90 : 0; camZoom = 1; panX = panY = 0; }
     private boolean built() { return data.getBoolean("Built"); }
@@ -470,20 +472,34 @@ public class HullCoreScreen extends Screen {
         g.drawString(font, "J" + j.getInt("Id") + "  " + cap(j.getString("Tier")) + " joint", dx, y, HEAD, false);
         String gears = j.getString("Gears");
         String spd = j.getInt("Motors") == 0 ? "" : String.format("max %.0f\u00B0/s", j.getDouble("MaxSpeed")) + (gears.isEmpty() || gears.equals("1") ? "" : "  gears " + gears + ":1");
-        g.drawString(font, spd, dx + 92, y, j.getDouble("NeedSpeed") > j.getDouble("MaxSpeed") + 0.01 && j.getInt("Mode") != 0 ? WARN : DIM, false);
+        g.drawString(font, font.plainSubstrByWidth(spd, dw - 92), dx + 92, y, j.getDouble("NeedSpeed") > j.getDouble("MaxSpeed") + 0.01 && j.getInt("Mode") != 0 ? WARN : DIM, false);
         boolean free = j.getList("Children", Tag.TAG_COMPOUND).isEmpty();
         g.drawString(font, String.format("Position  %d, %d, %d", j.getInt("X"), j.getInt("Y"), j.getInt("Z")), dx, y + 11, WARN, false);
         tips.add(new Tip(dx, y + 10, dx + dw, y + 20, "World X, Y, Z of this joint's first bearing block. Press F3 and look at a bearing to match it."));
         g.drawString(font, String.format("%d blk, strength %.2f, %s axis", j.getInt("K"), j.getDouble("Area"), j.getString("Axis").toUpperCase()), dx, y + 22, DIM, false);
-        double r = j.getDouble("Ratio");
-        bar(g, dx, y + 33, dw, r, r > 1 ? ERR : r > 0.8 ? WARN : OK, free ? "holds nothing" : String.format("load %.0f%%, holds %s", r * 100, StructureScan.tons(j.getDouble("Sub"))),
-                String.format("Limit: %sN straight down, %sN*m of leverage. Over 100%% it snaps. Bigger joints: force grows with blocks, leverage with blocks^1.5.",
-                        StructureScan.kilo(j.getDouble("FCap")), StructureScan.kilo(j.getDouble("MCap"))));
-        double tq = j.getDouble("Torque"), req = j.getDouble("Req");
-        String tl = j.getInt("Motors") == 0 ? "no motor" : StructureScan.kilo(tq) + " / " + StructureScan.kilo(req) + " N*m";
-        bar(g, dx, y + 45, dw, j.getInt("Motors") == 0 ? 0 : req <= 0 ? 1 : tq / req, j.getInt("Motors") == 0 ? DIM : tq >= req ? OK : WARN, tl,
-                "Motor torque compared with what this limb needs. Put Servo Motors touching the joint. Motors of all touching blocks add up.");
-        int iy = y + 60;
+        double r = j.getDouble("Ratio"), sr = j.getDouble("StandRatio"), share = j.getDouble("Share");
+        String capTip = String.format("Limit: %sN straight down, %sN*m of leverage. Over 100%% it snaps. Bigger joints: force grows with blocks, leverage with blocks^1.5.",
+                StructureScan.kilo(j.getDouble("FCap")), StructureScan.kilo(j.getDouble("MCap")));
+        boolean motors = j.getInt("Motors") > 0;
+        double tq = j.getDouble("Torque"), req = j.getDouble("Req"), sreq = j.getDouble("StandTq");
+        int bx = dx + 40, bw = dw - 40;
+        g.drawString(font, "LIFTED", dx, y + 33, DIM, false);
+        bar(g, bx, y + 32, bw, r, r > 1 ? ERR : r > 0.8 ? WARN : OK, free ? "holds nothing" : String.format("hangs %s, %.0f%%", StructureScan.tons(j.getDouble("Sub")), r * 100),
+                "Lifted: the weight of everything below this joint hangs from it (a leg in the air, an arm). " + capTip);
+        bar(g, bx, y + 43, bw, !motors ? 0 : req <= 0 ? 1 : tq / req, !motors ? DIM : tq >= req ? OK : WARN,
+                !motors ? "no motor" : "turn " + StructureScan.kilo(tq) + " / " + StructureScan.kilo(req) + " N*m",
+                "Turning force needed to swing what hangs below. Put Servo Motors touching the joint. Motors of all touching blocks add up.");
+        g.drawString(font, "STAND", dx, y + 57, DIM, false);
+        if (share <= 0) g.drawString(font, "no foot below this joint", bx, y + 57, DIM, false);
+        else {
+            bar(g, bx, y + 56, bw, sr, sr > 1 ? ERR : sr > 0.8 ? WARN : OK, String.format("carries %s, %.0f%%", StructureScan.tons(j.getDouble("Stand")), sr * 100),
+                    String.format("Standing: its feet carry %.0f%% of the whole rig. This joint holds that, minus what is below it, so lower joints carry more. Equal legs share evenly. ", share * 100) + capTip);
+            boolean passive = j.getBoolean("Ball") || j.getInt("Mode") == 0;
+            bar(g, bx, y + 67, bw, passive ? 1 : !motors ? 0 : sreq <= 0 ? 1 : tq / sreq, passive || !motors ? DIM : tq >= sreq ? OK : WARN,
+                    passive ? (j.getBoolean("Ball") ? "ball: levels itself" : "locked: rigid") : !motors ? "no motor" : "hold " + StructureScan.kilo(tq) + " / " + StructureScan.kilo(sreq) + " N*m",
+                    "Turning force needed to keep the rig up from this joint while standing (bent knees need more). Straight legs need little.");
+        }
+        int iy = y + 82;
         String[] modeTxt = {"Locked: rigid", "Leg: IK-driven, foot pushes the Hull", "Leg: IK-driven, foot pushes the Hull", "Spin: turns while powered", "Sway: idle motion", "Program (old setting)"};
         for (var mln : font.split(Component.literal(modeTxt[Math.max(0, Math.min(5, j.getInt("Mode")))]), dw)) { g.drawString(font, mln, dx, iy, TXT, false); iy += 10; }
         iy += 1;

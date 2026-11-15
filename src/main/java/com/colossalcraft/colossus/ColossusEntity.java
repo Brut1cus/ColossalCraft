@@ -728,7 +728,12 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         if (!Config.JOINT_BREAKING.get()) return;
         Vec3 geff = accel.add(0, StructureModel.G, 0);
         double cs = Math.cos(yaw), sn = Math.sin(yaw);
+        boolean standing = model.legged && tilt == 0 && java.util.Arrays.asList(walker.state).contains(WalkerController.State.STANCE);
         for (StructureModel.Joint j : model.joints) {
+            if (standing && j.footShare > 0 && j.standRatio * Math.max(0, geff.y) / StructureModel.G > 1) {
+                if (++overload[j.id] >= 30) { breakJoint(j.id); return; }
+                continue;
+            }
             if (j.subMass <= 0 || j.childSegs.isEmpty()) continue;
             Vec3 rl = j.subCom.subtract(j.pivot);
             Vec3 r = new Vec3(rl.x * cs - rl.z * sn, rl.y, rl.x * sn + rl.z * cs);

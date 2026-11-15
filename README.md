@@ -111,6 +111,12 @@ A Colossus that stands on parts hanging from joints set to **Leg** is a walker. 
 
 Otherwise it tips over towards its heavy side. The Overview checklist and the **Top** view in the Joints tab (the cyan box is the feet, + is the weight) show what's wrong.
 
+## Joint loads: lifted and standing
+Each joint shows two estimates:
+- **LIFTED:** everything below the joint hangs from it (a leg in the air, an arm). The top bar is the load against the joint's strength, and the bottom bar is the motor's turning force against what's needed to swing it.
+- **STAND:** feet on the ground carry the whole rig. Each foot gets a share of the weight: two equal legs placed evenly each carry half, and a foot nearer the centre of mass carries more. A joint carries its feet's share minus what is below it, so the **ankle carries the most** and the hip the least. The bottom bar is the turning force needed to hold the rig up from that joint: straight legs need little, bent knees need more.
+- Either bar over 100% means the joint will snap (live, while standing too). Use bigger or stronger joints low on the legs.
+
 ## Joints view (3D schematic)
 The Joints tab (in the Locomotion Controller) is a 3D view of the whole Colossus: left-drag turns it, right-drag moves it, and scroll zooms. The side panel shows the selected joint: position, load, torque, gears and, for legs, foot grip, push and carry limits. Two buttons set the joint's **Mode** (Locked, Leg, Spin, Sway) and its **Limit** (how far it may turn).
 - **green** is the core part, **blue** marks the other parts, **yellow** marks bearings, and **red** marks problems.
