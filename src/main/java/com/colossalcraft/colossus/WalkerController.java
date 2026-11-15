@@ -71,15 +71,19 @@ public class WalkerController {
         return new Vec3(v.x, v.y, v.z);
     }
 
-    /** Top of the ground under (x, z), searching down from y; NaN if nothing within 3 blocks. */
+    /**
+     * The ground surface under (x, z): searching down from a block above the foot, the top of the first solid block.
+     * (Searching from above means a foot that sank into the ground still finds the real surface, not a lower one.)
+     * NaN if there's nothing within 3 blocks below.
+     */
     public static double groundY(Level level, double x, double y, double z) {
         BlockPos.MutableBlockPos mp = new BlockPos.MutableBlockPos();
         int bx = (int) Math.floor(x), bz = (int) Math.floor(z);
-        for (int by = (int) Math.floor(y + 0.4); by >= (int) Math.floor(y) - 3; by--) {
+        for (int by = (int) Math.floor(y + 1.0); by >= (int) Math.floor(y) - 3; by--) {
             mp.set(bx, by, bz);
             BlockState s = level.getBlockState(mp);
             VoxelShape sh = s.getCollisionShape(level, mp);
-            if (!sh.isEmpty()) { double top = by + sh.max(net.minecraft.core.Direction.Axis.Y); if (top <= y + 0.45) return top; }
+            if (!sh.isEmpty()) return by + sh.max(net.minecraft.core.Direction.Axis.Y);
         }
         return Double.NaN;
     }
@@ -172,7 +176,7 @@ public class WalkerController {
         if (planted.isEmpty()) {
             // nothing on the ground: free fall
             c.vel = c.vel.add(ext.scale(dt / M)).add(0, -g * dt, 0);
-            c.moveBody(c.vel.scale(dt));
+            c.moveFull(c.vel.scale(dt)); // legs collide too, so it lands on its feet instead of sinking
             c.onGroundC = false;
             status = "airborne";
             solveAllIK(c);

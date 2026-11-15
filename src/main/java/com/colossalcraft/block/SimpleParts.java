@@ -57,7 +57,15 @@ public final class SimpleParts {
     /** Gearbox: placed between Servo Motors and a joint. Multiplies torque by ratio (times efficiency) and divides speed by ratio. Chains multiply. */
     public static class GearboxBlock extends RotatedPillarBlock {
         public final double ratio, efficiency; public final String label;
-        public GearboxBlock(double ratio, double efficiency, String label, Properties p) { super(p); this.ratio = ratio; this.efficiency = efficiency; this.label = label; }
+        /** Where the input gear (model tintindex 9) and output gear (tintindex 10) sit, in pixels across the axis (u, v). Must match the model. */
+        public final double inU, inV, outU, outV, outFactor; public final boolean inAcross;
+        public GearboxBlock(double ratio, double efficiency, String label, Properties p) {
+            super(p); this.ratio = ratio; this.efficiency = efficiency; this.label = label;
+            if (ratio == 0.5) { inU = 5.5; inV = 8; outU = 11.5; outV = 8; outFactor = -2; inAcross = false; }        // overdrive: big drives small
+            else if (ratio == 2) { inU = 4.5; inV = 8; outU = 10.5; outV = 8; outFactor = -0.5; inAcross = false; }   // spur
+            else if (ratio == 5) { inU = 8; inV = 8; outU = 8; outV = 8; outFactor = 0.2; inAcross = false; }          // planetary: carrier orbits with the sun
+            else { inU = 8; inV = 3.5; outU = 8; outV = 10.5; outFactor = -1 / ratio; inAcross = true; }              // worm: the worm turns across the block
+        }
     }
 
     /** Thruster. FACING = nozzle direction; push goes the other way. */

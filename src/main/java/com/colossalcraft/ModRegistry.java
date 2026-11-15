@@ -82,11 +82,11 @@ public final class ModRegistry {
             for (JointShape sh : JointShape.values()) m.put(sh, block(t.id + "_" + sh.suffix, p -> sh == JointShape.SLAB ? new SlabJointBlock(t, p) : sh == JointShape.PANEL ? new PanelJointBlock(t, p) : new JointBlock(t, sh, p), metal().noOcclusion()));
             JOINT_SHAPES.put(t, m); JOINTS.put(t, m.get(JointShape.FULL));
         }
-        for (MaterialTier t : MaterialTier.values()) MOTORS.put(t, block(t.id + "_motor", p -> new MotorBlock(t, p), metal()));
-        GEARBOXES.add(block("overdrive_gearbox", p -> new GearboxBlock(0.5, 0.95, "1:2 speed-up", p), metal()));
-        GEARBOXES.add(block("spur_gearbox", p -> new GearboxBlock(2, 0.95, "2:1", p), metal()));
-        GEARBOXES.add(block("planetary_gearbox", p -> new GearboxBlock(5, 0.9, "5:1", p), metal()));
-        GEARBOXES.add(block("worm_drive", p -> new GearboxBlock(20, 0.6, "20:1", p), metal()));
+        for (MaterialTier t : MaterialTier.values()) MOTORS.put(t, block(t.id + "_motor", p -> new MotorBlock(t, p), metal().noOcclusion()));
+        GEARBOXES.add(block("overdrive_gearbox", p -> new GearboxBlock(0.5, 0.95, "1:2 speed-up", p), metal().noOcclusion()));
+        GEARBOXES.add(block("spur_gearbox", p -> new GearboxBlock(2, 0.95, "2:1", p), metal().noOcclusion()));
+        GEARBOXES.add(block("planetary_gearbox", p -> new GearboxBlock(5, 0.9, "5:1", p), metal().noOcclusion()));
+        GEARBOXES.add(block("worm_drive", p -> new GearboxBlock(20, 0.6, "20:1", p), metal().noOcclusion()));
         cat = Cat.POWER;
     }
 
@@ -119,11 +119,11 @@ public final class ModRegistry {
     public static final DeferredBlock<ControllerBlock> GRAND_GYROSCOPE = block("grand_gyroscope", p -> new ControllerBlock(MultiblockDef.GRAND_GYRO, null, 6_000_000, p), metal());
 
     // ---- thrusters & aero ----
-    public static final DeferredBlock<ThrusterBlock> STEAM_VENT = block("steam_vent", p -> new ThrusterBlock(ThrusterTier.STEAM, p), metal());
-    public static final DeferredBlock<ThrusterBlock> BLAZE_JET = block("blaze_jet", p -> new ThrusterBlock(ThrusterTier.BLAZE, p), metal().lightLevel(s -> 6));
-    public static final DeferredBlock<ThrusterBlock> ARC_THRUSTER = block("arc_thruster", p -> new ThrusterBlock(ThrusterTier.ARC, p), metal().lightLevel(s -> 6));
-    public static final DeferredBlock<ThrusterBlock> ION_LANCE = block("ion_lance", p -> new ThrusterBlock(ThrusterTier.ION, p), metal().lightLevel(s -> 8));
-    public static final DeferredBlock<ThrusterBlock> GRAVITON_LENS = block("graviton_lens", p -> new ThrusterBlock(ThrusterTier.GRAVITON, p), metal().lightLevel(s -> 10));
+    public static final DeferredBlock<ThrusterBlock> STEAM_VENT = block("steam_vent", p -> new ThrusterBlock(ThrusterTier.STEAM, p), metal().noOcclusion());
+    public static final DeferredBlock<ThrusterBlock> BLAZE_JET = block("blaze_jet", p -> new ThrusterBlock(ThrusterTier.BLAZE, p), metal().noOcclusion().lightLevel(s -> 6));
+    public static final DeferredBlock<ThrusterBlock> ARC_THRUSTER = block("arc_thruster", p -> new ThrusterBlock(ThrusterTier.ARC, p), metal().noOcclusion().lightLevel(s -> 6));
+    public static final DeferredBlock<ThrusterBlock> ION_LANCE = block("ion_lance", p -> new ThrusterBlock(ThrusterTier.ION, p), metal().noOcclusion().lightLevel(s -> 8));
+    public static final DeferredBlock<ThrusterBlock> GRAVITON_LENS = block("graviton_lens", p -> new ThrusterBlock(ThrusterTier.GRAVITON, p), metal().noOcclusion().lightLevel(s -> 10));
     static { cat = Cat.POWER; }
     public static final DeferredBlock<FluxAccumulatorBlock> FLUX_ACCUMULATOR = block("flux_accumulator", FluxAccumulatorBlock::new, metal());
     static { cat = Cat.PROPULSION; }

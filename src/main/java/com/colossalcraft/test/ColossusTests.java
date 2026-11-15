@@ -535,4 +535,60 @@ public class ColossusTests {
             h.succeed();
         });
     }
+
+    /** Like walker(), plus a knee on each leg (knee motor hangs off the upper leg). */
+    static void kneeWalker(GameTestHelper h) {
+        walker(h, false, true);
+        BlockState knee = ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+        var mot = ModRegistry.MOTORS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z);
+        for (int x : new int[]{6, 8}) {
+            h.setBlock(x, 2, 7, knee);
+            h.setBlock(x, 3, 8, Blocks.STONE_BRICKS); // bracket on the upper leg
+            h.setBlock(x, 2, 8, mot);                  // knee motor, held by the bracket
+        }
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        for (StructureModel.Joint j : r.model.joints) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.LEG); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 200)
+    public static void droppedWalkerLandsOnItsFeetAndWalks(GameTestHelper h) {
+        walker(h, false, true);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) h.setBlock(x, 0, z, Blocks.AIR); // drop it onto the world's ground below
+        double groundTop = h.absolutePos(new BlockPos(0, 0, 0)).getY();
+        double[] z0 = {0}; boolean[] stepped = {false};
+        h.runAfterDelay(40, () -> {
+            ColossusEntity c = find(h);
+            for (int i = 0; i < c.walker.foot.length; i++) {
+                h.assertTrue(c.walker.state[i] == WalkerControllerAccess.STANCE, "foot " + i + " not planted: " + c.walker.status);
+                h.assertTrue(Math.abs(c.walker.foot[i].y - groundTop) < 0.05, "foot " + i + " not on the surface: " + c.walker.foot[i].y + " vs " + groundTop);
+            }
+            z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false);
+        });
+        for (int t = 41; t <= 140; t++) h.runAfterDelay(t, () -> stepped[0] |= find(h).walker.status.contains("STEP"));
+        h.runAfterDelay(142, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] dropped walker dz={} stepped={} y={}", c.getZ() - z0[0], stepped[0], c.getY());
+            h.assertTrue(stepped[0] && c.getZ() - z0[0] < -1.0, "should step forward, dz=" + (c.getZ() - z0[0]));
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 200)
+    public static void kneeWalkerWalks(GameTestHelper h) {
+        kneeWalker(h);
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        h.assertTrue(r.model.legChains.size() == 2 && r.model.legChains.get(0).joints().size() == 2, "expected 2 legs with hip+knee, got " + r.model.legChains.size());
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] z0 = {0};
+        h.runAfterDelay(20, () -> { ColossusEntity c = find(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        h.runAfterDelay(120, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] knee walker dz={} tilt={} status={}", c.getZ() - z0[0], c.tilt, c.walker.status);
+            h.assertTrue(c.getZ() - z0[0] < -1.0 && c.tilt == 0, "knee walker should walk, dz=" + (c.getZ() - z0[0]));
+            h.succeed();
+        });
+    }
 }

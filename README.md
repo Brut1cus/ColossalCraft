@@ -84,7 +84,7 @@ Set each **hip** (and any **knee**) joint to **Leg**, with a foot under it. Left
 What it needs: grippy feet, hip motors strong enough to push the Hull, joints strong enough to carry the whole weight on one leg, and a powered gyro in the core part (below).
 
 ## Walkers and balance
-A Colossus that stands on parts hanging from joints set to **Leg** or **Program** is a walker. It stays standing only if:
+A Colossus that stands on parts hanging from joints set to **Leg** is a walker. It stays standing only if:
 1. the **Hull Core's part** has a **gyro** (a Pocket Gyro or a gyro structure) with **power**,
 2. every joint from each foot up to the core has a strong enough **Servo Motor**, and
 3. the **centre of mass is over the feet**. The gyro widens that area a little.
@@ -92,15 +92,10 @@ A Colossus that stands on parts hanging from joints set to **Leg** or **Program*
 Otherwise it tips over towards its heavy side. The Overview checklist and the **Top** view in the Joints tab (the cyan box is the feet, + is the weight) show what's wrong.
 
 ## Joints view (3D schematic)
-The Joints tab draws the whole Colossus in 3D. Use **X / Z / Top** for straight views, ⟲ ⟳ to turn, ▲ ▼ to tilt and + − to zoom. Left-drag turns, right-drag moves, and scroll zooms.
+The Joints tab is a 3D view of the whole Colossus: left-drag turns it, right-drag moves it, and scroll zooms. The side panel shows the selected joint: position, load, torque, gears and, for legs, foot grip, push and carry limits. Two buttons set the joint's **Mode** (Locked, Leg, Spin, Sway) and its **Limit** (how far it may turn).
 - **green** is the core part, **blue** marks the other parts, **yellow** marks bearings, and **red** marks problems.
 - Click a joint marker to select it.
 - Red X marks show where the build touches natural ground. Build on Gantry Scaffold instead.
-
-## Animate tab
-- **Gait speed** is how many steps per second the walker takes.
-- For each joint: **Use Program**, then set **8 keyframe angles** (they play over one step), a **phase** (180° for the opposite leg), a **speed** factor, and **Loop** (plays even when standing still, for idle animations).
-- The screen shows how fast each joint has to turn and how fast its gears allow. If gears are too slow, the whole gait slows down to match.
 
 ## Gantry Hoist
 Hang a **Gantry Hoist** above where the Colossus stands (up to 32 blocks up, usually on top of a scaffold frame). Right-click it to grab the Colossus below: it lifts it until there is air under it, holds it upright, and shows a chain. **Park** while it's held and the blocks stay off the ground, so you can **Build** it again later without picking up terrain. Right-click again to let go.
@@ -118,7 +113,7 @@ Hang a **Gantry Hoist** above where the Colossus stands (up to 32 blocks up, usu
 - Shafts, gearbox gears and bearing axles visibly spin on a moving Colossus.
 
 ## Gearboxes
-Gearboxes have an axis like motors and an open frame, so you can see the gear turning inside. Place a gearbox between a Servo Motor and a joint (motor touches gearbox, gearbox touches joint). Gearboxes in a chain multiply.
+Gearboxes have an axis like motors and an open frame showing a real gear train, sized to the ratio: spur (small gear drives one twice its size), overdrive (big drives small), planetary (sun gear, three orbiting planets, ring gear) and worm (a spiral worm turning a toothed wheel). Meshing gears spin in opposite directions at their own speeds. Place a gearbox between a Servo Motor and a joint (motor touches gearbox, gearbox touches joint). Gearboxes in a chain multiply.
 
 | Gearbox | Ratio | Torque | Speed |
 |---|---|---|---|

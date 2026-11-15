@@ -229,3 +229,10 @@ for on in (False, True):
     rect(hk, 6, 2, 9, 13, hx(0xf2c21a) if on else hx(0x8a8a8a)); rect(hk, 4, 11, 11, 13, hx(0xf2c21a) if on else hx(0x8a8a8a))
     save(hk, B, 'gantry_hoist_on' if on else 'gantry_hoist')
 print('mech textures done')
+
+# --- gear metals (one per gearbox) ---
+for name, col in (('overdrive_gearbox_gear', hx(0xe8c34a)), ('spur_gearbox_gear', hx(0xc9a26a)), ('planetary_gearbox_gear', hx(0xb8c4d0)), ('worm_drive_gear', hx(0xd08a52))):
+    im = base(col, hash(name) & 1023, 0.08)
+    for i in range(16): px(im, i, i, shade(col, 1.25)); px(im, 15 - i, i, shade(col, 0.8))
+    save(im, B, name)
+print('gear metals done')

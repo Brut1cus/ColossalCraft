@@ -88,8 +88,8 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
                 Integer jid = m.jointOf.get(p);
                 double[] sp = m.spinParts.get(p);
                 if (jid != null && !m.joints.get(jid).childSegs.isEmpty()) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.STATIC, null, 0);
-                else if (sp != null && m.blocks.get(p).getBlock() instanceof com.colossalcraft.block.SimpleParts.GearboxBlock)
-                    drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL_SPIN_TOO, m.blocks.get(p).getValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS), angles[(int) sp[0]] * sp[1]);
+                else if (m.blocks.get(p).getBlock() instanceof com.colossalcraft.block.SimpleParts.GearboxBlock)
+                    drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL_SPIN_TOO, m.blocks.get(p).getValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS), sp == null ? 0 : angles[(int) sp[0]] * sp[1]);
                 else if (sp != null || isClusterMember(m, p)) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.STATIC, null, 0);
                 else drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL, null, 0);
             }
@@ -139,7 +139,27 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         super.render(e, yawIgnored, pt, ps, buf, light);
     }
 
-    enum Part { ALL, STATIC, SPIN, ALL_SPIN_TOO }
+    enum Part { ALL, STATIC, SPIN, SPIN2, ALL_SPIN_TOO }
+
+    /** (u, v) pixels across the axis + middle along it -> block coordinates (0..1). Same layout as the model generator. */
+    private static org.joml.Vector3f uvToBlock(net.minecraft.core.Direction.Axis axis, double u, double v) {
+        return switch (axis) {
+            case X -> new org.joml.Vector3f(0.5f, (float) (u / 16), (float) (v / 16));
+            case Y -> new org.joml.Vector3f((float) (u / 16), 0.5f, (float) (v / 16));
+            default -> new org.joml.Vector3f((float) (u / 16), (float) (v / 16), 0.5f);
+        };
+    }
+    private static org.joml.Vector3f uAxis(net.minecraft.core.Direction.Axis axis) {
+        return axis == net.minecraft.core.Direction.Axis.X ? new org.joml.Vector3f(0, 1, 0) : new org.joml.Vector3f(1, 0, 0);
+    }
+    private void spinGroup(BlockState st, PoseStack ps, MultiBufferSource buf, int li, Part group, org.joml.Vector3f center, org.joml.Vector3f ax, double angle) {
+        ps.pushPose();
+        ps.translate(center.x, center.y, center.z);
+        ps.mulPose(new org.joml.Quaternionf().rotateAxis((float) angle, ax.x, ax.y, ax.z));
+        ps.translate(-center.x, -center.y, -center.z);
+        drawQuads(st, ps, buf, li, group);
+        ps.popPose();
+    }
 
     private static boolean isClusterMember(StructureModel m, BlockPos p) { return m.blocks.get(p).getBlock() instanceof com.colossalcraft.block.SimpleParts.MotorBlock; }
 
@@ -152,8 +172,9 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             for (int d = -1; d < 6; d++) {
                 rnd.setSeed(42);
                 for (var q : model.getQuads(st, d < 0 ? null : net.minecraft.core.Direction.from3DDataValue(d), rnd, net.neoforged.neoforge.client.model.data.ModelData.EMPTY, rt)) {
-                    boolean spin = q.getTintIndex() == 9;
-                    if ((part == Part.STATIC && spin) || (part == Part.SPIN && !spin)) continue;
+                    int ti = q.getTintIndex();
+                    boolean keep = switch (part) { case STATIC -> ti < 9; case SPIN -> ti == 9; case SPIN2 -> ti == 10; default -> true; };
+                    if (!keep) continue;
                     vc.putBulkData(ps.last(), q, 1f, 1f, 1f, 1f, light, OverlayTexture.NO_OVERLAY);
                 }
             }
@@ -170,13 +191,13 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             int li = level == null ? light : LevelRenderer.getLightColor(level, lp);
             ps.pushPose();
             ps.translate(p.getX(), p.getY(), p.getZ());
-            if (part == Part.ALL_SPIN_TOO) {
+            if (part == Part.ALL_SPIN_TOO && st.getBlock() instanceof com.colossalcraft.block.SimpleParts.GearboxBlock gb) {
+                // frame stays; input gear turns with the motor side, output gear meshes with it at its own ratio
                 drawQuads(st, ps, buf, li, Part.STATIC);
-                ps.translate(.5, .5, .5);
-                var ax = StructureModel.axisVec(spinAxis);
-                ps.mulPose(new org.joml.Quaternionf().rotateAxis((float) spinAngle, (float) ax.x, (float) ax.y, (float) ax.z));
-                ps.translate(-.5, -.5, -.5);
-                drawQuads(st, ps, buf, li, Part.SPIN);
+                var a = StructureModel.axisVec(spinAxis);
+                org.joml.Vector3f blockAx = new org.joml.Vector3f((float) a.x, (float) a.y, (float) a.z);
+                spinGroup(st, ps, buf, li, Part.SPIN, uvToBlock(spinAxis, gb.inU, gb.inV), gb.inAcross ? uAxis(spinAxis) : blockAx, spinAngle);
+                spinGroup(st, ps, buf, li, Part.SPIN2, uvToBlock(spinAxis, gb.outU, gb.outV), blockAx, spinAngle * gb.outFactor);
             } else drawQuads(st, ps, buf, li, part);
             ps.popPose();
             return;

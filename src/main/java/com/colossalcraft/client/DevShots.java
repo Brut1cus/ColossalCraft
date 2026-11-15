@@ -81,9 +81,13 @@ public final class DevShots {
                 base = sp.blockPosition().offset(0, 0, 10);
                 build(lv, base);
             });
-            case 44 -> server(sp -> look(sp, base.offset(1, 9, -1), base.offset(0, 8, 1)));
-            case 54 -> shot("0_closeup_chair");
-            case 55 -> server(sp -> look(sp, base.offset(5, 5, -3), base.offset(2, 5, 0)));
+            case 42 -> server(sp -> { for (int i = 0; i < 4; i++) sp.serverLevel().setBlockAndUpdate(base.offset(-6 + i * 2, 1, -6), ModRegistry.GEARBOXES.get(i).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z)); });
+            case 43 -> server(sp -> look(sp, base.offset(-3, 2, -9), base.offset(-3, 1, -6)));
+            case 50 -> shot("0a_gearboxes");
+            case 51 -> server(sp -> { for (int i = 0; i < 4; i++) sp.serverLevel().removeBlock(base.offset(-6 + i * 2, 1, -6), false); });
+            case 52 -> server(sp -> look(sp, base.offset(1, 9, -1), base.offset(0, 8, 1)));
+            case 58 -> shot("0_closeup_chair");
+            case 59 -> server(sp -> look(sp, base.offset(4, 5, -2), base.offset(2, 5, 0)));
             case 68 -> shot("0_closeup_joints");
             case 70 -> server(sp -> { if (sp.serverLevel().getBlockEntity(base.offset(-1, 8, 0)) instanceof PowerBlockEntity pe) sp.openMenu(pe, buf -> buf.writeBlockPos(pe.getBlockPos())); });
             case 85 -> shot("0b_engine_gui");
@@ -96,7 +100,7 @@ public final class DevShots {
             case 131 -> { if (mc.screen instanceof HullCoreScreen s) s.turnView(-70, 20, 1.4); }
             case 133 -> shot("2b_joints_rotated");
             case 134 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(2); }
-            case 137 -> shot("2c_animate");
+            case 137 -> shot("2c_power");
             case 138 -> mc.setScreen(null);
             case 139 -> server(sp -> { sp.getAbilities().flying = false; sp.onUpdateAbilities(); BlockPos p = base.offset(1, 8, 1); sp.connection.teleport(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, 135f, 20f); });
             case 145 -> { ColossalCraft.LOG.info("[devshots] before build player y={}", mc.player.getY()); server(sp -> ColossusEntity.assemble(sp.serverLevel(), base.offset(0, 8, 0), sp)); }

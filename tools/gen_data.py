@@ -283,19 +283,66 @@ w(f'{D}/recipe/kinetic_dynamo.json', {'neoforge:conditions': [{'type': 'neoforge
 print('compat data done')
 
 # --- gearboxes + natural ground tag ---
-def gearbox_els(axis):
+AXL = {'x': 'x', 'y': 'y', 'z': 'z'}
+def to_xyz(axis, a, u, v):
+    ai, ui, vi = AX[axis]; p = [0, 0, 0]; p[ai] = a; p[ui] = u; p[vi] = v; return p
+def rot_el(axis, ra, ru, rv, tx, tint, origin_uv, angle, rot_axis=None):
+    el = axis_box(axis, ra, ru, rv, tx)
+    for f in el['faces'].values():
+        if tint is not None: f['tintindex'] = tint
+    if angle:
+        ra_letter = rot_axis or axis
+        o = to_xyz(axis, (ra[0] + ra[1]) / 2, origin_uv[0], origin_uv[1])
+        el['rotation'] = {'origin': o, 'axis': ra_letter, 'angle': angle}
+    return el
+def gear(axis, cu, cv, a0, a1, R, tx, tint):
+    """Round toothed gear in the plane across the axis: an octagon hub and tooth bars at several angles."""
     els = []
-    # open steel frame (12 edges) so the gears inside can be seen
+    h = R * 0.78
+    for ang in (0, 45):
+        els.append(rot_el(axis, (a0, a1), (cu - h, cu + h), (cv - h, cv + h), tx, tint, (cu, cv), ang))
+    angles = (0, 45) if R <= 2.6 else (0, 22.5, 45, -22.5)
+    tw = 0.8 if R <= 2.6 else 1.1
+    for ang in angles:
+        els.append(rot_el(axis, (a0 + 0.5, a1 - 0.5), (cu - R, cu + R), (cv - tw, cv + tw), tx, tint, (cu, cv), ang))
+        els.append(rot_el(axis, (a0 + 0.5, a1 - 0.5), (cu - tw, cu + tw), (cv - R, cv + R), tx, tint, (cu, cv), ang))
+    return els
+def shaft(axis, cu, cv, tint, r=0.8):
+    return [rot_el(axis, (0, 16), (cu - r, cu + r), (cv - r, cv + r), '#shaft', tint, (cu, cv), 0)]
+def frame_els(axis):
+    els = []
     for (ra, ru, rv) in (((0, 16), (0, 2), (0, 2)), ((0, 16), (14, 16), (0, 2)), ((0, 16), (0, 2), (14, 16)), ((0, 16), (14, 16), (14, 16)),
                          ((0, 2), (2, 14), (0, 2)), ((0, 2), (2, 14), (14, 16)), ((14, 16), (2, 14), (0, 2)), ((14, 16), (2, 14), (14, 16)),
                          ((0, 2), (0, 2), (2, 14)), ((0, 2), (14, 16), (2, 14)), ((14, 16), (0, 2), (2, 14)), ((14, 16), (14, 16), (2, 14))):
         els.append(axis_box(axis, ra, ru, rv, '#frame'))
-    # gear: hub + crossed teeth, plus the shaft through it (all turn)
-    els += [axis_box(axis, (5, 11), (3, 13), (3, 13), '#gear', spin=True), axis_box(axis, (6, 10), (1, 15), (6, 10), '#gear', spin=True),
-            axis_box(axis, (6, 10), (6, 10), (1, 15), '#gear', spin=True), axis_box(axis, (0, 16), (7, 9), (7, 9), '#shaft', spin=True)]
     return els
+# input gear = tintindex 9 (turns with the motor side), output gear = tintindex 10 (turns with the joint side). Centres must match GearboxBlock in Java.
+def spur_els(axis):        # 2:1 small pinion drives a gear twice its size
+    return frame_els(axis) + gear(axis, 4.5, 8, 6, 10, 2, '#gear', 9) + shaft(axis, 4.5, 8, 9) + gear(axis, 10.5, 8, 6, 10, 4, '#gear', 10) + shaft(axis, 10.5, 8, 10)
+def overdrive_els(axis):   # 1:2 big gear drives a small one
+    return frame_els(axis) + gear(axis, 5.5, 8, 6, 10, 4, '#gear', 9) + shaft(axis, 5.5, 8, 9) + gear(axis, 11.5, 8, 6, 10, 2, '#gear', 10) + shaft(axis, 11.5, 8, 10)
+def planetary_els(axis):   # 5:1 sun (input), three planets orbiting on the carrier (output), fixed ring
+    els = frame_els(axis) + gear(axis, 8, 8, 6, 10, 2, '#gear', 9) + shaft(axis, 8, 8, 9)
+    import math
+    for k in range(3):
+        an = 2 * math.pi * k / 3
+        els += gear(axis, 8 + 4.2 * math.cos(an), 8 + 4.2 * math.sin(an), 6.5, 9.5, 1.9, '#gear', 10)
+    for ang in (0, 45):  # ring
+        for (ru, rv) in (((2.5, 13.5), (2.5, 3.3)), ((2.5, 13.5), (12.7, 13.5)), ((2.5, 3.3), (3.3, 12.7)), ((12.7, 13.5), (3.3, 12.7))):
+            els.append(rot_el(axis, (6, 10), ru, rv, '#frame', None, (8, 8), ang))
+    return els
+def worm_els(axis):        # 20:1 a spiral worm (turns across the block) drives a toothed wheel
+    ai, ui, vi = AX[axis]; uletter = 'xyz'[ui]; vletter = 'xyz'[vi]
+    els = frame_els(axis)
+    els.append(rot_el(axis, (6.5, 9.5), (2, 14), (2, 5), '#gear', 9, (8, 3.5), 0))            # worm core
+    for u0 in (3, 5, 7, 9, 11, 13):                                                              # helix threads
+        els.append(rot_el(axis, (5.5, 10.5), (u0 - 0.5, u0 + 0.5), (1.5, 5.5), '#gear', 9, (u0, 3.5), 22.5, vletter))
+    els.append(rot_el(axis, (7.3, 8.7), (0, 16), (2.8, 4.2), '#shaft', 9, (8, 3.5), 0))           # worm shaft (along u)
+    els += gear(axis, 8, 10.5, 6, 10, 4.5, '#gear', 10) + shaft(axis, 8, 10.5, 10)
+    return els
+GEAR_ELS = {'overdrive_gearbox': overdrive_els, 'spur_gearbox': spur_els, 'planetary_gearbox': planetary_els, 'worm_drive': worm_els}
 for n, nm in [('overdrive_gearbox', 'Overdrive Gearbox (1:2, faster)'), ('spur_gearbox', 'Spur Gearbox (2:1)'), ('planetary_gearbox', 'Planetary Gearbox (5:1)'), ('worm_drive', 'Worm Drive (20:1)')]:
-    pillar_block(n, nm, gearbox_els, {'frame': tex('gearbox_frame'), 'gear': tex(n), 'shaft': tex('shaft'), 'particle': tex(n)})
+    pillar_block(n, nm, GEAR_ELS[n], {'frame': tex('gearbox_frame'), 'gear': tex(n + '_gear'), 'shaft': tex('shaft'), 'particle': tex(n)})
     w(f'{D}/loot_table/blocks/{n}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{n}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
 lang = json.load(open(f'{A}/lang/en_us.json'))
 for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]

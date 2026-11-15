@@ -503,6 +503,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
 
     /** Move the Hull with collision, ignoring the legs (the walker controller handles feet). */
     void moveBody(Vec3 d) { bodyOnly = true; try { moveWithCollision(d); } finally { bodyOnly = false; } }
+    /** Move with every block colliding (used while no foot is on the ground). */
+    void moveFull(Vec3 d) { moveWithCollision(d); }
 
     private void moveWithCollision(Vec3 d) {
         List<AABB> boxes = surfaceBoxes(position(), yaw);

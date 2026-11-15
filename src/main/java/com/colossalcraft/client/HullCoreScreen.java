@@ -34,7 +34,7 @@ public class HullCoreScreen extends Screen {
             "Turns all the time while powered: propellers, wheels, turrets.",
             "Slow idle motion: tails, antennae, heads.",
             "Follows the keyframes you set in the Animate tab."};
-    private static final String[] TABS = {"Overview", "Joints", "Animate", "Power", "Help"};
+    private static final String[] TABS = {"Overview", "Joints", "Power", "Help"};
     private static final String[] VIEWS = {"ViewX", "ViewZ", "ViewTop"}, VIEW_NAMES = {"Side X", "Side Z", "Top"};
     private static final int CORE_COL = 0xFF2CFF7A, JOINT_COL = 0xFFFFD34A, BAD_COL = 0xFFFF4A4A, SEL_COL = 0xFFFFFFFF;
     private static final int[] PART_COLS = {0xFF3AA0FF, 0xFF2A7FD9, 0xFF5BC0FF, 0xFF1E66B3, 0xFF4C8DFF, 0xFF77B8FF};
@@ -102,75 +102,30 @@ public class HullCoreScreen extends Screen {
         addRenderableWidget(act);
 
         if (tab == 1) {
-            String[] lbl = {"X", "Z", "Top", "\u27F2", "\u27F3", "\u25B2", "\u25BC", "+", "-"};
-            String[] tip = {"Look from the side (along Z)", "Look from the other side (along X)", "Look from the top", "Turn left", "Turn right", "Tilt up", "Tilt down", "Zoom in", "Zoom out"};
-            for (int i = 0; i < lbl.length; i++) {
-                int vi = i;
-                Button b = Button.builder(Component.literal(lbl[i]), z -> {
-                    switch (vi) { case 0, 1, 2 -> { view = vi; preset(vi); } case 3 -> camYaw -= 22.5; case 4 -> camYaw += 22.5;
-                        case 5 -> camPitch = Math.min(90, camPitch + 15); case 6 -> camPitch = Math.max(-90, camPitch - 15);
-                        case 7 -> camZoom = Math.min(8, camZoom * 1.25); default -> camZoom = Math.max(0.25, camZoom / 1.25); }
-                }).bounds(l + NAV + 6 + i * 18, t + 26, i == 2 ? 20 : 17, 12).build();
-                b.setTooltip(Tooltip.create(Component.literal(tip[i] + (i >= 3 ? ". You can also drag the view (right-drag pans) and scroll to zoom." : ""))));
-                addRenderableWidget(b);
-            }
             jointWidgets(l + NAV + 8 + 168, t + 30);
         }
-        if (tab == 2) animWidgets(l + NAV + 8, t + 30);
     }
 
-    private void animWidgets(int x, int y) {
-        int dw = W - NAV - 16;
-        int gs = (int) Math.round(data.getDouble("GaitSpeed") * 100);
-        addRenderableWidget(Button.builder(Component.literal("-"), z -> send(9, -1, gs - (gs > 50 ? 10 : 5))).bounds(x + 150, y - 2, 14, 12).build());
-        addRenderableWidget(Button.builder(Component.literal("+"), z -> send(9, -1, gs + (gs >= 50 ? 10 : 5))).bounds(x + 166, y - 2, 14, 12).build());
-        int bx = x;
-        for (Tag t : list("Joints")) {
-            CompoundTag j = (CompoundTag) t; int id = j.getInt("Id");
-            if (bx + 26 > x + dw) break;
-            Button b = Button.builder(Component.literal("J" + id), z -> { selected = id; rebuild(); }).bounds(bx, y + 12, 25, 12).build();
-            b.active = selected != id; addRenderableWidget(b); bx += 27;
-        }
-        CompoundTag j = joint(selected); if (j == null) return;
-        int mode = j.getInt("Mode");
-        Button prog = Button.builder(Component.literal(mode == 5 ? "> Program" : "Use Program"), z -> send(1, selected, 5)).bounds(x + 70, y + 27, 62, 12).build();
-        prog.active = mode != 5; prog.setTooltip(Tooltip.create(Component.literal("Switch this joint to follow the keyframes below.")));
-        addRenderableWidget(prog);
-        Button loop = Button.builder(Component.literal("Loop: " + (j.getBoolean("Loop") ? "ON" : "OFF")), z -> send(10, selected, 0)).bounds(x + 134, y + 27, 50, 12).build();
-        loop.setTooltip(Tooltip.create(Component.literal("ON: plays all the time (idle animations). OFF: plays only while walking.")));
-        addRenderableWidget(loop);
-        int ph = j.getInt("Phase"), sp = j.getInt("SpeedX");
-        addRenderableWidget(Button.builder(Component.literal("-"), z -> send(7, selected, ph - 15)).bounds(x + 188, y + 27, 12, 12).build());
-        addRenderableWidget(Button.builder(Component.literal("+"), z -> send(7, selected, ph + 15)).bounds(x + 228, y + 27, 12, 12).build());
-        addRenderableWidget(Button.builder(Component.literal("-"), z -> send(8, selected, sp - 25)).bounds(x + 246, y + 27, 12, 12).build());
-        addRenderableWidget(Button.builder(Component.literal("+"), z -> send(8, selected, sp + 25)).bounds(x + 290, y + 27, 12, 12).build());
-        int[] keys = Arrays.copyOf(j.getIntArray("Keys"), 8);
-        int colW = dw / 8;
-        for (int i = 0; i < 8; i++) {
-            int ki = i, v = keys[i], cx = x + i * colW + (colW - 22) / 2;
-            addRenderableWidget(Button.builder(Component.literal("\u25B2"), z -> send(6, selected, (ki << 16) | (Math.min(180, v + (hasShiftDown() ? 15 : 5)) + 180))).bounds(cx, y + 108, 22, 11).build());
-            addRenderableWidget(Button.builder(Component.literal("\u25BC"), z -> send(6, selected, (ki << 16) | (Math.max(-180, v - (hasShiftDown() ? 15 : 5)) + 180))).bounds(cx, y + 132, 22, 11).build());
-        }
-    }
+    private static final int[] MODE_CYCLE = {0, 1, 3, 4};
+    private static final int[] LIMITS = {20, 30, 45, 60, 90};
 
+    /** Only two small controls: what the joint does, and how far it may turn. */
     private void jointWidgets(int x, int y) {
         CompoundTag j = joint(selected);
         if (j == null) return;
-        int mode = j.getInt("Mode");
-        int by = y + 66;
-        int row = 0;
-        for (int i = 0; i < MODE_NAMES.length; i++) {
-            if (i == 2) continue; // old "Walk (right)" value, now the same as Leg
-            int mi = i;
-            boolean cur = mode == i || (i == 1 && mode == 2);
-            Button b = Button.builder(Component.literal((cur ? "> " : "") + MODE_NAMES[i]), z -> send(1, selected, mi)).bounds(x, by + row++ * 14, 92, 13).build();
-            b.setTooltip(Tooltip.create(Component.literal(MODE_HELP[i])));
-            b.active = !cur; addRenderableWidget(b);
-        }
-        int amp = j.getInt("Amp");
-        int ay = by + row * 14 + 3;
-        addRenderableWidget(Button.builder(Component.literal("-"), z -> send(2, selected, amp - (amp > 30 ? 10 : 5))).bounds(x, ay, 18, 16).build());
-        addRenderableWidget(Button.builder(Component.literal("+"), z -> send(2, selected, amp + (amp >= 30 ? 10 : 5))).bounds(x + 74, ay, 18, 16).build());
+        int mode = j.getInt("Mode"); if (mode == 2) mode = 1; if (mode == 5) mode = 0;
+        int idx = 0; for (int i = 0; i < MODE_CYCLE.length; i++) if (MODE_CYCLE[i] == mode) idx = i;
+        int next = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length];
+        int by = top() + H - 52, w = (W - NAV - 8 - 174) / 2 - 2;
+        Button mb = Button.builder(Component.literal("Mode: " + MODE_NAMES[mode]), z -> send(1, selected, next)).bounds(x, by, w, 14).build();
+        mb.setTooltip(Tooltip.create(Component.literal(MODE_HELP[mode] + "  (click for " + MODE_NAMES[next] + ")")));
+        addRenderableWidget(mb);
+        int lim = Math.max(20, Math.min(90, j.getInt("Amp") * 2)), li = 0;
+        for (int i = 0; i < LIMITS.length; i++) if (LIMITS[i] <= lim) li = i;
+        int nextLim = LIMITS[(li + 1) % LIMITS.length];
+        Button lb = Button.builder(Component.literal("Limit \u00B1" + lim + "\u00B0"), z -> send(2, selected, nextLim / 2)).bounds(x + w + 4, by, w, 14).build();
+        lb.setTooltip(Tooltip.create(Component.literal("How far this joint may turn either way (legs bend within this). Click for \u00B1" + nextLim + "\u00B0.")));
+        addRenderableWidget(lb);
     }
 
     private CompoundTag joint(int id) {
@@ -250,8 +205,7 @@ public class HullCoreScreen extends Screen {
         switch (tab) {
             case 0 -> overview(g, cx, cy);
             case 1 -> joints(g, cx, cy, mx, my);
-            case 2 -> animate(g, cx, cy);
-            case 3 -> power(g, cx, cy);
+            case 2 -> power(g, cx, cy);
             default -> help(g, cx, cy);
         }
         // footer status
@@ -348,7 +302,7 @@ public class HullCoreScreen extends Screen {
 
     /** 2D schematic: core part green, other parts blue, bearings yellow, problems red. Click a joint marker to select it. */
     private void joints(GuiGraphics g, int x, int y, int mx, int my) {
-        cvX = x - 2; cvY = y + 11; cvW = 164; cvH = top() + H - 50 - cvY;
+        cvX = x - 2; cvY = y - 4; cvW = 164; cvH = top() + H - 50 - cvY;
         g.fill(cvX, cvY, cvX + cvW, cvY + cvH, 0xFF04110A);
         for (int gx = cvX; gx < cvX + cvW; gx += 8) g.fill(gx, cvY, gx + 1, cvY + cvH, 0x1A2CFF7A);
         for (int gy = cvY; gy < cvY + cvH; gy += 8) g.fill(cvX, gy, cvX + cvW, gy + 1, 0x1A2CFF7A);
@@ -453,53 +407,18 @@ public class HullCoreScreen extends Screen {
         String tl = j.getInt("Motors") == 0 ? "no motor" : StructureScan.kilo(tq) + " / " + StructureScan.kilo(req) + " N*m";
         bar(g, dx, y + 45, dw, j.getInt("Motors") == 0 ? 0 : req <= 0 ? 1 : tq / req, j.getInt("Motors") == 0 ? DIM : tq >= req ? OK : WARN, tl,
                 "Motor torque compared with what this limb needs. Put Servo Motors touching the joint. Motors of all touching blocks add up.");
-        g.drawString(font, "Movement:", dx, y + 57, DIM, false);
-        int mode = j.getInt("Mode");
-        int hy = y + 66 + (MODE_NAMES.length - 1) * 14 + 3;
-        g.drawString(font, "Swing " + j.getInt("Amp") + "°", dx + 28, hy + 4, TXT, false);
-        List<net.minecraft.util.FormattedCharSequence> lines = font.split(Component.literal(MODE_HELP[mode]), dw - 98);
-        int hy2 = y + 68; for (var hl : lines) { g.drawString(font, hl, dx + 98, hy2, DIM, false); hy2 += 10; }
-    }
-
-    private void animate(GuiGraphics g, int x, int y) {
-        int dw = W - NAV - 16;
-        double gs = data.getDouble("GaitSpeed"), sc = data.getDouble("GaitScale");
-        g.drawString(font, String.format("GAIT  %.2f steps/s", gs), x, y, HEAD, false);
-        g.drawString(font, String.format("gears allow %.0f%%", sc * 100), x + 186, y, sc < 0.999 ? WARN : OK, false);
-        tips.add(new Tip(x + 186, y - 1, x + dw, y + 9, "If a joint's gears can't turn as fast as the gait asks, the whole gait slows down to match it."));
-        CompoundTag j = joint(selected);
-        if (j == null) { g.drawString(font, "No joints to animate.", x, y + 30, WARN, false); return; }
-        g.drawString(font, "J" + j.getInt("Id") + "  " + MODE_NAMES[j.getInt("Mode")], x, y + 29, TXT, false);
-        g.drawString(font, j.getInt("Phase") + "\u00B0", x + 202, y + 29, TXT, false);
-        tips.add(new Tip(x + 188, y + 26, x + 240, y + 39, "Phase: shifts this joint's timing in the cycle (e.g. 180\u00B0 for the opposite leg)."));
-        g.drawString(font, String.format("%.2fx", j.getInt("SpeedX") / 100.0), x + 260, y + 29, TXT, false);
-        tips.add(new Tip(x + 246, y + 26, x + 302, y + 39, "Speed: how many times this joint's keyframes play per step."));
-        // graph
-        int gx = x, gy = y + 44, gw = dw, gh = 60, mid = gy + gh / 2;
-        g.fill(gx, gy, gx + gw, gy + gh, 0xFF04110A);
-        g.fill(gx, mid, gx + gw, mid + 1, 0x552CFF7A);
-        g.fill(gx, gy + gh / 4, gx + gw, gy + gh / 4 + 1, 0x222CFF7A); g.fill(gx, gy + 3 * gh / 4, gx + gw, gy + 3 * gh / 4 + 1, 0x222CFF7A);
-        g.drawString(font, "+90", gx + 1, gy + 1, DIM, false); g.drawString(font, "-90", gx + 1, gy + gh - 9, DIM, false);
-        int[] keys = Arrays.copyOf(j.getIntArray("Keys"), 8);
-        int colW = dw / 8;
-        for (int px = 0; px < gw; px++) {
-            double f = px / (double) gw * 8; int i0 = (int) f % 8, i1 = (i0 + 1) % 8; double tt = f - Math.floor(f);
-            double deg = keys[i0] * (1 - tt) + keys[i1] * tt;
-            int py = mid - (int) Math.round(Math.max(-90, Math.min(90, deg)) / 90.0 * (gh / 2 - 2));
-            g.fill(gx + px, py, gx + px + 1, py + 2, 0xFF3AD7FF);
+        int iy = y + 60;
+        String[] modeTxt = {"Locked: rigid", "Leg: IK-driven, foot pushes the Hull", "Leg: IK-driven, foot pushes the Hull", "Spin: turns while powered", "Sway: idle motion", "Program (old setting)"};
+        for (var mln : font.split(Component.literal(modeTxt[Math.max(0, Math.min(5, j.getInt("Mode")))]), dw)) { g.drawString(font, mln, dx, iy, TXT, false); iy += 10; }
+        iy += 1;
+        if (j.getBoolean("LegHip")) {
+            g.drawString(font, String.format("Foot grip %.2f%s", j.getDouble("Grip"), j.getDouble("Grip") < 0.3 ? "  (slippery!)" : ""), dx, iy, j.getDouble("Grip") < 0.3 ? WARN : TXT, false); iy += 11;
+            g.drawString(font, "Push up to " + StructureScan.kilo(j.getDouble("Push")) + "N", dx, iy, TXT, false); iy += 11;
+            g.drawString(font, "Carries up to " + StructureScan.tons(j.getDouble("Carry") / 9.81), dx, iy, j.getDouble("Carry") < data.getDouble("Mass") * 9.81 ? WARN : TXT, false); iy += 11;
+            g.drawString(font, String.format("Leg %.1f blocks, %d joint%s", j.getDouble("LegLen"), j.getInt("LegJoints"), j.getInt("LegJoints") == 1 ? "" : "s (knee)"), dx, iy, DIM, false); iy += 11;
+        } else if (j.getInt("Blades") > 0) {
+            g.drawString(font, j.getInt("Blades") + " blades on this rotor", dx, iy, TXT, false); iy += 11;
         }
-        for (int i = 0; i < 8; i++) {
-            int cx = x + i * colW + colW / 2;
-            int py = mid - (int) Math.round(Math.max(-90, Math.min(90, keys[i])) / 90.0 * (gh / 2 - 2));
-            g.fill(cx - 2, py - 1, cx + 3, py + 4, JOINT_COL);
-            String val = keys[i] + "\u00B0";
-            g.drawString(font, val, cx - font.width(val) / 2, y + 122, TXT, false);
-        }
-        double need = j.getDouble("NeedSpeed"), max = j.getDouble("MaxSpeed");
-        String sl = j.getInt("Motors") == 0 ? "No Servo Motor on this joint: it can't move." :
-                String.format("Needs %.0f\u00B0/s, gears allow %.0f\u00B0/s%s", need, max, need > max + 0.01 ? "  (slows the gait)" : "");
-        g.drawString(font, sl, x, y + 148, j.getInt("Motors") == 0 || need > max + 0.01 ? WARN : DIM, false);
-        g.drawString(font, "\u25B2\u25BC \u00B15\u00B0 (Shift \u00B115\u00B0). The 8 keys play over one step.", x, y + 160, DIM, false);
     }
 
     private void power(GuiGraphics g, int x, int y) {
@@ -537,7 +456,7 @@ public class HullCoreScreen extends Screen {
                 "§aPower:§r engines + fuel, Flux Accumulator (FE), Kinetic Dynamo (Create).",
                 "§aPilot Throne§r faces forward. Right-click it or press V to sit.",
                 "§aGearboxes§r between motor and joint trade speed for torque.",
-                "§aAnimate§r tab: keyframes, phase and speed for each joint.",
+                "§aJoints§r tab: drag to turn the 3D view, right-drag to move, scroll to zoom.",
                 "§aKeys:§r W/S go, A/D turn, Space/C up/down, H hover,",
                 "G this screen, K park, F5 camera, Shift leave the seat.",
                 "§aPark§r turns it back into blocks; BUILD makes it move again."};

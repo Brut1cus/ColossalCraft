@@ -206,6 +206,11 @@ public final class StructureScan {
             c.putDouble("PX", j.pivot.x); c.putDouble("PY", j.pivot.y); c.putDouble("PZ", j.pivot.z);
             c.putDouble("MaxSpeed", j.maxSpeed); c.putDouble("NeedSpeed", m.neededSpeed(j));
             c.putString("Gears", j.ratios.isEmpty() ? "" : j.ratios.stream().map(x -> x == Math.floor(x) ? String.valueOf((int) (double) x) : String.valueOf(x)).distinct().reduce((a, b) -> a + "," + b).orElse(""));
+            for (StructureModel.LegChain L : m.legChains) if (L.joints().get(0) == j.id) {
+                c.putBoolean("LegHip", true); c.putDouble("Grip", L.mu()); c.putDouble("Push", L.hipTorque() / Math.max(0.5, L.length()));
+                c.putDouble("Carry", L.vCap()); c.putDouble("LegLen", L.length()); c.putInt("LegJoints", L.joints().size());
+            }
+            c.putInt("Blades", j.blades);
             c.putIntArray("Keys", j.keys.clone()); c.putInt("Phase", j.phase); c.putInt("SpeedX", (int) Math.round(j.speedFactor * 100)); c.putBoolean("Loop", j.loop);
             ListTag ch = new ListTag(); for (int cs : j.childSegs) { CompoundTag x = new CompoundTag(); x.putInt("S", cs); ch.add(x); } c.put("Children", ch);
             js.add(c);
