@@ -1,16 +1,13 @@
 {
   "variants": {
+    "axis=x": {
+      "model": "colossalcraft:block/iron_joint_x"
+    },
     "axis=y": {
-      "model": "colossalcraft:block/iron_joint"
+      "model": "colossalcraft:block/iron_joint_y"
     },
     "axis=z": {
-      "model": "colossalcraft:block/iron_joint",
-      "x": 90
-    },
-    "axis=x": {
-      "model": "colossalcraft:block/iron_joint",
-      "x": 90,
-      "y": 90
+      "model": "colossalcraft:block/iron_joint_z"
     }
   }
 }

@@ -26,15 +26,79 @@ def orientable(n, front, side, top, name, extra_state=None):
 
 # --- control ---
 cube_all('hull_core', name='Hull Core')
-orientable('pilot_seat', 'pilot_seat_front', 'pilot_seat_side', 'pilot_seat_top', 'Pilot Throne')
+def fit_uv(face, lo, hi):
+    x0, y0, z0 = lo; x1, y1, z1 = hi
+    uv = {'north': [16 - x1, 16 - y1, 16 - x0, 16 - y0], 'south': [x0, 16 - y1, x1, 16 - y0], 'west': [z0, 16 - y1, z1, 16 - y0],
+          'east': [16 - z1, 16 - y1, 16 - z0, 16 - y0], 'up': [x0, z0, x1, z1], 'down': [x0, 16 - z1, x1, 16 - z0]}[face]
+    for i in (0, 1):
+        lo_v, hi_v = uv[i], uv[i + 2]
+        if lo_v < 0: uv[i] -= lo_v; uv[i + 2] -= lo_v
+        elif hi_v > 16: d = hi_v - 16; uv[i] -= d; uv[i + 2] -= d
+    return [max(0, min(16, v)) for v in uv]
+def cube_el(lo, hi, tx):
+    return {'from': lo, 'to': hi, 'faces': {f: {'texture': tx.get(f, tx['*']), 'uv': fit_uv(f, lo, hi)} for f in ('north', 'south', 'east', 'west', 'up', 'down')}}
+chair = [cube_el([2, 0, 2], [4, 5, 4], {'*': '#side'}), cube_el([12, 0, 2], [14, 5, 4], {'*': '#side'}),
+         cube_el([2, 0, 12], [4, 5, 14], {'*': '#side'}), cube_el([12, 0, 12], [14, 5, 14], {'*': '#side'}),
+         cube_el([1, 5, 1], [15, 8, 15], {'*': '#side', 'up': '#top'}),
+         cube_el([1, 8, 13], [15, 22, 15], {'*': '#side', 'north': '#front'}),
+         cube_el([0, 8, 2], [2, 12, 13], {'*': '#side', 'up': '#top'}), cube_el([14, 8, 2], [16, 12, 13], {'*': '#side', 'up': '#top'})]
+w(f'{A}/models/block/pilot_seat.json', {'parent': 'minecraft:block/block', 'textures': {'front': tex('pilot_seat_front'), 'side': tex('pilot_seat_side'), 'top': tex('pilot_seat_top'), 'particle': tex('pilot_seat_side')}, 'elements': chair})
+w(f'{A}/blockstates/pilot_seat.json', {'variants': {f'facing={f}': ({'model': f'{NS}:block/pilot_seat', 'y': y} if y else {'model': f'{NS}:block/pilot_seat'}) for f, y in HZ.items()}})
+blocks.append('pilot_seat'); NAMES['pilot_seat'] = 'Pilot Throne'
+# --- gantry scaffold (never part of a Colossus)
+bars = []
+for x0 in (0, 14):
+    for z0 in (0, 14): bars.append(cube_el([x0, 0, z0], [x0 + 2, 16, z0 + 2], {'*': '#all'}))
+for y0 in (0, 14):
+    bars += [cube_el([2, y0, 0], [14, y0 + 2, 2], {'*': '#all'}), cube_el([2, y0, 14], [14, y0 + 2, 16], {'*': '#all'}),
+             cube_el([0, y0, 2], [2, y0 + 2, 14], {'*': '#all'}), cube_el([14, y0, 2], [16, y0 + 2, 14], {'*': '#all'})]
+bars.append(cube_el([2, 14.5, 2], [14, 15.5, 14], {'*': '#deck'}))
+w(f'{A}/models/block/gantry_scaffold.json', {'parent': 'minecraft:block/block', 'textures': {'all': tex('gantry_scaffold'), 'deck': tex('gantry_scaffold_deck'), 'particle': tex('gantry_scaffold')}, 'render_type': 'minecraft:cutout', 'elements': bars})
+w(f'{A}/blockstates/gantry_scaffold.json', {'variants': {'': {'model': f'{NS}:block/gantry_scaffold'}}})
+blocks.append('gantry_scaffold'); NAMES['gantry_scaffold'] = 'Gantry Scaffold'
 # --- joints & motors ---
 JN = {'wood': 'Timber', 'stone': 'Cobble', 'iron': 'Iron', 'gold': 'Gilded', 'diamond': 'Diamond'}
+AX = {'x': (0, 1, 2), 'y': (1, 0, 2), 'z': (2, 0, 1)}  # axis index, u index, v index
+def box(lo, hi, axis_i):
+    faces = {}
+    for f, ax in (('north', 2), ('south', 2), ('east', 0), ('west', 0), ('up', 1), ('down', 1)):
+        faces[f] = {'texture': '#end' if ax == axis_i else '#side', 'uv': fit_uv(f, lo, hi)}
+    return {'from': lo, 'to': hi, 'faces': faces}
+def make(a, u, v, ra, ru, rv):
+    lo = [0, 0, 0]; hi = [0, 0, 0]
+    lo[a], hi[a] = ra; lo[u], hi[u] = ru; lo[v], hi[v] = rv
+    return lo, hi
+def joint_elements(shape, axis):
+    a, u, v = AX[axis]
+    outer = {'joint': ((0, 16), (0, 16), (0, 16)), 'joint_slab': None, 'joint_panel': ((4, 12), (0, 16), (0, 16)), 'joint_pin': ((0, 16), (5, 11), (5, 11))}[shape]
+    if shape == 'joint_slab':  # always the bottom half of the block
+        rng = [(0, 16), (0, 8), (0, 16)]
+        outer = (rng[a], rng[u], rng[v])
+    (a0, a1), (u0, u1), (v0, v1) = outer
+    els = []
+    if shape == 'joint_pin':
+        els.append(box(*make(a, u, v, (a0, a1), (u0, u1), (v0, v1)), a))
+        for c0, c1 in ((1, 3), (13, 15)): els.append(box(*make(a, u, v, (c0, c1), (u0 - 1, u1 + 1), (v0 - 1, v1 + 1)), a))
+        return els
+    t = 2 if shape == 'joint_slab' else 3
+    for ru, rv in (((u0, u1), (v0, v0 + t)), ((u0, u1), (v1 - t, v1)), ((u0, u0 + t), (v0 + t, v1 - t)), ((u1 - t, u1), (v0 + t, v1 - t))):
+        els.append(box(*make(a, u, v, (a0, a1), ru, rv), a))
+    # axle through the hole
+    cu, cv = (u0 + u1) / 2, (v0 + v1) / 2
+    hs = max(0.5, min(2, (u1 - u0 - 2 * t) / 2 - 1, (v1 - v0 - 2 * t) / 2 - 1))
+    els.append(box(*make(a, u, v, (a0 - (1 if shape != 'joint' else 0), a1 + (1 if shape != 'joint' else 0)), (cu - hs, cu + hs), (cv - hs, cv + hs)), a))
+    return els
+SHAPES = [('joint', 'Bearing Joint'), ('joint_slab', 'Slab Joint'), ('joint_panel', 'Panel Joint'), ('joint_pin', 'Pin Joint')]
 for m in MATS:
-    n = f'{m}_joint'
-    w(f'{A}/models/block/{n}.json', {'parent': 'minecraft:block/cube_column', 'textures': {'end': tex(n + '_end'), 'side': tex(n + '_side')}})
-    w(f'{A}/blockstates/{n}.json', {'variants': {'axis=y': {'model': f'{NS}:block/{n}'}, 'axis=z': {'model': f'{NS}:block/{n}', 'x': 90}, 'axis=x': {'model': f'{NS}:block/{n}', 'x': 90, 'y': 90}}})
-    blocks.append(n); NAMES[n] = f'{JN[m]} Bearing Joint'
-    cube_all(f'{m}_motor', name=f'{JN[m]} Servo Motor')
+    for sh, title in SHAPES:
+        n = f'{m}_{sh}'
+        for axis in 'xyz':
+            w(f'{A}/models/block/{n}_{axis}.json', {'parent': 'minecraft:block/block', 'textures': {'end': tex(f'{m}_joint_end'), 'side': tex(f'{m}_joint_side'), 'particle': tex(f'{m}_joint_side')},
+                                                   'elements': joint_elements(sh, axis)})
+        w(f'{A}/blockstates/{n}.json', {'variants': {f'axis={ax}': {'model': f'{NS}:block/{n}_{ax}'} for ax in 'xyz'}})
+        blocks.append(n); NAMES[n] = f'{JN[m]} {title}'
+        w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}_x'})
+for m in MATS: cube_all(f'{m}_motor', name=f'{JN[m]} Servo Motor')
 # --- engines ---
 for n, nm in [('ember_boiler', 'Ember Boiler'), ('blaze_combustor', 'Blaze Combustor'), ('redstone_dynamo', 'Redstone Dynamo')]:
     orientable(n, n + '_front', n + '_side', n + '_top', nm)
@@ -63,12 +127,18 @@ cube_all('small_gyro', name='Pocket Gyro')
 D6 = {'north': {}, 'south': {'y': 180}, 'east': {'y': 90}, 'west': {'y': 270}, 'up': {'x': 270}, 'down': {'x': 90}}
 for n, nm in [('steam_vent', 'Steam Vent'), ('blaze_jet', 'Blaze Jet'), ('arc_thruster', 'Arc Thruster'), ('ion_lance', 'Ion Lance'), ('graviton_lens', 'Graviton Lens')]:
     s = tex(n + '_side')
-    w(f'{A}/models/block/{n}.json', {'parent': 'minecraft:block/cube', 'textures': {'particle': s, 'north': tex(n + '_nozzle'), 'south': s, 'east': s, 'west': s, 'up': s, 'down': s}})
+    w(f'{A}/models/block/{n}.json', {'parent': 'minecraft:block/block', 'textures': {'particle': s, 'side': s, 'nozzle': tex(n + '_nozzle')}, 'elements': [
+        cube_el([1, 1, 5], [15, 15, 16], {'*': '#side'}),
+        cube_el([2, 2, 2], [14, 14, 5], {'*': '#side', 'north': '#nozzle'}),
+        cube_el([3, 3, 0], [13, 13, 2], {'*': '#side', 'north': '#nozzle'})]})
     w(f'{A}/blockstates/{n}.json', {'variants': {f'facing={f}': dict({'model': f'{NS}:block/{n}'}, **r) for f, r in D6.items()}})
     blocks.append(n); NAMES[n] = nm
-cube_all('sky_sail', name='Sky Sail')
+w(f'{A}/models/block/sky_sail.json', {'parent': 'minecraft:block/block', 'textures': {'all': tex('sky_sail'), 'particle': tex('sky_sail')}, 'elements': [cube_el([0, 0, 0], [16, 3, 16], {'*': '#all'})]})
+w(f'{A}/blockstates/sky_sail.json', {'variants': {'': {'model': f'{NS}:block/sky_sail'}}})
+blocks.append('sky_sail'); NAMES['sky_sail'] = 'Sky Sail'
 
-for b in blocks: item_from_block(b)
+for b in blocks:
+    if '_joint' not in b: item_from_block(b)
 ITEMS = {'colossteel_blend': 'Colossteel Blend', 'colossteel_ingot': 'Colossteel Ingot', 'reactor_alloy': 'Reactor Alloy',
          'neutronium_ingot': 'Neutronium Ingot', 'enriched_fuel_cell': 'Enriched Fuel Cell', 'deuterium_cell': 'Deuterium Cell'}
 for i in ITEMS: w(f'{A}/models/item/{i}.json', {'parent': 'minecraft:item/generated', 'textures': {'layer0': f'{NS}:item/{i}'}})
@@ -77,9 +147,12 @@ for i in ITEMS: w(f'{A}/models/item/{i}.json', {'parent': 'minecraft:item/genera
 lang = {f'block.{NS}.{b}': NAMES[b] for b in blocks}
 lang.update({f'item.{NS}.{i}': n for i, n in ITEMS.items()})
 lang.update({
-    'itemGroup.colossalcraft': 'ColossalCraft', 'entity.colossalcraft.colossus': 'Colossus',
+    'itemGroup.colossalcraft.command': 'ColossalCraft: Command', 'itemGroup.colossalcraft.joints': 'ColossalCraft: Joints & Motors',
+    'itemGroup.colossalcraft.power': 'ColossalCraft: Power', 'itemGroup.colossalcraft.propulsion': 'ColossalCraft: Propulsion & Gyros',
+    'itemGroup.colossalcraft.materials': 'ColossalCraft: Materials', 'entity.colossalcraft.colossus': 'Colossus', 'entity.colossalcraft.seat': 'Seat',
+    'key.colossalcraft.screen': 'Colossus: Open Hull Core screen',
     'key.categories.colossalcraft': 'ColossalCraft', 'key.colossalcraft.pilot': 'Enter / Leave Pilot Throne',
-    'key.colossalcraft.descend': 'Colossus: Go Down', 'key.colossalcraft.hover': 'Colossus: Hover Assist', 'key.colossalcraft.disassemble': 'Colossus: Land (Disassemble)',
+    'key.colossalcraft.descend': 'Colossus: Go Down', 'key.colossalcraft.hover': 'Colossus: Hover Assist', 'key.colossalcraft.disassemble': 'Colossus: Park (back to blocks)',
     'death.attack.colossalcraft.crushed': '%1$s was crushed by a Colossus', 'death.attack.colossalcraft.crushed.player': '%1$s was crushed by a Colossus',
 })
 w(f'{A}/lang/en_us.json', lang)
@@ -89,11 +162,8 @@ for b in blocks:
     w(f'{D}/loot_table/blocks/{b}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{b}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
 
 # --- tags ---
-w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'values': [f'{NS}:{b}' for b in blocks if b != 'sky_sail']})
-w(f'{D}/tags/block/assembly_blacklist.json', {'values': ['#minecraft:dirt', '#minecraft:base_stone_overworld', '#minecraft:base_stone_nether', '#minecraft:sand',
-    'minecraft:gravel', 'minecraft:bedrock', 'minecraft:end_stone', 'minecraft:snow', 'minecraft:snow_block', 'minecraft:clay', 'minecraft:ice', 'minecraft:packed_ice',
-    'minecraft:short_grass', 'minecraft:tall_grass', 'minecraft:end_portal', 'minecraft:end_portal_frame', 'minecraft:nether_portal', 'minecraft:end_gateway',
-    'minecraft:sculk', 'minecraft:mycelium', 'minecraft:soul_sand', 'minecraft:soul_soil', 'minecraft:magma_block', 'minecraft:obsidian_placeholder_skip'.replace('_placeholder_skip', '') if False else 'minecraft:bedrock']})
+w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'values': [f'{NS}:{b}' for b in blocks if b not in ('sky_sail', 'gantry_scaffold')]})
+w(f'{D}/tags/block/assembly_blacklist.json', {'values': ['minecraft:scaffolding', f'{NS}:gantry_scaffold']})
 w(f'{D}/damage_type/crushed.json', {'message_id': 'colossalcraft.crushed', 'scaling': 'never', 'exhaustion': 0.1})
 w(f'{D}/colossal_density/defaults.json', {'values': {'minecraft:iron_block': 7870, 'minecraft:gold_block': 19300, 'minecraft:diamond_block': 3500, '#minecraft:logs': 650}})
 
@@ -117,6 +187,12 @@ MM = {'wood': '#minecraft:planks', 'stone': '#minecraft:stone_crafting_materials
 for m, mat in MM.items():
     shaped(f'{m}_joint', ['MCM', 'C C', 'MCM'], {'M': mat, 'C': S}, 4)
     shaped(f'{m}_motor', ['CMC', 'MRM', 'CPC'], {'M': mat, 'C': S, 'R': 'minecraft:redstone', 'P': 'minecraft:copper_ingot'})
+for m in MATS:
+    J = f'{m}_joint'
+    shaped(f'{m}_joint_slab', ['JJJ'], {'J': J}, 6)
+    shaped(f'{m}_joint_panel', ['J', 'J', 'J'], {'J': J}, 6)
+    shapeless(f'{m}_joint_pin', [J], 4)
+shaped('gantry_scaffold', ['SNS', ' S ', 'SNS'], {'S': 'minecraft:stick', 'N': 'minecraft:iron_nugget'}, 12)
 shaped('ember_boiler', ['III', 'IFI', 'IBI'], {'I': 'minecraft:iron_ingot', 'F': 'minecraft:furnace', 'B': 'minecraft:bucket'})
 shaped('blaze_combustor', ['SBS', 'BEB', 'SBS'], {'S': S, 'B': 'minecraft:blaze_rod', 'E': 'ember_boiler'})
 shaped('redstone_dynamo', ['SRS', 'RBR', 'SCS'], {'S': S, 'R': 'minecraft:redstone_block', 'B': 'blaze_combustor', 'C': 'minecraft:copper_block'})
@@ -157,7 +233,7 @@ lang[f'block.{NS}.flux_accumulator'] = 'Flux Accumulator'; lang[f'block.{NS}.kin
 w(f'{A}/lang/en_us.json', lang)
 for b in ('flux_accumulator', n):
     w(f'{D}/loot_table/blocks/{b}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{b}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
-w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in blocks if b != 'sky_sail' and b != 'kinetic_dynamo'] + [{'id': f'{NS}:kinetic_dynamo', 'required': False}]})
+w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in blocks if b not in ('sky_sail', 'kinetic_dynamo', 'gantry_scaffold')] + [{'id': f'{NS}:kinetic_dynamo', 'required': False}]})
 shaped('flux_accumulator', ['SRS', 'CBC', 'SRS'], {'S': S, 'R': 'minecraft:redstone_block', 'C': 'minecraft:copper_block', 'B': 'redstone_dynamo'})
 w(f'{D}/recipe/kinetic_dynamo.json', {'neoforge:conditions': [{'type': 'neoforge:mod_loaded', 'modid': 'create'}],
     'type': 'minecraft:crafting_shaped', 'category': 'misc', 'pattern': ['ACA', 'HRH', 'ACA'],

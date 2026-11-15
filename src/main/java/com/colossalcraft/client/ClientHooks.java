@@ -15,8 +15,30 @@ public final class ClientHooks {
     public static void hullData(BlockPos pos, CompoundTag data) {
         Minecraft mc = Minecraft.getInstance();
         if (data.getBoolean("Closed")) { if (mc.screen instanceof HullCoreScreen) mc.setScreen(null); return; }
-        if (mc.screen instanceof HullCoreScreen s && s.pos.equals(pos)) s.setData(data);
+        if (mc.screen instanceof HullCoreScreen s && s.matches(pos, data)) s.setData(data);
         else mc.setScreen(new HullCoreScreen(pos, data));
+    }
+
+    public static void colossusConfig(int id, CompoundTag cfg) {
+        var lvl = Minecraft.getInstance().level; if (lvl == null) return;
+        if (lvl.getEntity(id) instanceof ColossusEntity c) c.setJointCfg(cfg);
+    }
+
+    /** Right-click on a built Colossus: Hull Core opens its screen, Pilot Throne seats you. Returns true if handled. */
+    public static boolean tryClickColossus() {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer p = mc.player; if (p == null || p.isPassenger()) return false;
+        Vec3 eye = p.getEyePosition(), to = eye.add(p.getViewVector(1f).scale(p.blockInteractionRange()));
+        double worldDist = mc.hitResult != null && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS ? mc.hitResult.getLocation().distanceTo(eye) : Double.MAX_VALUE;
+        for (ColossusEntity c : com.colossalcraft.colossus.ColossusCollision.all(true)) {
+            if (c.level() != p.level() || c.model == null || !c.getBoundingBox().inflate(6).contains(eye)) continue;
+            BlockPos hit = c.raycastBlock(eye, to);
+            if (hit == null || c.blockWorldCenter(hit).distanceTo(eye) > worldDist + 0.7) continue;
+            var b = c.blocks.get(hit).getBlock();
+            if (b instanceof com.colossalcraft.block.HullCoreBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 0)); return true; }
+            if (b instanceof com.colossalcraft.block.SimpleParts.PilotSeatBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 1)); return true; }
+        }
+        return false;
     }
 
     public static void structureRemoved(int id, CompoundTag data) {

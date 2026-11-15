@@ -170,6 +170,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     // ------------------------------------------------------------ tick
     @Override public void tick() {
         super.tick();
+        if (!isRemoved()) ColossusCollision.all(level()).add(this); // client levels don't always fire onAddedToLevel
         if (model == null || blocks.isEmpty()) { if (!level().isClientSide) discard(); return; }
         prevYaw = yaw; prevWalkPhase = walkPhase; prevWalkBlend = walkBlend; prevSpin = spin;
         if (level().isClientSide) {
@@ -301,7 +302,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             }
         }
         // heavier Colossi count as solid ground for lighter ones (nesting)
-        for (ColossusEntity o : ColossusCollision.LOADED) {
+        for (ColossusEntity o : ColossusCollision.all(level())) {
             if (o == this || o.level() != level() || o.model == null || o.isRemoved() || o.model.mass <= model.mass) continue;
             if (!o.getBoundingBox().intersects(getBoundingBox().inflate(reach + 1))) continue;
             for (AABB b : o.boxesNear(getBoundingBox().inflate(reach + 1))) {
@@ -557,7 +558,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public Vec3 seatWorld() {
         if (model == null || model.seat == null) return position();
         BlockPos s = model.seat; Integer seg = model.segOf.get(s);
-        Vector3d v = segWorld(seg == null ? 0 : seg).transformPosition(new Vector3d(s.getX() + .5, s.getY() + 0.55, s.getZ() + .5));
+        Vector3d v = segWorld(seg == null ? 0 : seg).transformPosition(new Vector3d(s.getX() + .5, s.getY() + com.colossalcraft.block.SeatEntity.SEAT_HEIGHT, s.getZ() + .5));
         return new Vec3(v.x, v.y, v.z);
     }
 
@@ -597,7 +598,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             CompoundTag tag = e.getValue().copy();
             Block blk = blocks.get(e.getKey()).getBlock();
             if ((blk instanceof PowerBlock || blk instanceof com.colossalcraft.block.ColossalBattery) && tag.contains("Energy")) tag.putLong("Energy", (long) (tag.getLong("Energy") * ratio));
-            if (be instanceof HullCoreBlockEntity) tag.put("Joints", jointCfg.copy());
+            if (be instanceof HullCoreBlockEntity) { tag.put("Joints", jointCfg.copy()); tag.putBoolean("Hover", hover()); }
             tag.putInt("x", t.getX()); tag.putInt("y", t.getY()); tag.putInt("z", t.getZ());
             try { be.loadWithComponents(tag, lv.registryAccess()); be.setChanged(); } catch (Exception ignored) {}
             com.colossalcraft.compat.Compat.onLand(lv, t, be);
@@ -627,14 +628,44 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
 
     public void toggleHover() { entityData.set(HOVER, !hover()); }
 
+    /** Change joint setup while built (from the Hull Core screen). Server -> also tells clients. */
+    public void setJointCfg(CompoundTag cfg) {
+        jointCfg = cfg.copy(); rebuild();
+        if (!level().isClientSide) PacketDistributor.sendToPlayersTrackingEntity(this, new Net.ColossusConfig(getId(), jointCfg.copy()));
+    }
+
+    /** Which local block (if any) a ray hits. Returns null when nothing is hit within reach. */
+    public BlockPos raycastBlock(Vec3 from, Vec3 to) {
+        if (model == null) return null;
+        Vec3 d = to.subtract(from); double len = d.length(); if (len < 1e-6) return null;
+        Vec3 step = d.scale(0.05 / len);
+        Matrix4d[] inv = new Matrix4d[model.segs.size()];
+        for (int i = 0; i < inv.length; i++) inv[i] = segWorld(i).invert();
+        Vec3 p = from;
+        for (double t = 0; t <= len; t += 0.05, p = p.add(step)) {
+            for (int i = 0; i < inv.length; i++) {
+                Vector3d l = inv[i].transformPosition(new Vector3d(p.x, p.y, p.z));
+                BlockPos bp = BlockPos.containing(l.x, l.y, l.z);
+                Integer so = model.segOf.get(bp);
+                if (so != null && so == i) {
+                    AABB sb = model.shapeBounds.getOrDefault(bp, new AABB(0, 0, 0, 1, 1, 1));
+                    if (sb.inflate(0.05).contains(l.x - bp.getX(), l.y - bp.getY(), l.z - bp.getZ())) return bp;
+                }
+            }
+        }
+        return null;
+    }
+
     // ------------------------------------------------------------ misc entity
     @Override public boolean isPickable() { return false; }
     @Override public boolean isPushable() { return false; }
     @Override public boolean canBeCollidedWith() { return false; }
     @Override public boolean shouldBeSaved() { return !isRemoved(); }
     @Override public boolean shouldRenderAtSqrDistance(double d) { return d < 512 * 512; }
-    @Override public void onAddedToLevel() { super.onAddedToLevel(); ColossusCollision.LOADED.add(this); }
-    @Override public void onRemovedFromLevel() { super.onRemovedFromLevel(); ColossusCollision.LOADED.remove(this); }
+    @Override public void onAddedToLevel() { super.onAddedToLevel(); ColossusCollision.all(level()).add(this); }
+    @Override public void onRemovedFromLevel() { super.onRemovedFromLevel(); ColossusCollision.all(level()).remove(this); }
+    @Override public void remove(RemovalReason r) { super.remove(r); ColossusCollision.all(level()).remove(this); }
+    @Override public void onClientRemoval() { super.onClientRemoval(); ColossusCollision.all(level()).remove(this); }
     @Override public boolean hurt(net.minecraft.world.damagesource.DamageSource s, float a) { return false; }
 
     // ------------------------------------------------------------ save / sync

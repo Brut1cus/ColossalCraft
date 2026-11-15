@@ -37,32 +37,48 @@ public final class ModRegistry {
 
     public static final List<DeferredBlock<?>> ALL_BLOCKS = new ArrayList<>();
     public static final List<DeferredItem<?>> ALL_ITEMS = new ArrayList<>();
+    /** Creative tabs. */
+    public enum Cat { COMMAND, JOINTS, POWER, PROPULSION, MATERIALS }
+    public static final Map<Cat, List<DeferredItem<?>>> BY_CAT = new EnumMap<>(Cat.class);
+    static { for (Cat c : Cat.values()) BY_CAT.put(c, new ArrayList<>()); }
+    private static Cat cat = Cat.COMMAND;
+    public static void addToTab(Cat c, DeferredItem<?> i) { BY_CAT.get(c).add(i); }
 
     private static BlockBehaviour.Properties metal() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(4f, 8f).sound(SoundType.METAL).requiresCorrectToolForDrops();
     }
     private static <B extends Block> DeferredBlock<B> block(String name, Function<BlockBehaviour.Properties, B> f, BlockBehaviour.Properties p) {
         DeferredBlock<B> b = BLOCKS.register(name, () -> f.apply(p));
-        ALL_ITEMS.add(ITEMS.registerSimpleBlockItem(name, b));
+        DeferredItem<?> it = ITEMS.registerSimpleBlockItem(name, b); ALL_ITEMS.add(it); BY_CAT.get(cat).add(it);
         ALL_BLOCKS.add(b);
         return b;
     }
     private static DeferredItem<Item> item(String name) {
-        DeferredItem<Item> i = ITEMS.registerSimpleItem(name); ALL_ITEMS.add(i); return i;
+        DeferredItem<Item> i = ITEMS.registerSimpleItem(name); ALL_ITEMS.add(i); BY_CAT.get(cat).add(i); return i;
     }
 
     // ---- control ----
+    static { cat = Cat.COMMAND; }
     public static final DeferredBlock<HullCoreBlock> HULL_CORE = block("hull_core", HullCoreBlock::new, metal().lightLevel(s -> 7));
     public static final DeferredBlock<PilotSeatBlock> PILOT_SEAT = block("pilot_seat", PilotSeatBlock::new, metal().noOcclusion());
+    public static final DeferredBlock<ScaffoldBlock> GANTRY_SCAFFOLD = block("gantry_scaffold", ScaffoldBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).instabreak().sound(SoundType.SCAFFOLDING).noOcclusion());
 
     // ---- joints & motors (5 material levels) ----
+    /** Full hollow bearing joints (one per material). */
     public static final Map<MaterialTier, DeferredBlock<JointBlock>> JOINTS = new EnumMap<>(MaterialTier.class);
+    /** Every joint: material -> shape -> block. */
+    public static final Map<MaterialTier, Map<JointShape, DeferredBlock<JointBlock>>> JOINT_SHAPES = new EnumMap<>(MaterialTier.class);
     public static final Map<MaterialTier, DeferredBlock<MotorBlock>> MOTORS = new EnumMap<>(MaterialTier.class);
     static {
+        cat = Cat.JOINTS;
         for (MaterialTier t : MaterialTier.values()) {
-            JOINTS.put(t, block(t.id + "_joint", p -> new JointBlock(t, p), metal()));
-            MOTORS.put(t, block(t.id + "_motor", p -> new MotorBlock(t, p), metal()));
+            Map<JointShape, DeferredBlock<JointBlock>> m = new EnumMap<>(JointShape.class);
+            for (JointShape sh : JointShape.values()) m.put(sh, block(t.id + "_" + sh.suffix, p -> new JointBlock(t, sh, p), metal().noOcclusion()));
+            JOINT_SHAPES.put(t, m); JOINTS.put(t, m.get(JointShape.FULL));
         }
+        for (MaterialTier t : MaterialTier.values()) MOTORS.put(t, block(t.id + "_motor", p -> new MotorBlock(t, p), metal()));
+        cat = Cat.POWER;
     }
 
     // ---- single block engines ----
@@ -86,6 +102,7 @@ public final class ModRegistry {
     public static final DeferredBlock<ControllerBlock> ZERO_POINT_CORE = block("zero_point_core", p -> new ControllerBlock(MultiblockDef.ZERO_POINT, EngineTier.ZERO_POINT, 0, p), metal().strength(8f, 1200f));
 
     // ---- gyros ----
+    static { cat = Cat.PROPULSION; }
     public static final DeferredBlock<GyroBlock> SMALL_GYRO = block("small_gyro", p -> new GyroBlock(20_000, p), metal());
     public static final DeferredBlock<Block> GYRO_CASING = block("gyro_casing", Block::new, metal());
     public static final DeferredBlock<Block> GYRO_ROTOR = block("gyro_rotor", Block::new, metal());
@@ -98,15 +115,19 @@ public final class ModRegistry {
     public static final DeferredBlock<ThrusterBlock> ARC_THRUSTER = block("arc_thruster", p -> new ThrusterBlock(ThrusterTier.ARC, p), metal().lightLevel(s -> 6));
     public static final DeferredBlock<ThrusterBlock> ION_LANCE = block("ion_lance", p -> new ThrusterBlock(ThrusterTier.ION, p), metal().lightLevel(s -> 8));
     public static final DeferredBlock<ThrusterBlock> GRAVITON_LENS = block("graviton_lens", p -> new ThrusterBlock(ThrusterTier.GRAVITON, p), metal().lightLevel(s -> 10));
+    static { cat = Cat.POWER; }
     public static final DeferredBlock<FluxAccumulatorBlock> FLUX_ACCUMULATOR = block("flux_accumulator", FluxAccumulatorBlock::new, metal());
-    public static final DeferredBlock<SailBlock> SKY_SAIL = block("sky_sail", SailBlock::new,
-            BlockBehaviour.Properties.of().mapColor(MapColor.WOOL).strength(0.8f).sound(SoundType.WOOL));
+    static { cat = Cat.PROPULSION; }
+    public static final DeferredBlock<SailBlock> SKY_SAIL = block("sky_sail", ThinSailBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.WOOL).strength(0.8f).sound(SoundType.WOOL).noOcclusion());
 
     // ---- items ----
+    static { cat = Cat.MATERIALS; }
     public static final DeferredItem<Item> COLOSSTEEL_BLEND = item("colossteel_blend");
     public static final DeferredItem<Item> COLOSSTEEL_INGOT = item("colossteel_ingot");
     public static final DeferredItem<Item> REACTOR_ALLOY = item("reactor_alloy");
     public static final DeferredItem<Item> NEUTRONIUM_INGOT = item("neutronium_ingot");
+    static { cat = Cat.POWER; }
     public static final DeferredItem<Item> ENRICHED_FUEL_CELL = item("enriched_fuel_cell");
     public static final DeferredItem<Item> DEUTERIUM_CELL = item("deuterium_cell");
 
@@ -127,9 +148,22 @@ public final class ModRegistry {
             EntityType.Builder.<ColossusEntity>of(ColossusEntity::new, MobCategory.MISC).sized(1f, 1f)
                     .clientTrackingRange(16).updateInterval(1).fireImmune().build("colossus"));
 
-    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB = TABS.register("main", () -> CreativeModeTab.builder()
-            .title(Component.translatable("itemGroup.colossalcraft")).icon(() -> new ItemStack(HULL_CORE.get()))
-            .displayItems((params, out) -> ALL_ITEMS.forEach(i -> out.accept(i.get()))).build());
+    public static final DeferredHolder<EntityType<?>, EntityType<SeatEntity>> SEAT = ENTITIES.register("seat", () ->
+            EntityType.Builder.<SeatEntity>of(SeatEntity::new, MobCategory.MISC).sized(0.01f, 0.01f).noSummon().clientTrackingRange(8).build("seat"));
+
+    private static DeferredHolder<CreativeModeTab, CreativeModeTab> tab(Cat c, String id, java.util.function.Supplier<ItemStack> icon, String before) {
+        return TABS.register(id, () -> {
+            CreativeModeTab.Builder b = CreativeModeTab.builder().title(Component.translatable("itemGroup.colossalcraft." + id)).icon(icon)
+                    .displayItems((params, out) -> BY_CAT.get(c).forEach(i -> out.accept(i.get())));
+            if (before != null) b.withTabsBefore(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(ColossalCraft.MODID, before));
+            return b.build();
+        });
+    }
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_COMMAND = tab(Cat.COMMAND, "command", () -> new ItemStack(HULL_CORE.get()), null);
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_JOINTS = tab(Cat.JOINTS, "joints", () -> new ItemStack(JOINTS.get(MaterialTier.IRON).get()), "command");
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_POWER = tab(Cat.POWER, "power", () -> new ItemStack(BLAZE_COMBUSTOR.get()), "joints");
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_PROPULSION = tab(Cat.PROPULSION, "propulsion", () -> new ItemStack(BLAZE_JET.get()), "power");
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_MATERIALS = tab(Cat.MATERIALS, "materials", () -> new ItemStack(COLOSSTEEL_INGOT.get()), "propulsion");
 
     public static void register(IEventBus bus) {
         BLOCKS.register(bus); ITEMS.register(bus); BES.register(bus); ENTITIES.register(bus); TABS.register(bus);

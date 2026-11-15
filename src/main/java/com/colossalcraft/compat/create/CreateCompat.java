@@ -55,7 +55,7 @@ public final class CreateCompat {
 
     public static void init(IEventBus bus) {
         BLOCKS.register(bus); ITEMS.register(bus); BES.register(bus);
-        ModRegistry.ALL_ITEMS.add(KINETIC_DYNAMO_ITEM);
+        ModRegistry.ALL_ITEMS.add(KINETIC_DYNAMO_ITEM); ModRegistry.addToTab(ModRegistry.Cat.POWER, KINETIC_DYNAMO_ITEM);
         bus.addListener((FMLCommonSetupEvent e) -> e.enqueueWork(() -> BlockStressValues.IMPACTS.register(KINETIC_DYNAMO.get(), () -> IMPACT)));
         ColossalCraft.LOG.info("ColossalCraft: Create support on");
     }

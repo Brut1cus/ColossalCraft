@@ -21,12 +21,13 @@ public final class ClientEvents {
     public static final KeyMapping PILOT = new KeyMapping("key.colossalcraft.pilot", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, CAT);
     public static final KeyMapping DESCEND = new KeyMapping("key.colossalcraft.descend", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, CAT);
     public static final KeyMapping HOVER = new KeyMapping("key.colossalcraft.hover", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CAT);
+    public static final KeyMapping SCREEN = new KeyMapping("key.colossalcraft.screen", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, CAT);
     public static final KeyMapping DISASSEMBLE = new KeyMapping("key.colossalcraft.disassemble", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, CAT);
 
     @EventBusSubscriber(modid = ColossalCraft.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class ModBus {
-        @SubscribeEvent public static void renderers(EntityRenderersEvent.RegisterRenderers e) { e.registerEntityRenderer(ModRegistry.COLOSSUS.get(), ColossusRenderer::new); }
-        @SubscribeEvent public static void keys(RegisterKeyMappingsEvent e) { e.register(PILOT); e.register(DESCEND); e.register(HOVER); e.register(DISASSEMBLE); }
+        @SubscribeEvent public static void renderers(EntityRenderersEvent.RegisterRenderers e) { e.registerEntityRenderer(ModRegistry.COLOSSUS.get(), ColossusRenderer::new); e.registerEntityRenderer(ModRegistry.SEAT.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); }
+        @SubscribeEvent public static void keys(RegisterKeyMappingsEvent e) { e.register(PILOT); e.register(DESCEND); e.register(HOVER); e.register(DISASSEMBLE); e.register(SCREEN); }
         @SubscribeEvent public static void hud(RegisterGuiLayersEvent e) {
             e.registerAboveAll(ResourceLocation.fromNamespaceAndPath(ColossalCraft.MODID, "hud"), (g, delta) -> {
                 Minecraft mc = Minecraft.getInstance();
@@ -37,7 +38,7 @@ public final class ClientEvents {
                         "COLOSSUS  " + StructureScan.tons(c.model.mass) + "",
                         "ENERGY " + en + "   OUT " + StructureScan.kilo(c.model.output) + " CJ/t",
                         String.format("SPEED %.1f m/s   ALT %d", speed, (int) c.getY()),
-                        "HOVER " + (c.hover() ? "ON" : "OFF") + "   [H] hover  [C] down  [K] land  [V] leave"};
+                        "HOVER " + (c.hover() ? "ON" : "OFF") + "   [G] Hull Core  [H] hover  [C] down  [K] park  [V] leave"};
                 int y = 6;
                 for (String s : lines) { g.fill(4, y - 2, 8 + mc.font.width(s), y + 9, 0x90000000); g.drawString(mc.font, s, 6, y, 0xFF7CFF9E, false); y += 11; }
             });
@@ -51,11 +52,17 @@ public final class ClientEvents {
             if (mc.player == null) return;
             while (PILOT.consumeClick()) PacketDistributor.sendToServer(new Net.PilotAction(0));
             while (DISASSEMBLE.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(1));
+            while (SCREEN.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(3));
             while (HOVER.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(2));
             if (mc.player.getVehicle() instanceof ColossusEntity && mc.screen == null && !DevShots.ON) {
                 var in = mc.player.input;
                 PacketDistributor.sendToServer(new Net.PilotInput(in.forwardImpulse, in.leftImpulse, in.jumping, DESCEND.isDown()));
             }
+        }
+
+        /** Right-clicking a Hull Core or Pilot Throne on a built Colossus. */
+        @SubscribeEvent public static void click(InputEvent.InteractionKeyMappingTriggered e) {
+            if (e.isUseItem() && e.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND && ClientHooks.tryClickColossus()) { e.setCanceled(true); e.setSwingHand(true); }
         }
 
         /** Third person (F5 back and front) pulls the camera out to fit the whole Colossus. */

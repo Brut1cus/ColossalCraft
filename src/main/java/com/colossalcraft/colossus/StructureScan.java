@@ -29,10 +29,12 @@ public final class StructureScan {
         public final Map<BlockPos, BlockState> blocks = new HashMap<>();
         public final Map<BlockPos, CompoundTag> bes = new HashMap<>();
         public StructureModel model; public CompoundTag jointCfg = new CompoundTag(); public boolean hover = true;
+        public boolean built; public int entityId = -1; public long liveEnergy = -1; public boolean infinite;
         public boolean ok() { return errors.isEmpty() && model != null; }
     }
 
     public static boolean canTake(BlockState s) {
+        // Everything can be part of a Colossus except air, loose fluids, unbreakable blocks and scaffolding (tag colossalcraft:assembly_blacklist)
         return !s.isAir() && !(s.getBlock() instanceof LiquidBlock) && !s.is(BLACKLIST) && s.getBlock().defaultDestroyTime() >= 0;
     }
 
@@ -54,21 +56,39 @@ public final class StructureScan {
             if (be != null) { CompoundTag tag = be.saveWithFullMetadata(level.registryAccess()); com.colossalcraft.compat.Compat.onLift(be, tag); r.bes.put(local, tag); }
             for (Direction d : Direction.values()) { BlockPos n = p.relative(d); if (seen.add(n)) q.add(n); }
         }
-        if (tooBig) { r.errors.add("Too big (over " + max + " blocks) or touching the ground."); r.errors.add("Keep it off dirt/stone, or raise maxBlocks in config."); }
+        if (tooBig) { r.errors.add("Over " + max + " blocks: it's probably touching the ground or a wall."); r.errors.add("Build on Gantry Scaffold so it touches nothing else, or raise maxBlocks in config."); }
         r.model = new StructureModel(r.blocks, r.bes, r.jointCfg);
+        analyze(r);
+        return r;
+    }
+
+
+    /** Same report for a Colossus that is already built (for the Hull Core screen while flying). */
+    public static Result fromEntity(ColossusEntity c) {
+        Result r = new Result();
+        r.blocks.putAll(c.blocks); r.bes.putAll(c.bes); r.jointCfg = c.jointCfg.copy(); r.hover = c.hover();
+        r.model = c.model; r.built = true; r.entityId = c.getId();
+        r.liveEnergy = c.energy; r.infinite = c.model.infinite;
+        analyze(r);
+        return r;
+    }
+
+    public static void analyze(Result r) {
         StructureModel m = r.model;
+        int segMax = Config.MAX_SEGMENT_BLOCKS.get();
+        for (StructureModel.Seg s : m.segs) if (s.blocks.size() > segMax) r.errors.add("Segment " + s.id + " has " + s.blocks.size() + " blocks (limit " + segMax + "). Split it with joints or raise maxBlocksPerSegment.");
         if (m.hearts > 1) r.errors.add("Only ONE Hull Core per Colossus. Assemble the inner one first to nest it.");
         if (m.seat == null) r.warnings.add("No Pilot Throne: nobody can steer it.");
         if (m.output <= 0) r.warnings.add("No running engine: no power.");
-        else if (m.energy <= 0 && !m.infinite) r.warnings.add("Engines are empty: add fuel.");
+        else if ((r.liveEnergy >= 0 ? r.liveEnergy : m.energy) <= 0 && !m.infinite) r.warnings.add("Engines are empty: add fuel.");
         for (StructureModel.Joint j : m.joints) {
             if (j.staticRatio > 1) r.warnings.add("Joint J" + j.id + " overloaded " + (int) (j.staticRatio * 100) + "%: it will snap!");
-            if (j.mode != StructureModel.LOCKED && j.stalled()) r.warnings.add("Joint J" + j.id + " motor too weak (" + kilo(j.motorTorque) + " < " + kilo(j.reqTorque) + " N*m).");
+            if (j.mode != StructureModel.LOCKED && j.stalled()) r.warnings.add(j.motors == 0 ? "Joint J" + j.id + " is set to move, but no Servo Motor touches it."
+                    : "Joint J" + j.id + " motors too weak: " + kilo(j.motorTorque) + " of " + kilo(j.reqTorque) + " N*m needed.");
         }
         if (m.hasWalkers() && m.gyroCap < m.mass) r.warnings.add("Gyros too weak for walking: " + (int) (100 * m.gyroCap / m.mass) + "% stable. Add gyros.");
         boolean anyThrust = false; for (double v : m.thrustCap) anyThrust |= v > 0;
         if (!anyThrust && !m.hasWalkers() && m.driveMotors == 0) r.warnings.add("No thrusters, walking joints or drive motors: it can't move itself.");
-        return r;
     }
 
     public static String tons(double kg) { return kg >= 1e6 ? String.format("%,.0f t", kg / 1000) : String.format("%.1f t", kg / 1000); }
@@ -89,7 +109,8 @@ public final class StructureScan {
         t.putInt("Blocks", r.blocks.size()); t.putDouble("Mass", m.mass);
         t.putString("Seat", m.seat == null ? "none" : "facing " + m.forward.getName());
         t.putDouble("Gyro", m.gyroCap); t.putDouble("GyroPow", m.gyroPower);
-        t.putDouble("Output", m.output); t.putLong("Energy", m.energy); t.putBoolean("Infinite", m.infinite);
+        t.putDouble("Output", m.output); t.putLong("Energy", r.liveEnergy >= 0 ? r.liveEnergy : m.energy); t.putBoolean("Infinite", m.infinite);
+        t.putBoolean("Built", r.built); t.putInt("Entity", r.entityId);
         t.putDouble("MaxDraw", m.maxDraw()); t.putDouble("Drive", m.driveForce); t.putInt("DriveMotors", m.driveMotors);
         t.putInt("Sails", m.sails); t.putInt("Thrusters", m.thrusters);
         for (Direction d : Direction.values()) t.putDouble("T_" + d.getName(), m.thrustCap[d.ordinal()]);
@@ -102,7 +123,7 @@ public final class StructureScan {
         ListTag js = new ListTag();
         for (StructureModel.Joint j : m.joints) {
             CompoundTag c = new CompoundTag();
-            c.putInt("Id", j.id); c.putInt("Parent", j.parentSeg); c.putString("Tier", j.tier.id); c.putInt("K", j.k); c.putString("Axis", j.axis.getName());
+            c.putInt("Id", j.id); c.putInt("Parent", j.parentSeg); c.putString("Tier", j.tier.id); c.putInt("K", j.k); c.putDouble("Area", j.area); c.putString("Axis", j.axis.getName());
             c.putDouble("Sub", j.subMass); c.putDouble("Ratio", j.staticRatio); c.putDouble("FCap", j.forceCap); c.putDouble("MCap", j.momentCap);
             c.putDouble("Torque", j.motorTorque); c.putDouble("Req", j.reqTorque); c.putInt("Motors", j.motors);
             c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putBoolean("Stalled", j.stalled());

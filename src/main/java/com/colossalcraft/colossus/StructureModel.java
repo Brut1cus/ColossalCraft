@@ -35,12 +35,14 @@ public class StructureModel {
     }
     public static class Joint {
         public int id, parentSeg = -1, depth, k, mode, amp = 30, motors;
+        /** Load-bearing size: sum of each joint block's shape strength (full 1, slab/panel 0.5, pin 0.25). */
+        public double area;
         public MaterialTier tier; public Direction.Axis axis; public long key;
         public final List<BlockPos> blocks = new ArrayList<>();
         public final List<Integer> childSegs = new ArrayList<>();
         public Vec3 pivot = Vec3.ZERO, subCom = Vec3.ZERO;
         public double subMass, motorTorque, motorPower, motorDrive, reqTorque, forceCap, momentCap, staticRatio;
-        public boolean stalled() { return mode != LOCKED && (motorTorque <= 0 || motorTorque < reqTorque); }
+        public boolean stalled() { return mode != LOCKED && !childSegs.isEmpty() && (motorTorque <= 0 || motorTorque < reqTorque); }
         public boolean active() { return mode != LOCKED && !stalled(); }
     }
     public record EngineInfo(String name, long energy, long capacity, int output, boolean running, String note, boolean zeroPoint) {}
@@ -119,17 +121,17 @@ public class StructureModel {
             ArrayDeque<BlockPos> q = new ArrayDeque<>(); q.add(start); clusterOf.put(start, j.id);
             double px = 0, py = 0, pz = 0; long minKey = Long.MAX_VALUE; BlockPos minP = start;
             while (!q.isEmpty()) {
-                BlockPos p = q.poll(); j.blocks.add(p); px += p.getX() + .5; py += p.getY() + .5; pz += p.getZ() + .5;
+                BlockPos p = q.poll(); j.blocks.add(p); j.area += ((JointBlock) blocks.get(p).getBlock()).shape.strength; px += p.getX() + .5; py += p.getY() + .5; pz += p.getZ() + .5;
                 if (p.compareTo(minP) < 0) minP = p;
                 for (Direction d : Direction.values()) {
                     BlockPos n = p.relative(d); BlockState ns = blocks.get(n);
-                    if (ns != null && jointPos.contains(n) && !clusterOf.containsKey(n) && ns.getBlock() == ss.getBlock()
+                    if (ns != null && jointPos.contains(n) && !clusterOf.containsKey(n) && ((JointBlock) ns.getBlock()).tier == j.tier
                             && ns.getValue(RotatedPillarBlock.AXIS) == j.axis) { clusterOf.put(n, j.id); q.add(n); }
                 }
             }
             j.k = j.blocks.size(); j.key = minP.asLong();
             j.pivot = new Vec3(px / j.k, py / j.k, pz / j.k);
-            j.forceCap = MaterialTier.forceCap(j.tier, j.k); j.momentCap = MaterialTier.momentCap(j.tier, j.k);
+            j.forceCap = MaterialTier.forceCap(j.tier, j.area); j.momentCap = MaterialTier.momentCap(j.tier, j.area);
             CompoundTag jc = cfg.getCompound(jointKey(j.key));
             j.mode = Math.max(0, Math.min(MODES.length - 1, jc.getByte("Mode")));
             if (jc.contains("Amp")) j.amp = jc.getInt("Amp");

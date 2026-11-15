@@ -196,4 +196,61 @@ public class ColossusTests {
             });
         });
     }
+
+    @GameTest(template = "empty16", timeoutTicks = 100)
+    public static void scaffoldStaysBehind(GameTestHelper h) {
+        // ship stands on dirt pillars? no: on Gantry Scaffold. Dirt on the ship IS picked up now.
+        ship(h, 0);
+        for (int y = 0; y <= 5; y++) h.setBlock(7, y, 6, ModRegistry.GANTRY_SCAFFOLD.get());
+        h.setBlock(9, 7, 9, Blocks.DIRT);
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        h.assertTrue(r.ok(), "scan errors: " + r.errors);
+        h.assertTrue(r.blocks.values().stream().noneMatch(st -> st.is(ModRegistry.GANTRY_SCAFFOLD.get())), "scaffold was picked up");
+        h.assertTrue(r.blocks.values().stream().anyMatch(st -> st.is(Blocks.DIRT)), "dirt should be picked up now");
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.assertBlockPresent(ModRegistry.GANTRY_SCAFFOLD.get(), new BlockPos(7, 3, 6));
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16")
+    public static void mixedJointShapesFormOneJoint(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        var shapes = ModRegistry.JOINT_SHAPES.get(MaterialTier.IRON);
+        // full + slab + pin in a row along X, same axis -> one joint, strength 1 + 0.5 + 0.25
+        h.setBlock(6, 5, 7, shapes.get(com.colossalcraft.block.SimpleParts.JointShape.FULL).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
+        h.setBlock(7, 5, 7, shapes.get(com.colossalcraft.block.SimpleParts.JointShape.SLAB).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
+        h.setBlock(8, 5, 7, shapes.get(com.colossalcraft.block.SimpleParts.JointShape.PIN).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
+        for (int x = 6; x <= 8; x++) h.setBlock(x, 4, 7, Blocks.STONE_BRICKS);
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        h.assertTrue(r.model.joints.size() == 1, "expected 1 joint, got " + r.model.joints.size());
+        h.assertTrue(Math.abs(r.model.joints.get(0).area - 1.75) < 1e-6, "strength should be 1.75, got " + r.model.joints.get(0).area);
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16")
+    public static void segmentLimitIsChecked(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        h.assertTrue(r.ok(), "default limit should allow this: " + r.errors);
+        int old = com.colossalcraft.Config.MAX_SEGMENT_BLOCKS.get();
+        com.colossalcraft.Config.MAX_SEGMENT_BLOCKS.set(10);
+        StructureScan.Result r2 = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        com.colossalcraft.Config.MAX_SEGMENT_BLOCKS.set(old);
+        h.assertFalse(r2.ok(), "limit 10 should refuse a 30+ block part");
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 120)
+    public static void parkFromBuiltScreenAction(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(60, () -> {
+            ColossusEntity c = find(h);
+            StructureScan.Result r = StructureScan.fromEntity(c);
+            h.assertTrue(r.built && r.entityId == c.getId(), "built report wrong");
+            h.assertTrue(c.disassemble(null), "park failed");
+            h.assertBlockPresent(ModRegistry.HULL_CORE.get(), new BlockPos(7, 2, 7));
+            h.succeed();
+        });
+    }
 }

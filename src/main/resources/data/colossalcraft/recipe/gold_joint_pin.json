@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "colossalcraft:gold_joint"
+    }
+  ],
+  "result": {
+    "id": "colossalcraft:gold_joint_pin",
+    "count": 4
+  }
+}

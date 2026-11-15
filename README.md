@@ -13,15 +13,17 @@ Build Colossi (mechs, ships, robots, creatures) out of any blocks, then turn the
 The jar ends up in `build/libs/`. Run the in-world tests with `./gradlew runGameTestServer`.
 
 ## How to play
-1. Build your thing. It must **not touch the ground** (dirt, stone, sand and so on are never picked up).
+1. Build your thing on **Gantry Scaffold** so it touches nothing else. Scaffold (and vanilla scaffolding) is never picked up. **Every other block is**, dirt and stone included.
 2. Place **one Hull Core** on the main body. Joints branch out from the part the Hull Core sits on.
 3. Add a **Pilot Throne** (it faces "forward"), an engine with fuel, and thrusters, motors or gyros.
-4. Right-click the Hull Core to open **HULL-OS**:
-   - **STATUS**: mass, thrust, lift/weight, gyro stability, errors and warnings.
-   - **JOINTS**: the joint tree, load % on each joint, and motor torque compared with the torque needed. Set each joint's mode (LOCKED, WALK A, WALK B, SPIN, SWAY) and swing angle.
-   - **POWER**: each engine's stored energy and output, plus endurance.
-   - **ASSEMBLE** turns the build into a Colossus.
-5. Stand near the throne and press **V** to sit.
+4. Right-click the Hull Core to open its screen:
+   - **Overview**: a setup checklist (hover each line for help) and gauges for lift vs weight, energy and stability.
+   - **Joints**: the joint tree. Click a joint to see its load, its motor torque compared with what it needs, its movement (Locked, Walk left, Walk right, Spin, Sway) and its swing angle.
+   - **Power**: every engine and battery, with its stored energy and output.
+   - **Help**: a short how-to.
+   - **BUILD COLOSSUS** makes it move.
+5. **Built:** right-click the Hull Core on the Colossus, or press **G** while piloting, to open the same screen. **PARK** turns it back into blocks.
+6. Right-click the **Pilot Throne** (a real chair) to sit, or press **V** near it.
 
 ### Controls (while piloting)
 | Key | Action |
@@ -30,14 +32,26 @@ The jar ends up in `build/libs/`. Run the in-world tests with `./gradlew runGame
 | A / D | Turn |
 | Space / C | Up / down (needs thrusters facing down/up) |
 | H | Hover assist on/off |
-| K | Land: puts the blocks back into the world |
+| G | Open the Hull Core screen |
+| K | Park: turns it back into blocks |
 | V or Shift | Leave the seat |
 | F5 | First person, third person back, third person front. The camera zooms out to fit the Colossus. |
 
 You can walk around on a Colossus while it moves. A lighter Colossus parked inside a heavier one rides along with it (nesting: a jet inside a carrier). Assemble the inner one first, because each Colossus allows only one Hull Core.
 
 ## Joints (bearings)
-Joint blocks split a Colossus into **segments**. Joint blocks of the same material, placed side by side with the same axis, act as **one bigger joint**.
+Joint blocks split a Colossus into **segments** ("parts" in the Hull Core screen). Joint blocks of the same material and the same axis, placed side by side, act as **one bigger joint**, even if their shapes differ.
+
+Each material comes in four hollow shapes. The axis comes from the face you place it against.
+
+| Shape | Look | Strength |
+|---|---|---|
+| Bearing Joint | full hollow bearing | 1 |
+| Slab Joint | bottom half (a flat bearing or turntable) | 0.5 |
+| Panel Joint | thin vertical wall (a wheel or disk bearing) | 0.5 |
+| Pin Joint | thin axle | 0.25 |
+
+Recipes: 3 Bearing Joints in a row give 6 Slab Joints, 3 stacked give 6 Panel Joints, and 1 gives 4 Pin Joints.
 
 | Material | 1x1 holds (force) | 1x1 bending limit |
 |---|---|---|
@@ -47,7 +61,7 @@ Joint blocks split a Colossus into **segments**. Joint blocks of the same materi
 | Gilded (gold) | 200 kN | 350 kN·m |
 | Diamond | 500 kN | 1000 kN·m |
 
-Scaling for an **n×n** joint (k = n² blocks):
+Scaling for a joint of total strength k (an **n×n** square of full joints has k = n²):
 - The force it can hold grows with its area: k times (9× for 3x3).
 - The bending (lever) it can hold grows with k^1.5, which is **n³** (27× for 3x3).
 
@@ -88,6 +102,14 @@ Pocket Gyro (20 t), Gyro Array (600 t) and Grand Gyroscope (6,000 t). Gyros make
 
 ## Thrusters
 Steam Vent, Blaze Jet, Arc Thruster, Ion Lance and Graviton Lens (40 kN up to 8 MN). The nozzle points where the exhaust goes, and the push goes the other way. **Sky Sails** give lift when moving fast.
+
+## Creative tabs
+There are five tabs: Command (Hull Core, throne, scaffold), Joints & Motors, Power, Propulsion & Gyros, and Materials.
+
+## Config (`colossalcraft-server.toml` in each world's `serverconfig` folder)
+- `maxBlocksPerSegment` (default 1,000,000): the most blocks in one part.
+- `maxBlocks` (default 250,000): a safety stop, so a build that touches the ground can't swallow the world.
+- Also: `massScale`, `maxSpeed`, `liftScale`, `groundCrushing`, `entityCrushing`, `jointBreaking`.
 
 ## Mass
 Mass = block density × block shape volume × `massScale` (default 0.25). A slab weighs half a block. Wood is about 650 kg/m³, stone 2,500, iron 7,870 and gold 19,300. Datapacks can change densities in `data/<ns>/colossal_density/*.json`.

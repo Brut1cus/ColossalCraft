@@ -6,7 +6,7 @@ import com.colossalcraft.colossus.ColossusEntity;
 final class ColossusCollisionAccess {
     /** Server-side Colossus (integrated server) for dev automation. */
     static ColossusEntity first() {
-        for (ColossusEntity c : ColossusCollision.LOADED) if (!c.level().isClientSide && !c.isRemoved()) return c;
+        for (ColossusEntity c : ColossusCollision.all(false)) if (!c.isRemoved()) return c;
         return null;
     }
 }

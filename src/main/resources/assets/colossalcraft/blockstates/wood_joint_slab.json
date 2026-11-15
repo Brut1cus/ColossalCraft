@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "colossalcraft:block/wood_joint_slab_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/wood_joint_slab_y"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/wood_joint_slab_z"
+    }
+  }
+}

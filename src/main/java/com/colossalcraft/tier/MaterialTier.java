@@ -20,6 +20,6 @@ public enum MaterialTier {
         this.id = id; this.jointForce = jf; this.jointMoment = jm; this.motorTorque = mt; this.motorPower = mp; this.driveForce = df;
     }
 
-    public static double forceCap(MaterialTier t, int k) { return t.jointForce * k; }
-    public static double momentCap(MaterialTier t, int k) { return t.jointMoment * Math.pow(k, 1.5); }
+    public static double forceCap(MaterialTier t, double k) { return t.jointForce * k; }
+    public static double momentCap(MaterialTier t, double k) { return t.jointMoment * Math.pow(k, 1.5); }
 }

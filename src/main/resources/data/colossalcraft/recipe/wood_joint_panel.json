@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "J",
+    "J",
+    "J"
+  ],
+  "key": {
+    "J": {
+      "item": "colossalcraft:wood_joint"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:wood_joint_panel",
+    "count": 6
+  }
+}

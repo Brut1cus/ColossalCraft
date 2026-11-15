@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "colossalcraft:block/gold_joint_panel_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/gold_joint_panel_y"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/gold_joint_panel_z"
+    }
+  }
+}

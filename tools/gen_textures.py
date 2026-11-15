@@ -74,11 +74,15 @@ rect(hc, 3, 3, 12, 12, hx(0x0b1a10)); glow(hc, 8, 8, 6, hx(0x2cff7a))
 for y in (5, 7, 9): rect(hc, 4, y, 4 + (y * 3) % 7 + 2, y, hx(0x9dffbf))
 circle(hc, 8, 8, 1.4, hx(0xe8fff0)); save(hc, B, 'hull_core')
 
-# --- Pilot seat ---
-sc = hx(0x7a1f24); ps = base(sc, 80); bevel(ps, sc); rect(ps, 2, 2, 13, 6, shade(sc, 1.2)); rect(ps, 2, 9, 13, 13, shade(sc, 0.9))
-rect(ps, 0, 7, 15, 8, STEEL); save(ps, B, 'pilot_seat_front')
-pt = base(STEEL, 81); bevel(pt, STEEL); rect(pt, 2, 2, 13, 13, sc); rect(pt, 2, 2, 13, 4, shade(sc, 1.3)); save(pt, B, 'pilot_seat_top')
-pss = base(STEEL, 82); bevel(pss, STEEL); rect(pss, 2, 2, 13, 13, shade(sc, 0.8)); rivets(pss, STEEL); save(pss, B, 'pilot_seat_side')
+# --- Pilot seat (chair): quilted red cushion + steel frame ---
+sc = hx(0x8a1c22)
+cu = base(sc, 80, 0.06)
+for y in range(16):
+    for x in range(16):
+        if (x + y) % 5 == 0 or (x - y) % 5 == 0: px(cu, x, y, shade(sc, 0.7))
+for x, y in ((2, 2), (7, 2), (12, 2), (4, 7), (9, 7), (14, 7), (2, 12), (7, 12), (12, 12)): px(cu, x, y, hx(0xd8c070))
+save(cu, B, 'pilot_seat_front'); save(cu, B, 'pilot_seat_top')
+pss = base(STEEL, 82); bevel(pss, STEEL); rivets(pss, STEEL); save(pss, B, 'pilot_seat_side')
 
 # --- Engines (single block): side + front(fire) ---
 ENG = {'ember_boiler': (hx(0x5b4a3c), hx(0xff7a1a)), 'blaze_combustor': (hx(0x6b5420), hx(0xffd23a)), 'redstone_dynamo': (hx(0x5a2a2a), hx(0xff2020))}
@@ -176,3 +180,16 @@ for x in (4, 11): rect(ks, x, 1, x, 14, shade(an, 0.6))
 rect(ks, 6, 5, 9, 10, hx(0xff9a2a)); save(ks, B, 'kinetic_dynamo_side')
 ke = base(an, 611); bevel(ke, an); circle(ke, 8, 8, 5, shade(an, 0.55)); circle(ke, 8, 8, 2.5, hx(0x6b4a2a)); save(ke, B, 'kinetic_dynamo_end')
 print('compat textures done')
+
+# --- gantry scaffold: hazard-striped steel bar + grated deck ---
+gs = Image.new('RGBA', (16, 16))
+for y in range(16):
+    for x in range(16):
+        px(gs, x, y, hx(0xf2c21a) if ((x + y) // 3) % 2 == 0 else hx(0x2a2a2a))
+save(gs, B, 'gantry_scaffold')
+gd = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+for y in range(16):
+    for x in range(16):
+        if x % 4 == 0 or y % 4 == 0: px(gd, x, y, hx(0x8a9096))
+save(gd, B, 'gantry_scaffold_deck')
+print('scaffold textures done')

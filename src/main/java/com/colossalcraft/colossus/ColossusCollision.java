@@ -13,12 +13,17 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** Lets normal entities stand on, walk inside and bump into Colossi (hooked into Entity.collide by a mixin). */
 public final class ColossusCollision {
-    public static final Set<ColossusEntity> LOADED = ConcurrentHashMap.newKeySet();
+    /** Loaded Colossi, one set per side. (Entities compare equal by id, and in single player both sides share ids.) */
+    private static final Set<ColossusEntity> SERVER = ConcurrentHashMap.newKeySet(), CLIENT = ConcurrentHashMap.newKeySet();
+    public static Set<ColossusEntity> all(Level level) { return level.isClientSide ? CLIENT : SERVER; }
+    public static Set<ColossusEntity> all(boolean client) { return client ? CLIENT : SERVER; }
 
     public static List<VoxelShape> withColossi(Level level, Entity self, AABB query, List<VoxelShape> base) {
-        if (LOADED.isEmpty() || self instanceof ColossusEntity || self.getVehicle() instanceof ColossusEntity) return base;
+        Set<ColossusEntity> loaded = all(level);
+        loaded.removeIf(Entity::isRemoved);
+        if (loaded.isEmpty() || self instanceof ColossusEntity || self.getVehicle() instanceof ColossusEntity) return base;
         List<VoxelShape> out = null;
-        for (ColossusEntity c : LOADED) {
+        for (ColossusEntity c : loaded) {
             if (c.level() != level || c.isRemoved() || c.model == null || !c.getBoundingBox().intersects(query.inflate(1))) continue;
             for (AABB b : c.boxesNear(query)) {
                 if (out == null) out = new ArrayList<>(base);

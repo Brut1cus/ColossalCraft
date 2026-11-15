@@ -48,11 +48,24 @@ public final class Net {
         public static final StreamCodec<ByteBuf, HullData> CODEC = StreamCodec.composite(BlockPos.STREAM_CODEC, HullData::pos, ByteBufCodecs.COMPOUND_TAG, HullData::data, HullData::new);
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
-    /** Hull Core screen button (client -> server). 0 rescan, 1 cycle joint mode, 2 cycle joint amp, 3 hover, 4 assemble */
-    public record HullAction(BlockPos pos, int action, int joint) implements CustomPacketPayload {
+    /** Hull Core screen button (client -> server). entity = -1 for a Hull Core block, else the built Colossus.
+     *  actions: 0 rescan, 1 set joint mode (value), 2 set joint swing angle (value), 3 toggle hover, 4 build, 5 park */
+    public record HullAction(BlockPos pos, int entity, int action, int joint, int value) implements CustomPacketPayload {
         public static final Type<HullAction> TYPE = new Type<>(id("hull_action"));
-        public static final StreamCodec<ByteBuf, HullAction> CODEC = StreamCodec.composite(BlockPos.STREAM_CODEC, HullAction::pos,
-                ByteBufCodecs.VAR_INT, HullAction::action, ByteBufCodecs.VAR_INT, HullAction::joint, HullAction::new);
+        public static final StreamCodec<ByteBuf, HullAction> CODEC = StreamCodec.composite(BlockPos.STREAM_CODEC, HullAction::pos, ByteBufCodecs.VAR_INT, HullAction::entity,
+                ByteBufCodecs.VAR_INT, HullAction::action, ByteBufCodecs.VAR_INT, HullAction::joint, ByteBufCodecs.VAR_INT, HullAction::value, HullAction::new);
+        public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+    /** Player right-clicked a block on a built Colossus. what: 0 Hull Core screen, 1 sit in Pilot Throne */
+    public record ClickColossus(int entity, int what) implements CustomPacketPayload {
+        public static final Type<ClickColossus> TYPE = new Type<>(id("click_colossus"));
+        public static final StreamCodec<ByteBuf, ClickColossus> CODEC = StreamCodec.composite(ByteBufCodecs.VAR_INT, ClickColossus::entity, ByteBufCodecs.VAR_INT, ClickColossus::what, ClickColossus::new);
+        public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+    /** New joint setup for a built Colossus (server -> clients). */
+    public record ColossusConfig(int entity, CompoundTag cfg) implements CustomPacketPayload {
+        public static final Type<ColossusConfig> TYPE = new Type<>(id("colossus_config"));
+        public static final StreamCodec<ByteBuf, ColossusConfig> CODEC = StreamCodec.composite(ByteBufCodecs.VAR_INT, ColossusConfig::entity, ByteBufCodecs.COMPOUND_TAG, ColossusConfig::cfg, ColossusConfig::new);
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
     public record StructureRemoved(int entity, CompoundTag data) implements CustomPacketPayload {
@@ -66,6 +79,8 @@ public final class Net {
         r.playToServer(PilotInput.TYPE, PilotInput.CODEC, Net::onInput);
         r.playToServer(PilotAction.TYPE, PilotAction.CODEC, Net::onPilotAction);
         r.playToServer(HullAction.TYPE, HullAction.CODEC, Net::onHullAction);
+        r.playToServer(ClickColossus.TYPE, ClickColossus.CODEC, Net::onClickColossus);
+        r.playToClient(ColossusConfig.TYPE, ColossusConfig.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.colossusConfig(p.entity(), p.cfg())));
         r.playToClient(HullData.TYPE, HullData.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.hullData(p.pos(), p.data())));
         r.playToClient(StructureRemoved.TYPE, StructureRemoved.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.structureRemoved(p.entity(), p.data())));
     }
@@ -86,12 +101,13 @@ public final class Net {
                     case 0 -> pl.stopRiding();
                     case 1 -> c.disassemble(pl);
                     case 2 -> { c.toggleHover(); pl.displayClientMessage(Component.literal("Hover assist: " + (c.hover() ? "ON" : "OFF")), true); }
+                    case 3 -> { if (pl instanceof ServerPlayer sp) sendEntityScan(sp, c); }
                 }
                 return;
             }
             if (p.action() != 0) return;
             ColossusEntity best = null; double bd = 36;
-            for (ColossusEntity c : ColossusCollision.LOADED) {
+            for (ColossusEntity c : ColossusCollision.all(false)) {
                 if (c.level() != pl.level() || c.model == null || c.model.seat == null) continue;
                 double d = c.seatWorld().distanceToSqr(pl.position());
                 if (d < bd) { bd = d; best = c; }
@@ -101,33 +117,71 @@ public final class Net {
         });
     }
 
+    public static void sendEntityScan(ServerPlayer sp, ColossusEntity c) {
+        PacketDistributor.sendToPlayer(sp, new HullData(BlockPos.ZERO, StructureScan.toTag(StructureScan.fromEntity(c))));
+    }
+
+    private static ColossusEntity colossusNear(ServerPlayer sp, int id) {
+        Entity e = sp.level().getEntity(id);
+        if (!(e instanceof ColossusEntity c) || c.model == null) return null;
+        return sp.distanceToSqr(c) < Math.pow(c.model.radius + 10, 2) ? c : null;
+    }
+
+    private static void onClickColossus(ClickColossus p, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (!(ctx.player() instanceof ServerPlayer sp)) return;
+            ColossusEntity c = colossusNear(sp, p.entity()); if (c == null) return;
+            if (p.what() == 0) sendEntityScan(sp, c);
+            else if (p.what() == 1 && !sp.isPassenger()) sp.startRiding(c, true);
+        });
+    }
+
+    private static void closeScreen(ServerPlayer sp, BlockPos pos) {
+        CompoundTag closed = new CompoundTag(); closed.putBoolean("Closed", true);
+        PacketDistributor.sendToPlayer(sp, new HullData(pos, closed));
+    }
+
     private static void onHullAction(HullAction a, IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
             if (!(ctx.player() instanceof ServerPlayer sp)) return;
+            if (a.entity() >= 0) { onBuiltAction(sp, a); return; }
             if (sp.distanceToSqr(Vec3.atCenterOf(a.pos())) > 100 || !(sp.level().getBlockEntity(a.pos()) instanceof HullCoreBlockEntity hc)) return;
             StructureScan.Result r = StructureScan.scan(sp.level(), a.pos());
             switch (a.action()) {
                 case 1, 2 -> {
                     if (a.joint() >= 0 && a.joint() < r.model.joints.size()) {
-                        StructureModel.Joint j = r.model.joints.get(a.joint());
-                        String key = StructureModel.jointKey(j.key);
-                        CompoundTag c = hc.joints.getCompound(key);
-                        if (a.action() == 1) c.putByte("Mode", (byte) ((j.mode + 1) % StructureModel.MODES.length));
-                        else { int[] amps = {10, 20, 30, 45, 60, 90}; int next = amps[0]; for (int v : amps) if (v > j.amp) { next = v; break; } c.putInt("Amp", next); }
-                        hc.joints.put(key, c); hc.setChanged();
+                        String key = StructureModel.jointKey(r.model.joints.get(a.joint()).key);
+                        hc.joints.put(key, applyJoint(hc.joints.getCompound(key), a)); hc.setChanged();
                     }
                 }
                 case 3 -> { hc.hover = !hc.hover; hc.setChanged(); }
-                case 4 -> {
-                    if (ColossusEntity.assemble(sp.level(), a.pos(), sp)) {
-                        CompoundTag closed = new CompoundTag(); closed.putBoolean("Closed", true);
-                        PacketDistributor.sendToPlayer(sp, new HullData(a.pos(), closed));
-                        return;
-                    }
-                }
+                case 4 -> { if (ColossusEntity.assemble(sp.level(), a.pos(), sp)) { closeScreen(sp, a.pos()); return; } }
                 default -> {}
             }
             sendScan(sp, a.pos(), StructureScan.scan(sp.level(), a.pos()));
         });
+    }
+
+    private static CompoundTag applyJoint(CompoundTag c, HullAction a) {
+        c = c.copy();
+        if (a.action() == 1) c.putByte("Mode", (byte) Math.max(0, Math.min(StructureModel.MODES.length - 1, a.value())));
+        else c.putInt("Amp", Math.max(5, Math.min(120, a.value())));
+        return c;
+    }
+
+    private static void onBuiltAction(ServerPlayer sp, HullAction a) {
+        ColossusEntity c = colossusNear(sp, a.entity()); if (c == null) return;
+        switch (a.action()) {
+            case 1, 2 -> {
+                if (a.joint() >= 0 && a.joint() < c.model.joints.size()) {
+                    String key = StructureModel.jointKey(c.model.joints.get(a.joint()).key);
+                    CompoundTag cfg = c.jointCfg.copy(); cfg.put(key, applyJoint(cfg.getCompound(key), a)); c.setJointCfg(cfg);
+                }
+            }
+            case 3 -> c.toggleHover();
+            case 5 -> { if (c.disassemble(sp)) { closeScreen(sp, BlockPos.ZERO); sp.displayClientMessage(Component.literal("Parked: the Colossus is blocks again."), true); return; } }
+            default -> {}
+        }
+        sendEntityScan(sp, c);
     }
 }

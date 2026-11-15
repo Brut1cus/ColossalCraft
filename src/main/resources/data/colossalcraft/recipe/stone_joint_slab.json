@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "JJJ"
+  ],
+  "key": {
+    "J": {
+      "item": "colossalcraft:stone_joint"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:stone_joint_slab",
+    "count": 6
+  }
+}

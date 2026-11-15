@@ -49,7 +49,7 @@ public class ColossalCraft {
                 boolean ok = ColossusEntity.assemble(c.getSource().getLevel(), BlockPosArgument.getLoadedBlockPos(c, "pos"), null);
                 c.getSource().sendSuccess(() -> Component.literal(ok ? "assembled" : "failed"), false); return ok ? 1 : 0; })))
             .then(Commands.literal("list").executes(c -> {
-                for (ColossusEntity ce : ColossusCollision.LOADED) c.getSource().sendSuccess(() -> Component.literal(String.format(
+                for (ColossusEntity ce : ColossusCollision.all(false)) c.getSource().sendSuccess(() -> Component.literal(String.format(
                         "Colossus %d at %.2f %.2f %.2f yaw=%.2f vel=%s blocks=%d energy=%d ground=%s", ce.getId(), ce.getX(), ce.getY(), ce.getZ(), ce.yaw, ce.vel, ce.blocks.size(), ce.energy, ce.onGroundC)), false);
                 return 1; })));
     }
