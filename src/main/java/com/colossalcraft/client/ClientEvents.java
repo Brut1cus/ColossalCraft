@@ -22,13 +22,27 @@ public final class ClientEvents {
     public static final KeyMapping DESCEND = new KeyMapping("key.colossalcraft.descend", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, CAT);
     public static final KeyMapping HOVER = new KeyMapping("key.colossalcraft.hover", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CAT);
     public static final KeyMapping SCREEN = new KeyMapping("key.colossalcraft.screen", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, CAT);
+    public static final KeyMapping LOCO = new KeyMapping("key.colossalcraft.loco", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_L, CAT);
+    public static final KeyMapping JUMP_DRIVE = new KeyMapping("key.colossalcraft.jump", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, CAT);
+    /** Actions the Locomotion Controller can bind: 0 forward, 1 back, 2 left, 3 right, 4 raise, 5 lower, 6 sprint, 7 jump drive. */
+    public static final String[] ACTIONS = {"Forward", "Back", "Turn left", "Turn right", "Raise / up", "Lower / down", "Sprint", "Jump Drive"};
+    public static KeyMapping defaultKey(int action) {
+        var o = Minecraft.getInstance().options;
+        return switch (action) { case 0 -> o.keyUp; case 1 -> o.keyDown; case 2 -> o.keyLeft; case 3 -> o.keyRight; case 4 -> o.keyJump; case 5 -> o.keyShift; case 6 -> o.keySprint; default -> JUMP_DRIVE; };
+    }
+    /** Is the key bound to this action (in the Colossus' Locomotion settings) held down? */
+    public static boolean actionDown(ColossusEntity c, int action) {
+        int code = c.jointCfg.getCompound(com.colossalcraft.colossus.StructureModel.LOCO).contains("K" + action) ? c.jointCfg.getCompound(com.colossalcraft.colossus.StructureModel.LOCO).getInt("K" + action) : -1;
+        if (code < 0) return defaultKey(action).isDown();
+        return InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), code);
+    }
     public static final KeyMapping DISASSEMBLE = new KeyMapping("key.colossalcraft.disassemble", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, CAT);
 
     @EventBusSubscriber(modid = ColossalCraft.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class ModBus {
         @SubscribeEvent public static void renderers(EntityRenderersEvent.RegisterRenderers e) { e.registerEntityRenderer(ModRegistry.COLOSSUS.get(), ColossusRenderer::new); e.registerEntityRenderer(ModRegistry.SEAT.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); }
         @SubscribeEvent public static void menus(RegisterMenuScreensEvent e) { e.register(ModRegistry.ENGINE_MENU.get(), EngineScreen::new); }
-        @SubscribeEvent public static void keys(RegisterKeyMappingsEvent e) { e.register(PILOT); e.register(DESCEND); e.register(HOVER); e.register(DISASSEMBLE); e.register(SCREEN); }
+        @SubscribeEvent public static void keys(RegisterKeyMappingsEvent e) { e.register(PILOT); e.register(DESCEND); e.register(HOVER); e.register(DISASSEMBLE); e.register(SCREEN); e.register(LOCO); e.register(JUMP_DRIVE); }
         @SubscribeEvent public static void hud(RegisterGuiLayersEvent e) {
             e.registerAboveAll(ResourceLocation.fromNamespaceAndPath(ColossalCraft.MODID, "hud"), (g, delta) -> {
                 Minecraft mc = Minecraft.getInstance();
@@ -39,8 +53,9 @@ public final class ClientEvents {
                         "COLOSSUS  " + StructureScan.tons(c.model.mass) + "",
                         "ENERGY " + en + "   OUT " + StructureScan.kilo(c.model.output) + " CJ/t",
                         String.format("SPEED %.1f m/s   ALT %d", speed, (int) c.getY()),
-                        "HOVER " + (c.hover() ? "ON" : "OFF") + "   [G] Hull Core  [H] hover  [C] down  [K] park  [V] leave",
-                        c.walkerStatus().isEmpty() ? "" : "FEET  " + c.walkerStatus()};
+                        "HOVER " + (c.hover() ? "ON" : "OFF") + "   [G] Hull Core  [L] Locomotion  [H] hover  [K] park  [V] leave",
+                        c.walkerStatus().isEmpty() ? "" : "FEET  " + c.walkerStatus(),
+                        c.jumpLevel() < 0 ? "" : String.format("JUMP DRIVE %.0f%%%s", c.jumpLevel() * 100, c.jumpLevel() >= 0.2 ? "  [" + defaultKey(7).getTranslatedKeyMessage().getString() + "] ready" : "")};
                 int y = 6;
                 for (String s : lines) { if (s.isEmpty()) continue; g.fill(4, y - 2, 8 + mc.font.width(s), y + 9, 0x90000000); g.drawString(mc.font, s, 6, y, 0xFF7CFF9E, false); y += 11; }
             });
@@ -55,10 +70,11 @@ public final class ClientEvents {
             while (PILOT.consumeClick()) PacketDistributor.sendToServer(new Net.PilotAction(0));
             while (DISASSEMBLE.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(1));
             while (SCREEN.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(3));
+            while (LOCO.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(4));
             while (HOVER.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(2));
-            if (mc.player.getVehicle() instanceof ColossusEntity && mc.screen == null && !DevShots.ON) {
-                var in = mc.player.input;
-                PacketDistributor.sendToServer(new Net.PilotInput(in.forwardImpulse, in.leftImpulse, in.jumping, DESCEND.isDown()));
+            if (mc.player.getVehicle() instanceof ColossusEntity c && mc.screen == null && !DevShots.ON) {
+                float fwd = (actionDown(c, 0) ? 1 : 0) - (actionDown(c, 1) ? 1 : 0), turn = (actionDown(c, 2) ? 1 : 0) - (actionDown(c, 3) ? 1 : 0);
+                PacketDistributor.sendToServer(new Net.PilotInput(fwd, turn, actionDown(c, 4), actionDown(c, 5) || DESCEND.isDown(), actionDown(c, 6), actionDown(c, 7)));
             }
         }
 

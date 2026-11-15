@@ -23,7 +23,9 @@ public final class SimpleParts {
 
     /** Joint shapes. Strength = share of a full joint's load it can carry. */
     public enum JointShape {
-        FULL("joint", "Bearing Joint", 1.0), SLAB("joint_slab", "Slab Joint", 0.5), PANEL("joint_panel", "Panel Joint", 0.5), PIN("joint_pin", "Pin Joint", 0.25);
+        FULL("joint", "Bearing Joint", 1.0), SLAB("joint_slab", "Slab Joint", 0.5), PANEL("joint_panel", "Panel Joint", 0.5), PIN("joint_pin", "Pin Joint", 0.25),
+        /** Ball joint: keeps the part below it level (turns any way, within its limit). */
+        BALL("ball_joint", "Ball Joint", 0.75);
         public final String suffix, title; public final double strength;
         JointShape(String s, String t, double k) { suffix = s; title = t; strength = k; }
     }
@@ -42,6 +44,7 @@ public final class SimpleParts {
                 case SLAB -> Block.box(0, 0, 0, 16, 8, 16);
                 case PANEL -> a == Direction.Axis.X ? Block.box(4, 0, 0, 12, 16, 16) : a == Direction.Axis.Y ? Block.box(0, 4, 0, 16, 12, 16) : Block.box(0, 0, 4, 16, 16, 12);
                 case PIN -> a == Direction.Axis.X ? Block.box(0, 5, 5, 16, 11, 11) : a == Direction.Axis.Y ? Block.box(5, 0, 5, 11, 16, 11) : Block.box(5, 5, 0, 11, 11, 16);
+                case BALL -> Block.box(2, 2, 2, 14, 14, 14);
             };
         }
         @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return shapes.get(s.getValue(AXIS)); }
@@ -55,17 +58,17 @@ public final class SimpleParts {
     }
 
     /** Gearbox: placed between Servo Motors and a joint. Multiplies torque by ratio (times efficiency) and divides speed by ratio. Chains multiply. */
-    public static class GearboxBlock extends RotatedPillarBlock {
+    public static class GearboxBlock extends DirectionalBlock {
         public final double ratio, efficiency; public final String label;
-        /** Where the input gear (model tintindex 9) and output gear (tintindex 10) sit, in pixels across the axis (u, v). Must match the model. */
-        public final double inU, inV, outU, outV, outFactor; public final boolean inAcross;
+        /** FACING = the output side (the arrow points there). Place it by clicking the joint (or next gearbox) it should drive. */
         public GearboxBlock(double ratio, double efficiency, String label, Properties p) {
             super(p); this.ratio = ratio; this.efficiency = efficiency; this.label = label;
-            if (ratio == 0.5) { inU = 5.5; inV = 8; outU = 11.5; outV = 8; outFactor = -2; inAcross = false; }        // overdrive: big drives small
-            else if (ratio == 2) { inU = 4.5; inV = 8; outU = 10.5; outV = 8; outFactor = -0.5; inAcross = false; }   // spur
-            else if (ratio == 5) { inU = 8; inV = 8; outU = 8; outV = 8; outFactor = 0.2; inAcross = false; }          // planetary: carrier orbits with the sun
-            else { inU = 8; inV = 3.5; outU = 8; outV = 10.5; outFactor = -1 / ratio; inAcross = true; }              // worm: the worm turns across the block
+            registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
         }
+        @Override protected com.mojang.serialization.MapCodec<? extends DirectionalBlock> codec() { return null; }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(FACING); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(FACING, c.getClickedFace().getOpposite()); }
+        @Override protected BlockState rotate(BlockState s, Rotation r) { return s.setValue(FACING, r.rotate(s.getValue(FACING))); }
     }
 
     /** Thruster. FACING = nozzle direction; push goes the other way. */
@@ -211,5 +214,23 @@ public final class SimpleParts {
             if (!ns.is(this)) com.colossalcraft.colossus.ColossusEntity.releaseFrom(level, pos);
             super.onRemove(s, level, pos, ns, moving);
         }
+    }
+
+    /** Locomotion Controller: configures legs and kinematics (IK solver, gait, keys). Right-click for its screen. */
+    public static class LocomotionControllerBlock extends HorizontalDirectionalBlock {
+        public LocomotionControllerBlock(Properties p) { super(p); registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH)); }
+        @Override protected com.mojang.serialization.MapCodec<? extends HorizontalDirectionalBlock> codec() { return null; }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(FACING); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(FACING, c.getHorizontalDirection().getOpposite()); }
+        @Override protected net.minecraft.world.InteractionResult useWithoutItem(BlockState s, net.minecraft.world.level.Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
+            if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer sp) com.colossalcraft.network.Net.openLocoParked(sp, pos);
+            return net.minecraft.world.InteractionResult.sidedSuccess(level.isClientSide);
+        }
+    }
+
+    /** Jump Drive: a capacitor. Charges slowly from the Colossus' power, lets it all out at once to launch it. */
+    public static class JumpDriveBlock extends Block {
+        public static final double CAPACITY = 600_000; public static final double CHARGE_RATE = 400; // CJ, CJ per tick
+        public JumpDriveBlock(Properties p) { super(p); }
     }
 }

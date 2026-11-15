@@ -1,13 +1,27 @@
 {
   "variants": {
-    "axis=x": {
-      "model": "colossalcraft:block/spur_gearbox_x"
+    "facing=north": {
+      "model": "colossalcraft:block/spur_gearbox"
     },
-    "axis=y": {
-      "model": "colossalcraft:block/spur_gearbox_y"
+    "facing=south": {
+      "model": "colossalcraft:block/spur_gearbox",
+      "y": 180
     },
-    "axis=z": {
-      "model": "colossalcraft:block/spur_gearbox_z"
+    "facing=east": {
+      "model": "colossalcraft:block/spur_gearbox",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "colossalcraft:block/spur_gearbox",
+      "y": 270
+    },
+    "facing=up": {
+      "model": "colossalcraft:block/spur_gearbox",
+      "x": 270
+    },
+    "facing=down": {
+      "model": "colossalcraft:block/spur_gearbox",
+      "x": 90
     }
   }
 }

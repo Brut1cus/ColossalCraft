@@ -36,6 +36,7 @@ public final class ClientHooks {
             if (hit == null || c.blockWorldCenter(hit).distanceTo(eye) > worldDist + 0.7) continue;
             var b = c.blocks.get(hit).getBlock();
             if (b instanceof com.colossalcraft.block.HullCoreBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 0)); return true; }
+            if (b instanceof com.colossalcraft.block.SimpleParts.LocomotionControllerBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 2)); return true; }
             if (b instanceof com.colossalcraft.block.SimpleParts.PilotSeatBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 1)); return true; }
         }
         return false;

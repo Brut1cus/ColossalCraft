@@ -1,13 +1,27 @@
 {
   "variants": {
-    "axis=x": {
-      "model": "colossalcraft:block/worm_drive_x"
+    "facing=north": {
+      "model": "colossalcraft:block/worm_drive"
     },
-    "axis=y": {
-      "model": "colossalcraft:block/worm_drive_y"
+    "facing=south": {
+      "model": "colossalcraft:block/worm_drive",
+      "y": 180
     },
-    "axis=z": {
-      "model": "colossalcraft:block/worm_drive_z"
+    "facing=east": {
+      "model": "colossalcraft:block/worm_drive",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "colossalcraft:block/worm_drive",
+      "y": 270
+    },
+    "facing=up": {
+      "model": "colossalcraft:block/worm_drive",
+      "x": 270
+    },
+    "facing=down": {
+      "model": "colossalcraft:block/worm_drive",
+      "x": 90
     }
   }
 }

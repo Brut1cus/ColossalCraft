@@ -91,7 +91,14 @@ def joint_elements(shape, axis, xyz=None):
     els.append(box(*make(a, u, v, (max(0, a0 - ext), min(16, a1 + ext)), (cu - hs, cu + hs), (cv - hs, cv + hs)), a, spin=True))
     return els
 PANEL_BOX = {'north': [(0, 16), (0, 16), (0, 8)], 'south': [(0, 16), (0, 16), (8, 16)], 'west': [(0, 8), (0, 16), (0, 16)], 'east': [(8, 16), (0, 16), (0, 16)]}
-SHAPES = [('joint', 'Bearing Joint'), ('joint_slab', 'Slab Joint'), ('joint_panel', 'Panel Joint'), ('joint_pin', 'Pin Joint')]
+SHAPES = [('joint', 'Bearing Joint'), ('joint_slab', 'Slab Joint'), ('joint_panel', 'Panel Joint'), ('joint_pin', 'Pin Joint'), ('ball_joint', 'Ball Joint')]
+def ball_els():
+    def b(lo, hi, ax=None, ang=0, t='#side'):
+        el = {'from': lo, 'to': hi, 'faces': {f: {'texture': t, 'uv': fit_uv(f, lo, hi)} for f in ('north', 'south', 'east', 'west', 'up', 'down')}}
+        if ang: el['rotation'] = {'origin': [8, 8, 8], 'axis': ax, 'angle': ang}
+        return el
+    return [b([4, 4, 4], [12, 12, 12], t='#end'), b([3.5, 4.5, 4.5], [12.5, 11.5, 11.5], 'y', 45, '#end'), b([4.5, 3.5, 4.5], [11.5, 12.5, 11.5], 'x', 45, '#end'),
+            b([2, 0, 2], [14, 3, 14]), b([2, 13, 2], [14, 16, 14]), b([6, 3, 6], [10, 4, 10]), b([6, 12, 6], [10, 13, 10])]
 for m in MATS:
     for sh, title in SHAPES:
         n = f'{m}_{sh}'
@@ -112,6 +119,10 @@ for m in MATS:
                     model(mn, joint_elements(sh, axis, xyz))
                     variants[f'axis={axis},facing={side}'] = {'model': f'{NS}:block/{mn}'}
             item = f'{n}_north_z'
+        elif sh == 'ball_joint':
+            model(f'{n}_x', ball_els())
+            for axis in 'xyz': variants[f'axis={axis}'] = {'model': f'{NS}:block/{n}_x'}
+            item = f'{n}_x'
         else:
             for axis in 'xyz':
                 model(f'{n}_{axis}', joint_elements(sh, axis))
@@ -341,8 +352,25 @@ def worm_els(axis):        # 20:1 a spiral worm (turns across the block) drives 
     els += gear(axis, 8, 10.5, 6, 10, 4.5, '#gear', 10) + shaft(axis, 8, 10.5, 10)
     return els
 GEAR_ELS = {'overdrive_gearbox': overdrive_els, 'spur_gearbox': spur_els, 'planetary_gearbox': planetary_els, 'worm_drive': worm_els}
+def gearbox_model(n):
+    # north = output side (arrow points there). Input shaft (tintindex 9) at the back, output shaft (tintindex 10) at the front, both centred.
+    def face(texv, rot=0, tint=None):
+        f = {'texture': texv}
+        if rot: f['rotation'] = rot
+        if tint is not None: f['tintindex'] = tint
+        return f
+    body = {'from': [1, 1, 1], 'to': [15, 15, 15], 'faces': {'north': face('#out'), 'south': face('#in'), 'up': face('#arrow'), 'down': face('#arrow', 180),
+            'east': face('#arrow', 90), 'west': face('#arrow', 270)}}
+    def shaft_el(z0, z1, lo, hi, tint):
+        el = {'from': [lo, lo, z0], 'to': [hi, hi, z1], 'faces': {}}
+        for f in ('north', 'south', 'east', 'west', 'up', 'down'): el['faces'][f] = face('#shaft', 0, tint) | {'uv': fit_uv(f, [lo, lo, z0], [hi, hi, z1])}
+        return el
+    els = [body, shaft_el(0, 8, 6, 10, 10), shaft_el(0, 1, 4, 12, 10), shaft_el(8, 16, 6, 10, 9), shaft_el(15, 16, 4, 12, 9)]
+    w(f'{A}/models/block/{n}.json', {'parent': 'minecraft:block/block', 'textures': {'out': tex(n), 'in': tex('gearbox_in'), 'arrow': tex(n + '_arrow'), 'shaft': tex('shaft'), 'particle': tex(n)}, 'elements': els})
+    w(f'{A}/blockstates/{n}.json', {'variants': {f'facing={f}': dict({'model': f'{NS}:block/{n}'}, **r) for f, r in D6.items()}})
+    w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}'})
 for n, nm in [('overdrive_gearbox', 'Overdrive Gearbox (1:2, faster)'), ('spur_gearbox', 'Spur Gearbox (2:1)'), ('planetary_gearbox', 'Planetary Gearbox (5:1)'), ('worm_drive', 'Worm Drive (20:1)')]:
-    pillar_block(n, nm, GEAR_ELS[n], {'frame': tex('gearbox_frame'), 'gear': tex(n + '_gear'), 'shaft': tex('shaft'), 'particle': tex(n)})
+    gearbox_model(n); blocks.append(n); NAMES[n] = nm
     w(f'{D}/loot_table/blocks/{n}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{n}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
 lang = json.load(open(f'{A}/lang/en_us.json'))
 for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]
@@ -370,6 +398,22 @@ w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'va
 w(f'{D}/tags/block/assembly_blacklist.json', {'values': ['minecraft:scaffolding', f'{NS}:gantry_scaffold', f'{NS}:gantry_hoist']})
 shaped('rotor_blade', ['  S', ' P ', 'S  '], {'S': S, 'P': '#minecraft:planks'}, 4)
 shaped('gantry_hoist', ['GGG', ' C ', ' I '], {'G': 'gantry_scaffold', 'C': 'minecraft:chain', 'I': 'minecraft:iron_block'})
+# Locomotion Controller + Jump Drive
+orientable('locomotion_controller', 'locomotion_controller_front', 'locomotion_controller_side', 'locomotion_controller_side', 'Locomotion Controller')
+item_from_block('locomotion_controller')
+w(f'{A}/models/block/jump_drive.json', {'parent': 'minecraft:block/cube_column', 'textures': {'end': tex('jump_drive_top'), 'side': tex('jump_drive_side')}})
+w(f'{A}/blockstates/jump_drive.json', {'variants': {'': {'model': f'{NS}:block/jump_drive'}}})
+item_from_block('jump_drive'); blocks.append('jump_drive'); NAMES['jump_drive'] = 'Jump Drive'
+for b in ('locomotion_controller', 'jump_drive') + tuple(f'{m}_ball_joint' for m in MATS):
+    w(f'{D}/loot_table/blocks/{b}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{b}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
+lang = json.load(open(f'{A}/lang/en_us.json'))
+for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]
+lang['key.colossalcraft.loco'] = 'Colossus: Open Locomotion Controller'; lang['key.colossalcraft.jump'] = 'Colossus: Jump Drive (default)'
+w(f'{A}/lang/en_us.json', lang)
+w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in blocks if b not in ('sky_sail', 'kinetic_dynamo', 'gantry_scaffold')] + [{'id': f'{NS}:kinetic_dynamo', 'required': False}]})
+shaped('locomotion_controller', ['SCS', 'RMR', 'SRS'], {'S': S, 'C': 'minecraft:comparator', 'R': 'minecraft:redstone', 'M': 'iron_motor'})
+shaped('jump_drive', ['SPS', 'RBR', 'SPS'], {'S': S, 'P': 'minecraft:piston', 'R': 'minecraft:redstone_block', 'B': 'minecraft:slime_block'})
+for m in MATS: shapeless(f'{m}_ball_joint', [f'{m}_joint', 'minecraft:slime_ball'])
 w(f'{D}/tags/block/natural_ground.json', {'values': ['#minecraft:dirt', '#minecraft:sand', '#minecraft:base_stone_overworld', '#minecraft:base_stone_nether',
     'minecraft:gravel', 'minecraft:snow', 'minecraft:snow_block', 'minecraft:powder_snow', 'minecraft:ice', 'minecraft:packed_ice', 'minecraft:blue_ice',
     'minecraft:clay', 'minecraft:end_stone', 'minecraft:short_grass', 'minecraft:tall_grass', 'minecraft:fern', 'minecraft:large_fern', 'minecraft:dead_bush',

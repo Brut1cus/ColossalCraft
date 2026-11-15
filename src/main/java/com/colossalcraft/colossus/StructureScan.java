@@ -114,6 +114,10 @@ public final class StructureScan {
                 if (L.vCap() < m.mass * StructureModel.G) r.warnings.add("Leg at J" + L.joints().get(0) + " can't carry the whole weight on one foot while the other steps (joint too weak).");
                 if (L.hipTorque() <= 0) r.warnings.add("Leg at J" + L.joints().get(0) + " has no motor at the hip: it can't push.");
             }
+            double legDraw = m.walkPower() + m.gyroPower;
+            if (m.output > 0 && m.output < legDraw) r.warnings.add(String.format("Engines too weak for the legs: walking needs %s CJ/t, engines give %s. Motors (and knees holding the weight) run at %.0f%%.",
+                    kilo(legDraw), kilo(m.output), 100 * m.output / legDraw));
+            if (m.locoControllers == 0) r.warnings.add("No Locomotion Controller: add one to set up the legs (and walk).");
             if (m.legChains.isEmpty() && m.legged) r.warnings.add("No legs found: set the hip (and knee) joints to Leg, with a foot under them.");
             if (m.gaitScale() < 0.999) r.warnings.add(String.format("Joints are geared too slow for the gait: walking runs at %.0f%% speed. Use a lower gear ratio or slow the gait.", m.gaitScale() * 100));
         }
@@ -210,12 +214,16 @@ public final class StructureScan {
                 c.putBoolean("LegHip", true); c.putDouble("Grip", L.mu()); c.putDouble("Push", L.hipTorque() / Math.max(0.5, L.length()));
                 c.putDouble("Carry", L.vCap()); c.putDouble("LegLen", L.length()); c.putInt("LegJoints", L.joints().size());
             }
-            c.putInt("Blades", j.blades);
+            c.putInt("Blades", j.blades); c.putBoolean("Ball", j.ball); c.putInt("Group", j.group);
             c.putIntArray("Keys", j.keys.clone()); c.putInt("Phase", j.phase); c.putInt("SpeedX", (int) Math.round(j.speedFactor * 100)); c.putBoolean("Loop", j.loop);
             ListTag ch = new ListTag(); for (int cs : j.childSegs) { CompoundTag x = new CompoundTag(); x.putInt("S", cs); ch.add(x); } c.put("Children", ch);
             js.add(c);
         }
         t.put("Joints", js);
+        t.put("LocoCfg", r.jointCfg.getCompound(StructureModel.LOCO).copy());
+        t.putInt("IKMode", m.ikMode); t.putInt("GaitMode", m.gaitMode); t.putInt("JumpDrives", m.jumpDrives); t.putInt("LocoControllers", m.locoControllers);
+        t.putInt("Legs", m.legChains.size());
+        if (r.entity != null) t.putFloat("JumpLevel", r.entity.jumpLevel());
         t.putDouble("GaitSpeed", m.gaitSpeed); t.putDouble("GaitScale", m.gaitScale());
         t.putDouble("CoreGyro", m.coreGyro); t.putBoolean("Balanced", m.balanced()); t.putDouble("BalanceOff", m.balanceOffset.length());
         t.putDouble("CX", m.com.x); t.putDouble("CY", m.com.y); t.putDouble("CZ", m.com.z);

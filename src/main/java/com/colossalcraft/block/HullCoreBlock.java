@@ -22,7 +22,7 @@ public class HullCoreBlock extends BaseEntityBlock {
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new HullCoreBlockEntity(pos, state); }
 
     @Override protected InteractionResult useWithoutItem(BlockState s, Level level, BlockPos pos, Player player, BlockHitResult hit) {
-        if (!level.isClientSide && player instanceof ServerPlayer sp) Net.sendScan(sp, pos, StructureScan.scan(level, pos));
+        if (!level.isClientSide && player instanceof ServerPlayer sp) Net.openHullParked(sp, pos);
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
 }

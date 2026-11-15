@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SCS",
+    "RMR",
+    "SRS"
+  ],
+  "key": {
+    "S": {
+      "item": "colossalcraft:colossteel_ingot"
+    },
+    "C": {
+      "item": "minecraft:comparator"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "M": {
+      "item": "colossalcraft:iron_motor"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:locomotion_controller",
+    "count": 1
+  }
+}

@@ -89,7 +89,8 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
                 double[] sp = m.spinParts.get(p);
                 if (jid != null && !m.joints.get(jid).childSegs.isEmpty()) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.STATIC, null, 0);
                 else if (m.blocks.get(p).getBlock() instanceof com.colossalcraft.block.SimpleParts.GearboxBlock)
-                    drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL_SPIN_TOO, m.blocks.get(p).getValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS), sp == null ? 0 : angles[(int) sp[0]] * sp[1]);
+                    drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL_SPIN_TOO, m.blocks.get(p).getValue(net.minecraft.world.level.block.DirectionalBlock.FACING).getAxis(),
+                            sp == null ? 0 : angles[(int) sp[0]] * sp[1], sp == null ? 1 : sp[2]);
                 else if (sp != null || isClusterMember(m, p)) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.STATIC, null, 0);
                 else drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL, null, 0);
             }
@@ -184,6 +185,11 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
     private void drawBlock(ColossusEntity e, StructureModel m, BlockPos p, Matrix4d local, PoseStack ps, MultiBufferSource buf, float pt, int light,
                            double ex, double ey, double ez, net.minecraft.client.multiplayer.ClientLevel level, BlockPos.MutableBlockPos lp,
                            Part part, net.minecraft.core.Direction.Axis spinAxis, double spinAngle) {
+        drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, part, spinAxis, spinAngle, 1);
+    }
+    private void drawBlock(ColossusEntity e, StructureModel m, BlockPos p, Matrix4d local, PoseStack ps, MultiBufferSource buf, float pt, int light,
+                           double ex, double ey, double ez, net.minecraft.client.multiplayer.ClientLevel level, BlockPos.MutableBlockPos lp,
+                           Part part, net.minecraft.core.Direction.Axis spinAxis, double spinAngle, double gearRatio) {
         if (part != Part.ALL) {
             BlockState st = m.blocks.get(p); if (st == null) return;
             Vector3d w = local.transformPosition(new Vector3d(p.getX() + .5, p.getY() + .5, p.getZ() + .5));
@@ -191,13 +197,13 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             int li = level == null ? light : LevelRenderer.getLightColor(level, lp);
             ps.pushPose();
             ps.translate(p.getX(), p.getY(), p.getZ());
-            if (part == Part.ALL_SPIN_TOO && st.getBlock() instanceof com.colossalcraft.block.SimpleParts.GearboxBlock gb) {
-                // frame stays; input gear turns with the motor side, output gear meshes with it at its own ratio
+            if (part == Part.ALL_SPIN_TOO && st.getBlock() instanceof com.colossalcraft.block.SimpleParts.GearboxBlock) {
+                // housing stays; the input shaft turns with the motor side, the output shaft 1/ratio as fast
                 drawQuads(st, ps, buf, li, Part.STATIC);
                 var a = StructureModel.axisVec(spinAxis);
-                org.joml.Vector3f blockAx = new org.joml.Vector3f((float) a.x, (float) a.y, (float) a.z);
-                spinGroup(st, ps, buf, li, Part.SPIN, uvToBlock(spinAxis, gb.inU, gb.inV), gb.inAcross ? uAxis(spinAxis) : blockAx, spinAngle);
-                spinGroup(st, ps, buf, li, Part.SPIN2, uvToBlock(spinAxis, gb.outU, gb.outV), blockAx, spinAngle * gb.outFactor);
+                org.joml.Vector3f ax = new org.joml.Vector3f((float) a.x, (float) a.y, (float) a.z), mid = new org.joml.Vector3f(.5f, .5f, .5f);
+                spinGroup(st, ps, buf, li, Part.SPIN, mid, ax, spinAngle);
+                spinGroup(st, ps, buf, li, Part.SPIN2, mid, ax, spinAngle / gearRatio);
             } else drawQuads(st, ps, buf, li, part);
             ps.popPose();
             return;

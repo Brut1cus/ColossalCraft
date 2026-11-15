@@ -16,25 +16,31 @@ The jar ends up in `build/libs/`. Run the in-world tests with `./gradlew runGame
 1. Build your thing on **Gantry Scaffold** so it touches nothing else. Scaffold (and vanilla scaffolding) is never picked up. **Every other block is**, dirt and stone included.
 2. Place **one Hull Core** on the main body. Joints branch out from the part the Hull Core sits on.
 3. Add a **Pilot Throne** (it faces "forward"), an engine with fuel, and thrusters, motors or gyros.
-4. Right-click the Hull Core to open its screen:
+4. Right-click the **Hull Core** (physics) to open its screen:
    - **Overview**: a setup checklist (hover each line for help) and gauges for lift vs weight, energy and stability.
-   - **Joints**: the joint tree. Click a joint to see its load, its motor torque compared with what it needs, its movement (Locked, Walk left, Walk right, Spin, Sway) and its swing angle.
    - **Power**: every engine and battery, with its stored energy and output.
    - **Help**: a short how-to.
    - **BUILD COLOSSUS** makes it move.
-5. **Built:** right-click the Hull Core on the Colossus, or press **G** while piloting, to open the same screen. **PARK** turns it back into blocks.
-6. Right-click the **Pilot Throne** (a real chair) to sit, or press **V** near it.
+5. Walkers also need a **Locomotion Controller** (anywhere on the build). Right-click it, or press **L** while piloting:
+   - **Joints**: 3D view of the joints. Set each joint's Mode and Limit.
+   - **Gait**: IK mode, gait mode, step speed.
+   - **Keys**: the keys used to walk, turn, raise, lower, sprint and jump.
+6. **Built:** right-click the Hull Core on the Colossus, or press **G** while piloting. **PARK** turns it back into blocks.
+7. Right-click the **Pilot Throne** (a real chair) to sit, or press **V** near it.
 
 ### Controls (while piloting)
 | Key | Action |
 |---|---|
 | W / S | Forward / back (thrusters, walking legs, drive motors) |
 | A / D | Turn |
-| Space / C | Up / down (needs thrusters facing down/up) |
+| Space / Shift | Up / down (thrusters), or raise / lower a walker |
+| Ctrl | Sprint (walkers step 1.6× faster) |
+| R | Fire the Jump Drive |
+| L | Open the Locomotion Controller |
 | H | Hover assist on/off |
 | G | Open the Hull Core screen |
 | K | Park: turns it back into blocks |
-| V or Shift | Leave the seat |
+| V | Leave the seat (Shift no longer dismounts, it lowers) |
 | F5 | First person, third person back, third person front. The camera zooms out to fit the Colossus. |
 
 You can walk around on a Colossus while it moves. A lighter Colossus parked inside a heavier one rides along with it (nesting: a jet inside a carrier). Assemble the inner one first, because each Colossus allows only one Hull Core.
@@ -83,16 +89,30 @@ Set each **hip** (and any **knee**) joint to **Leg**, with a foot under it. Left
 
 What it needs: grippy feet, hip motors strong enough to push the Hull, joints strong enough to carry the whole weight on one leg, and a powered gyro in the core part (below).
 
+## Locomotion Controller
+Joint setup moved here from the Hull Core. One per walker.
+- **IK modes:** Analytic 2-link (exact for hip + knee), FABRIK (any number of joints), CCD (simple, stable).
+- **Gait modes:** Biped, Digitigrade (knees bend backward), Quadruped (diagonal pairs step together), Spider (alternating legs around the body), Custom (pick each joint's step group in the Joints tab).
+- **Keys:** click a key button, press the new key. Esc sets it back to default. Defaults follow your movement keys (WASD, Space, Shift, Ctrl) and R for the Jump Drive.
+- Raise / lower bends the knees (legs with a knee only).
+
+## Ball Joint
+A small joint that keeps the part below it **level with the ground** (feet stay flat on slopes and while the leg swings). It turns freely within its Limit in any direction; set Limit ±5° for a tight foot. Needs no motor. Recipe: any joint + slime ball. Put one between the shin and the foot.
+
+## Jump Drive
+A capacitor. It charges slowly from your engines (400 CJ/tick, holds 600k) and dumps it all at once when you press the jump key. It overpowers the servos: the legs go limp and the whole Colossus is launched up. More drives = more charge. The HUD shows JUMP DRIVE %.
+
 ## Walkers and balance
 A Colossus that stands on parts hanging from joints set to **Leg** is a walker. It stays standing only if:
 1. the **Hull Core's part** has a **gyro** (a Pocket Gyro or a gyro structure) with **power**,
-2. every joint from each foot up to the core has a strong enough **Servo Motor**, and
-3. the **centre of mass is over the feet**. The gyro widens that area a little.
+2. every **Leg** joint (hips, knees) from each foot up to the core has a strong enough **Servo Motor** (Locked and Ball joints don't need one),
+3. the engines give enough power for the knee motors to hold the weight (the scan warns if not), and
+4. the **centre of mass is over the feet**. The gyro widens that area a little.
 
 Otherwise it tips over towards its heavy side. The Overview checklist and the **Top** view in the Joints tab (the cyan box is the feet, + is the weight) show what's wrong.
 
 ## Joints view (3D schematic)
-The Joints tab is a 3D view of the whole Colossus: left-drag turns it, right-drag moves it, and scroll zooms. The side panel shows the selected joint: position, load, torque, gears and, for legs, foot grip, push and carry limits. Two buttons set the joint's **Mode** (Locked, Leg, Spin, Sway) and its **Limit** (how far it may turn).
+The Joints tab (in the Locomotion Controller) is a 3D view of the whole Colossus: left-drag turns it, right-drag moves it, and scroll zooms. The side panel shows the selected joint: position, load, torque, gears and, for legs, foot grip, push and carry limits. Two buttons set the joint's **Mode** (Locked, Leg, Spin, Sway) and its **Limit** (how far it may turn).
 - **green** is the core part, **blue** marks the other parts, **yellow** marks bearings, and **red** marks problems.
 - Click a joint marker to select it.
 - Red X marks show where the build touches natural ground. Build on Gantry Scaffold instead.
@@ -113,7 +133,7 @@ Hang a **Gantry Hoist** above where the Colossus stands (up to 32 blocks up, usu
 - Shafts, gearbox gears and bearing axles visibly spin on a moving Colossus.
 
 ## Gearboxes
-Gearboxes have an axis like motors and an open frame showing a real gear train, sized to the ratio: spur (small gear drives one twice its size), overdrive (big drives small), planetary (sun gear, three orbiting planets, ring gear) and worm (a spiral worm turning a toothed wheel). Meshing gears spin in opposite directions at their own speeds. Place a gearbox between a Servo Motor and a joint (motor touches gearbox, gearbox touches joint). Gearboxes in a chain multiply.
+Gearboxes are solid blocks with a **direction**: the arrows on the sides point from input to output. The input shaft (back) and output shaft (front) are centered and spin at the right ratio. The output faces the block you placed it against, so place it against the joint, then put the motor on the back. Placed backward, the ratio flips (a 2:1 becomes 1:2). Gearboxes in a chain multiply.
 
 | Gearbox | Ratio | Torque | Speed |
 |---|---|---|---|
@@ -194,6 +214,7 @@ JEI or EMI show the exact recipes.
 - **Valkyrien Skies:** you get a warning if both mods are installed.
 
 ## Known limits (v0.1)
-- Colossi turn only left/right (yaw). Joints swing limbs as animation, but the main body does not tip over.
+- Colossi turn only left/right (yaw) while walking; they tip only when they fall.
+- Walkers need real power for their knees. A very wide two-leg stance still sways a bit when stepping.
 - Big Colossi (thousands of blocks) can lower FPS, because every block is drawn each frame.
 - Do not use this mod together with Valkyrien Skies.

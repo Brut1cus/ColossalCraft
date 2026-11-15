@@ -1,13 +1,27 @@
 {
   "variants": {
-    "axis=x": {
-      "model": "colossalcraft:block/planetary_gearbox_x"
+    "facing=north": {
+      "model": "colossalcraft:block/planetary_gearbox"
     },
-    "axis=y": {
-      "model": "colossalcraft:block/planetary_gearbox_y"
+    "facing=south": {
+      "model": "colossalcraft:block/planetary_gearbox",
+      "y": 180
     },
-    "axis=z": {
-      "model": "colossalcraft:block/planetary_gearbox_z"
+    "facing=east": {
+      "model": "colossalcraft:block/planetary_gearbox",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "colossalcraft:block/planetary_gearbox",
+      "y": 270
+    },
+    "facing=up": {
+      "model": "colossalcraft:block/planetary_gearbox",
+      "x": 270
+    },
+    "facing=down": {
+      "model": "colossalcraft:block/planetary_gearbox",
+      "x": 90
     }
   }
 }

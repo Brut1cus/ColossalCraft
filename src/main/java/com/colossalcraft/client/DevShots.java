@@ -81,10 +81,13 @@ public final class DevShots {
                 base = sp.blockPosition().offset(0, 0, 10);
                 build(lv, base);
             });
-            case 42 -> server(sp -> { for (int i = 0; i < 4; i++) sp.serverLevel().setBlockAndUpdate(base.offset(-6 + i * 2, 1, -6), ModRegistry.GEARBOXES.get(i).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z)); });
-            case 43 -> server(sp -> look(sp, base.offset(-3, 2, -9), base.offset(-3, 1, -6)));
+            case 42 -> server(sp -> { for (int i = 0; i < 4; i++) sp.serverLevel().setBlockAndUpdate(base.offset(-6 + i * 2, 1, -6), ModRegistry.GEARBOXES.get(i).get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.WEST));
+                sp.serverLevel().setBlockAndUpdate(base.offset(-6, 2, -6), ModRegistry.JOINT_SHAPES.get(MaterialTier.GOLD).get(com.colossalcraft.block.SimpleParts.JointShape.BALL).get().defaultBlockState());
+                sp.serverLevel().setBlockAndUpdate(base.offset(-2, 2, -6), ModRegistry.LOCOMOTION_CONTROLLER.get().defaultBlockState());
+                sp.serverLevel().setBlockAndUpdate(base.offset(0, 2, -6), ModRegistry.JUMP_DRIVE.get().defaultBlockState()); });
+            case 43 -> server(sp -> look(sp, base.offset(-1, 3, -10), base.offset(-3, 1, -6)));
             case 50 -> shot("0a_gearboxes");
-            case 51 -> server(sp -> { for (int i = 0; i < 4; i++) sp.serverLevel().removeBlock(base.offset(-6 + i * 2, 1, -6), false); });
+            case 51 -> server(sp -> { for (int i = 0; i < 4; i++) { sp.serverLevel().removeBlock(base.offset(-6 + i * 2, 1, -6), false); sp.serverLevel().removeBlock(base.offset(-6 + i * 2, 2, -6), false); } });
             case 52 -> server(sp -> look(sp, base.offset(1, 9, -1), base.offset(0, 8, 1)));
             case 58 -> shot("0_closeup_chair");
             case 59 -> server(sp -> look(sp, base.offset(4, 5, -2), base.offset(2, 5, 0)));
@@ -93,16 +96,20 @@ public final class DevShots {
             case 85 -> shot("0b_engine_gui");
             case 86 -> mc.setScreen(null);
             case 90 -> server(sp -> { BlockPos h = base.offset(0, 8, 0); sp.connection.teleport(h.getX() + 0.5, h.getY(), h.getZ() - 2.5, 0f, 30f); });
-            case 100 -> server(sp -> Net.sendScan(sp, base.offset(0, 8, 0), StructureScan.scan(sp.serverLevel(), base.offset(0, 8, 0))));
-            case 115 -> shot("1_overview");
-            case 117 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
+            case 100 -> server(sp -> Net.openHullParked(sp, base.offset(0, 8, 0)));
+            case 112 -> shot("1_overview");
+            case 113 -> server(sp -> Net.openLocoParked(sp, base.offset(1, 8, 1)));
+            case 115 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(0); }
+            case 117 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(0); }
             case 130 -> shot("2_joints");
             case 131 -> { if (mc.screen instanceof HullCoreScreen s) s.turnView(-70, 20, 1.4); }
-            case 133 -> shot("2b_joints_rotated");
-            case 134 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(2); }
-            case 137 -> shot("2c_power");
-            case 138 -> mc.setScreen(null);
-            case 139 -> server(sp -> { sp.getAbilities().flying = false; sp.onUpdateAbilities(); BlockPos p = base.offset(1, 8, 1); sp.connection.teleport(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, 135f, 20f); });
+            case 132 -> shot("2b_joints_rotated");
+            case 133 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
+            case 135 -> shot("2c_gait");
+            case 136 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(2); }
+            case 138 -> shot("2d_keys");
+            case 139 -> mc.setScreen(null);
+            case 140 -> server(sp -> { sp.getAbilities().flying = false; sp.onUpdateAbilities(); BlockPos p = base.offset(1, 8, 1); sp.connection.teleport(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, 135f, 20f); });
             case 145 -> { ColossalCraft.LOG.info("[devshots] before build player y={}", mc.player.getY()); server(sp -> ColossusEntity.assemble(sp.serverLevel(), base.offset(0, 8, 0), sp)); }
             case 150, 155, 159 -> ColossalCraft.LOG.info("[devshots] after build t={} player y={} onGround={}", t, mc.player.getY(), mc.player.onGround());
             case 160 -> server(sp -> { BlockPos hp = base.offset(0, 14, 0); sp.serverLevel().setBlockAndUpdate(hp, ModRegistry.GANTRY_HOIST.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.GantryHoistBlock.ENGAGED, true));
@@ -145,7 +152,7 @@ public final class DevShots {
             var mot = ModRegistry.MOTORS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
             if (side < 0) lv.setBlockAndUpdate(b.offset(side * 2, 4, 0), mot);
             else {
-                lv.setBlockAndUpdate(b.offset(2, 4, 0), ModRegistry.GEARBOXES.get(1).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
+                lv.setBlockAndUpdate(b.offset(2, 4, 0), ModRegistry.GEARBOXES.get(1).get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.WEST));
                 for (int[] o : new int[][]{{3, 4, 0}, {3, 4, 1}, {3, 3, 0}, {3, 3, 1}}) lv.setBlockAndUpdate(b.offset(o[0], o[1], o[2]), mot); // 2x2 motor grid
             }
             for (int y = 1; y <= 3; y++) lv.setBlockAndUpdate(b.offset(side, y, 0), Blocks.STONE_BRICKS.defaultBlockState());
@@ -156,6 +163,7 @@ public final class DevShots {
         lv.setBlockAndUpdate(b.offset(0, 7, 1), ModRegistry.PILOT_SEAT.get().defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, Direction.NORTH));
         lv.setBlockAndUpdate(b.offset(-1, 7, 0), ModRegistry.EMBER_BOILER.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(1, 7, 0), ModRegistry.SMALL_GYRO.get().defaultBlockState());
+        lv.setBlockAndUpdate(b.offset(1, 7, 1), ModRegistry.LOCOMOTION_CONTROLLER.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(-2, 7, -2), ModRegistry.STEAM_VENT.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(2, 7, -2), ModRegistry.BLAZE_JET.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(2, 7, 2), Blocks.CHEST.defaultBlockState());

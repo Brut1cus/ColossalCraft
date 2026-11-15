@@ -236,3 +236,25 @@ for name, col in (('overdrive_gearbox_gear', hx(0xe8c34a)), ('spur_gearbox_gear'
     for i in range(16): px(im, i, i, shade(col, 1.25)); px(im, 15 - i, i, shade(col, 0.8))
     save(im, B, name)
 print('gear metals done')
+
+# --- gearbox arrows/in face, locomotion controller, jump drive ---
+def arrow_tex(name, col):
+    im = base(STEEL, hash(name) & 1023); bevel(im, STEEL)
+    for y in range(3, 13):
+        w2 = max(0, 5 - (y - 3)) if y < 8 else 1
+        for x in range(8 - w2, 8 + w2 + (0 if y < 8 else 1)): px(im, x, y, col)
+    for y in range(8, 13): px(im, 7, y, col); px(im, 8, y, col)
+    save(im, B, name)
+for n, col in (('overdrive_gearbox', hx(0x46ff7e)), ('spur_gearbox', hx(0xd9d9d9)), ('planetary_gearbox', hx(0x3aa0ff)), ('worm_drive', hx(0xffb43a))): arrow_tex(n + '_arrow', col)
+gi = base(STEEL, 730); bevel(gi, STEEL); circle(gi, 8, 8, 5, shade(STEEL, 0.6)); circle(gi, 8, 8, 5, hx(0xff8a3a), False); save(gi, B, 'gearbox_in')
+lf = base(hx(0x2e3640), 731); bevel(lf, hx(0x2e3640)); rect(lf, 2, 2, 13, 11, hx(0x061018))
+for (x, y) in ((5, 4), (5, 5), (5, 6), (4, 7), (4, 8), (10, 4), (10, 5), (10, 6), (11, 7), (11, 8), (6, 3), (7, 3), (8, 3), (9, 3)): px(lf, x, y, hx(0x3ad7ff))
+rect(lf, 3, 13, 12, 13, hx(0x2cff7a)); save(lf, B, 'locomotion_controller_front')
+ls = base(hx(0x4a525a), 732); bevel(ls, hx(0x4a525a)); rivets(ls, hx(0x4a525a)); save(ls, B, 'locomotion_controller_side')
+js = base(hx(0x3a2f52), 733); bevel(js, hx(0x3a2f52))
+for y in range(2, 14, 3): rect(js, 3, y, 12, y + 1, hx(0xb98cff))
+save(js, B, 'jump_drive_side')
+jt = base(hx(0x3a2f52), 734); bevel(jt, hx(0x3a2f52)); circle(jt, 8, 8, 5, hx(0x1a1426))
+for (x, y) in ((9, 3), (8, 4), (7, 5), (6, 6), (7, 7), (8, 7), (9, 7), (8, 8), (7, 9), (6, 10), (5, 11)): px(jt, x, y, hx(0xffe14a))
+save(jt, B, 'jump_drive_top')
+print('loco textures done')

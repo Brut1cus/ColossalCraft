@@ -31,6 +31,11 @@ public class ColossalCraft {
         modBus.addListener(ColossalCraft::caps);
         NeoForge.EVENT_BUS.addListener((AddReloadListenerEvent e) -> e.addListener(new Density()));
         NeoForge.EVENT_BUS.addListener(ColossalCraft::commands);
+        // Crouch is 'lower' while piloting: only the leave key (V) lets the pilot off
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.EntityMountEvent e) -> {
+            if (e.isDismounting() && e.getEntityBeingMounted() instanceof ColossusEntity c && !c.allowDismount && e.getEntityMounting() instanceof net.minecraft.world.entity.player.Player p
+                    && p.isAlive() && !c.isRemoved() && p.isShiftKeyDown()) e.setCanceled(true);
+        });
     }
 
     private static void commands(RegisterCommandsEvent e) {

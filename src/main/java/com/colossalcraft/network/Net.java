@@ -30,11 +30,12 @@ import java.util.List;
 public final class Net {
     private static ResourceLocation id(String s) { return ResourceLocation.fromNamespaceAndPath(ColossalCraft.MODID, s); }
 
-    public record PilotInput(float fwd, float turn, boolean up, boolean down) implements CustomPacketPayload {
+    public record PilotInput(float fwd, float turn, boolean up, boolean down, boolean sprint, boolean jump) implements CustomPacketPayload {
         public static final Type<PilotInput> TYPE = new Type<>(id("pilot_input"));
         public static final StreamCodec<ByteBuf, PilotInput> CODEC = StreamCodec.composite(
                 ByteBufCodecs.FLOAT, PilotInput::fwd, ByteBufCodecs.FLOAT, PilotInput::turn,
-                ByteBufCodecs.BOOL, PilotInput::up, ByteBufCodecs.BOOL, PilotInput::down, PilotInput::new);
+                ByteBufCodecs.BOOL, PilotInput::up, ByteBufCodecs.BOOL, PilotInput::down,
+                ByteBufCodecs.BOOL, PilotInput::sprint, ByteBufCodecs.BOOL, PilotInput::jump, PilotInput::new);
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
     /** 0 = enter/leave Pilot Throne, 1 = disassemble, 2 = toggle hover */
@@ -51,7 +52,8 @@ public final class Net {
     }
     /** Hull Core screen button (client -> server). entity = -1 for a Hull Core block, else the built Colossus.
      *  actions: 0 rescan, 1 set joint mode, 2 set swing angle, 3 toggle hover, 4 build, 5 park,
-     *  6 set keyframe (value = index << 16 | angle + 180), 7 set phase, 8 set speed (x100), 9 set gait speed (x100), 10 toggle loop */
+     *  6 set keyframe (value = index << 16 | angle + 180), 7 set phase, 8 set speed (x100), 9 set gait speed (x100), 10 toggle loop,
+     *  11 IK solver, 12 gait type, 13 key for action #joint (value = GLFW key, -1 = default), 15 step group of a joint */
     public record HullAction(BlockPos pos, int entity, int action, int joint, int value) implements CustomPacketPayload {
         public static final Type<HullAction> TYPE = new Type<>(id("hull_action"));
         public static final StreamCodec<ByteBuf, HullAction> CODEC = StreamCodec.composite(BlockPos.STREAM_CODEC, HullAction::pos, ByteBufCodecs.VAR_INT, HullAction::entity,
@@ -87,12 +89,39 @@ public final class Net {
         r.playToClient(StructureRemoved.TYPE, StructureRemoved.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.structureRemoved(p.entity(), p.data())));
     }
 
+    /** Which screen each player has open: Hull Core (false) or Locomotion Controller (true). */
+    private static final java.util.Map<java.util.UUID, Boolean> LOCO_SCREEN = new java.util.concurrent.ConcurrentHashMap<>();
+
     public static void sendScan(ServerPlayer sp, BlockPos pos, StructureScan.Result r) {
-        PacketDistributor.sendToPlayer(sp, new HullData(pos, StructureScan.toTag(r)));
+        CompoundTag t = StructureScan.toTag(r);
+        t.putBoolean("Loco", LOCO_SCREEN.getOrDefault(sp.getUUID(), false));
+        PacketDistributor.sendToPlayer(sp, new HullData(pos, t));
+    }
+    public static void openHullParked(ServerPlayer sp, BlockPos heart) { LOCO_SCREEN.put(sp.getUUID(), false); sendScan(sp, heart, StructureScan.scan(sp.level(), heart)); }
+
+    /** Locomotion Controller (not built): find the Hull Core it belongs to and open the kinematics screen. */
+    public static void openLocoParked(ServerPlayer sp, BlockPos controller) {
+        BlockPos heart = findHeart(sp.level(), controller);
+        if (heart == null) { sp.displayClientMessage(Component.literal("This Locomotion Controller isn't connected to a Hull Core."), true); return; }
+        LOCO_SCREEN.put(sp.getUUID(), true);
+        sendScan(sp, heart, StructureScan.scan(sp.level(), heart));
+    }
+    public static BlockPos findHeart(net.minecraft.world.level.Level level, BlockPos from) {
+        java.util.ArrayDeque<BlockPos> q = new java.util.ArrayDeque<>(); java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+        q.add(from); seen.add(from);
+        int max = com.colossalcraft.Config.MAX_BLOCKS.get();
+        while (!q.isEmpty() && seen.size() < max) {
+            BlockPos p = q.poll();
+            var st = level.getBlockState(p);
+            if (st.getBlock() instanceof com.colossalcraft.block.HullCoreBlock) return p;
+            if (!StructureScan.canTake(st)) continue;
+            for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) { BlockPos n = p.relative(d); if (seen.add(n)) q.add(n); }
+        }
+        return null;
     }
 
     private static void onInput(PilotInput p, IPayloadContext ctx) {
-        ctx.enqueueWork(() -> { if (ctx.player().getVehicle() instanceof ColossusEntity c) c.setInput(p.fwd(), p.turn(), p.up(), p.down()); });
+        ctx.enqueueWork(() -> { if (ctx.player().getVehicle() instanceof ColossusEntity c) c.setInput(p.fwd(), p.turn(), p.up(), p.down(), p.sprint(), p.jump()); });
     }
 
     private static void onPilotAction(PilotAction p, IPayloadContext ctx) {
@@ -100,10 +129,11 @@ public final class Net {
             Player pl = ctx.player();
             if (pl.getVehicle() instanceof ColossusEntity c) {
                 switch (p.action()) {
-                    case 0 -> pl.stopRiding();
+                    case 0 -> { c.allowDismount = true; pl.stopRiding(); c.allowDismount = false; }
                     case 1 -> c.disassemble(pl);
                     case 2 -> { c.toggleHover(); pl.displayClientMessage(Component.literal("Hover assist: " + (c.hover() ? "ON" : "OFF")), true); }
-                    case 3 -> { if (pl instanceof ServerPlayer sp) sendEntityScan(sp, c); }
+                    case 3 -> { if (pl instanceof ServerPlayer sp) { LOCO_SCREEN.put(sp.getUUID(), false); sendEntityScan(sp, c); } }
+                    case 4 -> { if (pl instanceof ServerPlayer sp) { LOCO_SCREEN.put(sp.getUUID(), true); sendEntityScan(sp, c); } }
                 }
                 return;
             }
@@ -120,7 +150,9 @@ public final class Net {
     }
 
     public static void sendEntityScan(ServerPlayer sp, ColossusEntity c) {
-        PacketDistributor.sendToPlayer(sp, new HullData(BlockPos.ZERO, StructureScan.toTag(StructureScan.fromEntity(c))));
+        CompoundTag t = StructureScan.toTag(StructureScan.fromEntity(c));
+        t.putBoolean("Loco", LOCO_SCREEN.getOrDefault(sp.getUUID(), false));
+        PacketDistributor.sendToPlayer(sp, new HullData(BlockPos.ZERO, t));
     }
 
     private static ColossusEntity colossusNear(ServerPlayer sp, int id) {
@@ -133,7 +165,8 @@ public final class Net {
         ctx.enqueueWork(() -> {
             if (!(ctx.player() instanceof ServerPlayer sp)) return;
             ColossusEntity c = colossusNear(sp, p.entity()); if (c == null) return;
-            if (p.what() == 0) sendEntityScan(sp, c);
+            if (p.what() == 0) { LOCO_SCREEN.put(sp.getUUID(), false); sendEntityScan(sp, c); }
+            else if (p.what() == 2) { LOCO_SCREEN.put(sp.getUUID(), true); sendEntityScan(sp, c); }
             else if (p.what() == 1 && !sp.isPassenger()) sp.startRiding(c, true);
         });
     }
@@ -150,7 +183,8 @@ public final class Net {
             if (sp.distanceToSqr(Vec3.atCenterOf(a.pos())) > 100 || !(sp.level().getBlockEntity(a.pos()) instanceof HullCoreBlockEntity hc)) return;
             StructureScan.Result r = StructureScan.scan(sp.level(), a.pos());
             switch (a.action()) {
-                case 1, 2, 6, 7, 8, 10 -> {
+                case 11, 12, 13 -> { hc.joints = applyLoco(hc.joints, a); hc.setChanged(); }
+                case 1, 2, 6, 7, 8, 10, 15 -> {
                     if (a.joint() >= 0 && a.joint() < r.model.joints.size()) {
                         String key = StructureModel.jointKey(r.model.joints.get(a.joint()).key);
                         hc.joints.put(key, applyJoint(hc.joints.getCompound(key), a)); hc.setChanged();
@@ -163,6 +197,17 @@ public final class Net {
             }
             sendScan(sp, a.pos(), StructureScan.scan(sp.level(), a.pos()));
         });
+    }
+
+    private static CompoundTag applyLoco(CompoundTag cfg, HullAction a) {
+        cfg = cfg.copy(); CompoundTag l = cfg.getCompound(StructureModel.LOCO).copy();
+        switch (a.action()) {
+            case 11 -> l.putInt("IK", Math.floorMod(a.value(), StructureModel.IK_MODES.length));
+            case 12 -> l.putInt("Gait", Math.floorMod(a.value(), StructureModel.GAIT_MODES.length));
+            case 13 -> l.putInt("K" + a.joint(), a.value());
+            default -> {}
+        }
+        cfg.put(StructureModel.LOCO, l); return cfg;
     }
 
     private static CompoundTag gait(CompoundTag g, int value) { g = g.copy(); g.putInt("Speed", Math.max(5, Math.min(400, value))); return g; }
@@ -181,6 +226,7 @@ public final class Net {
             case 7 -> c.putInt("Phase", Math.floorMod(a.value(), 360));
             case 8 -> c.putInt("SpeedX", Math.max(25, Math.min(400, a.value())));
             case 10 -> c.putBoolean("Loop", !c.getBoolean("Loop"));
+            case 15 -> c.putInt("Group", Math.floorMod(a.value(), 4));
             default -> {}
         }
         return c;
@@ -189,7 +235,8 @@ public final class Net {
     private static void onBuiltAction(ServerPlayer sp, HullAction a) {
         ColossusEntity c = colossusNear(sp, a.entity()); if (c == null) return;
         switch (a.action()) {
-            case 1, 2, 6, 7, 8, 10 -> {
+            case 11, 12, 13 -> c.setJointCfg(applyLoco(c.jointCfg, a));
+            case 1, 2, 6, 7, 8, 10, 15 -> {
                 if (a.joint() >= 0 && a.joint() < c.model.joints.size()) {
                     String key = StructureModel.jointKey(c.model.joints.get(a.joint()).key);
                     CompoundTag cfg = c.jointCfg.copy(); cfg.put(key, applyJoint(cfg.getCompound(key), a)); c.setJointCfg(cfg);

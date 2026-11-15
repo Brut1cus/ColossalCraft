@@ -266,6 +266,7 @@ public class ColossusTests {
         CompoundTag t = new CompoundTag(); t.putLong("Energy", 900_000);
         h.getBlockEntity(new BlockPos(6, 7, 7)).loadWithComponents(t, h.getLevel().registryAccess());
         if (coreGyro) h.setBlock(8, 7, 7, ModRegistry.SMALL_GYRO.get());
+        h.setBlock(7, 7, 6, ModRegistry.LOCOMOTION_CONTROLLER.get());
         BlockState joint = ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
         for (int x : new int[]{6, 8}) {
             h.setBlock(x, 5, 7, joint);
@@ -325,7 +326,7 @@ public class ColossusTests {
         floor(h); ship(h, 0);
         h.setBlock(7, 5, 7, ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
         for (int y = 2; y <= 4; y++) h.setBlock(7, y, 7, Blocks.STONE_BRICKS);
-        h.setBlock(8, 5, 7, ModRegistry.GEARBOXES.get(2).get()); // planetary 5:1, touches the joint
+        h.setBlock(8, 5, 7, ModRegistry.GEARBOXES.get(2).get().defaultBlockState().setValue(DirectionalBlock.FACING, Direction.WEST)); // planetary 5:1, output towards the joint
         h.setBlock(9, 5, 7, ModRegistry.MOTORS.get(MaterialTier.IRON).get()); // motor touches the gearbox only
         StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
         StructureModel.Joint j = r.model.joints.get(0);
@@ -415,7 +416,7 @@ public class ColossusTests {
         CompoundTag t = new CompoundTag(); t.putLong("Energy", 900_000);
         h.getBlockEntity(new BlockPos(6, 7, 7)).loadWithComponents(t, h.getLevel().registryAccess());
         h.setBlock(7, 8, 7, ModRegistry.JOINTS.get(MaterialTier.DIAMOND).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y));
-        h.setBlock(8, 8, 7, ModRegistry.GEARBOXES.get(0).get()); // overdrive: twice as fast
+        h.setBlock(8, 8, 7, ModRegistry.GEARBOXES.get(0).get().defaultBlockState().setValue(DirectionalBlock.FACING, Direction.WEST)); // overdrive: twice as fast
         h.setBlock(8, 7, 7, ModRegistry.MOTORS.get(MaterialTier.DIAMOND).get());
         h.setBlock(7, 9, 7, Blocks.OAK_PLANKS); h.setBlock(7, 10, 7, Blocks.OAK_PLANKS);
         for (int r = 1; r <= 3; r++) {
@@ -588,6 +589,121 @@ public class ColossusTests {
             ColossusEntity c = find(h);
             ColossalCraft.LOG.info("[test] knee walker dz={} tilt={} status={}", c.getZ() - z0[0], c.tilt, c.walker.status);
             h.assertTrue(c.getZ() - z0[0] < -1.0 && c.tilt == 0, "knee walker should walk, dz=" + (c.getZ() - z0[0]));
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16")
+    public static void backwardGearboxInverts(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        h.setBlock(7, 5, 7, ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
+        for (int y = 2; y <= 4; y++) h.setBlock(7, y, 7, Blocks.STONE_BRICKS);
+        h.setBlock(8, 5, 7, ModRegistry.GEARBOXES.get(1).get().defaultBlockState().setValue(DirectionalBlock.FACING, Direction.EAST)); // spur 2:1, but output points away
+        h.setBlock(9, 5, 7, ModRegistry.MOTORS.get(MaterialTier.IRON).get());
+        StructureModel.Joint j = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model.joints.get(0);
+        h.assertTrue(Math.abs(j.maxSpeed - 60 * 6 * 2) < 0.01, "backwards spur should double speed, got " + j.maxSpeed);
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 200)
+    public static void kneeWalkerHoldsItsHeight(GameTestHelper h) {
+        kneeWalker(h);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] y0 = {0};
+        h.runAfterDelay(30, () -> y0[0] = find(h).getY());
+        h.runAfterDelay(90, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] knee height y0={} y={} status={}", y0[0], c.getY(), c.walker.status);
+            h.assertTrue(Math.abs(c.getY() - y0[0]) < 0.3, "knee walker sagged: " + (c.getY() - y0[0]));
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16")
+    public static void ballJointKeepsFootLevel(GameTestHelper h) {
+        kneeWalker(h);
+        // ball joint above each foot block
+        var ball = ModRegistry.JOINT_SHAPES.get(MaterialTier.IRON).get(com.colossalcraft.block.SimpleParts.JointShape.BALL).get();
+        for (int x : new int[]{6, 8}) { h.setBlock(x, 1, 7, ball); h.setBlock(x, 0, 7, ModRegistry.GANTRY_SCAFFOLD.get()); }
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        StructureModel m = r.model;
+        h.assertTrue(m.joints.stream().anyMatch(j -> j.ball), "no ball joint found");
+        // turn the knees by 30 degrees: the part under a ball joint must stay level
+        for (StructureModel.Joint j : m.joints) if (!j.ball && j.mode == StructureModel.LEG) { m.ikAngles[j.id] = Math.toRadians(30); }
+        var tf = m.transforms(0, 0, 0, 0);
+        for (StructureModel.Joint j : m.joints) if (j.ball && !j.childSegs.isEmpty()) {
+            var q = tf[j.childSegs.get(0)].getNormalizedRotation(new org.joml.Quaterniond());
+            double ang = Math.toDegrees(2 * Math.acos(Math.min(1, Math.abs(q.w))));
+            h.assertTrue(ang < 0.5, "foot under ball joint tilted by " + ang + " degrees");
+        }
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 200)
+    public static void jumpDriveLaunches(GameTestHelper h) {
+        walker(h, false, true);
+        h.setBlock(6, 7, 6, ModRegistry.JUMP_DRIVE.get());
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] y0 = {0}, peak = {-1e9};
+        h.runAfterDelay(20, () -> { ColossusEntity c = find(h); c.jumpCharge = com.colossalcraft.block.SimpleParts.JumpDriveBlock.CAPACITY; y0[0] = c.getY(); c.autopilot = true; c.setInput(0, 0, false, false, false, true); });
+        for (int t = 21; t <= 60; t++) h.runAfterDelay(t, () -> peak[0] = Math.max(peak[0], find(h).getY()));
+        h.runAfterDelay(62, () -> {
+            ColossalCraft.LOG.info("[test] jump peak +{}", peak[0] - y0[0]);
+            h.assertTrue(peak[0] - y0[0] > 1.0, "jump drive should launch it, peak +" + (peak[0] - y0[0]));
+            h.succeed();
+        });
+    }
+
+    /** A mech like the player's: wide torso, legs outside it with hip, thigh, knee, shin, ball ankle and a 3-long foot. */
+    static void bigMech(GameTestHelper h, boolean ankles) {
+        for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) h.setBlock(x, 0, z, ModRegistry.GANTRY_SCAFFOLD.get());
+        for (int x = 5; x <= 9; x++) for (int z = 6; z <= 8; z++) for (int y = 8; y <= 9; y++) h.setBlock(x, y, z, Blocks.STONE_BRICKS);
+        h.setBlock(7, 10, 7, ModRegistry.HULL_CORE.get());
+        h.setBlock(7, 10, 8, ModRegistry.PILOT_SEAT.get().defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, Direction.NORTH));
+        h.setBlock(6, 10, 7, ModRegistry.FLUX_ACCUMULATOR.get()); // 2000 CJ/t: enough for four diamond motors
+        CompoundTag t = new CompoundTag(); t.putLong("Energy", 4_000_000);
+        h.getBlockEntity(new BlockPos(6, 10, 7)).loadWithComponents(t, h.getLevel().registryAccess());
+        h.setBlock(8, 10, 7, ModRegistry.SMALL_GYRO.get());
+        h.setBlock(7, 10, 6, ModRegistry.LOCOMOTION_CONTROLLER.get());
+        BlockState hipJ = ModRegistry.JOINTS.get(MaterialTier.DIAMOND).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+        BlockState kneeJ = ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+        var mot = ModRegistry.MOTORS.get(MaterialTier.DIAMOND).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+        var ball = ModRegistry.JOINT_SHAPES.get(MaterialTier.IRON).get(com.colossalcraft.block.SimpleParts.JointShape.BALL).get().defaultBlockState();
+        for (int x : new int[]{4, 10}) {
+            h.setBlock(x, 8, 7, hipJ); h.setBlock(x, 9, 7, mot);                 // hip on the torso side, motor above it on the torso
+            h.setBlock(x, 7, 7, Blocks.STONE_BRICKS); h.setBlock(x, 6, 7, Blocks.STONE_BRICKS); // thigh
+            h.setBlock(x, 5, 7, kneeJ); h.setBlock(x, 6, 6, Blocks.STONE_BRICKS); h.setBlock(x, 5, 6, mot); // knee + motor on a bracket
+            h.setBlock(x, 4, 7, Blocks.STONE_BRICKS); h.setBlock(x, 3, 7, Blocks.STONE_BRICKS); // shin
+            h.setBlock(x, 2, 7, ankles ? ball : Blocks.STONE_BRICKS.defaultBlockState());
+            for (int z = 6; z <= 8; z++) h.setBlock(x, 1, z, Blocks.STONE_BRICKS);    // foot
+        }
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 10, 7));
+        for (StructureModel.Joint j : r.model.joints) if (!j.ball) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.LEG); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 260)
+    public static void bigMechWalksSmoothly(GameTestHelper h) {
+        bigMech(h, true);
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7)));
+        ColossalCraft.LOG.info("[test] big mech: mass {} legs {} warnings {} errors {}", r.model.mass, r.model.legChains.size(), r.warnings, r.errors);
+        h.assertTrue(r.model.legChains.size() == 2, "expected 2 legs, got " + r.model.legChains.size());
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7)), null), "assemble failed");
+        double[] start = new double[3]; double[] jitter = {0}; net.minecraft.world.phys.Vec3[] lastV = {null};
+        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); start[0] = c.getZ(); start[1] = c.getY(); c.autopilot = true; c.setInput(1, 0, false, false); lastV[0] = c.vel; });
+        for (int t = 31; t <= 200; t++) { int tt = t; h.runAfterDelay(t, () -> {
+            ColossusEntity c = find(h);
+            net.minecraft.world.phys.Vec3 dv = c.vel.subtract(lastV[0]); lastV[0] = c.vel;
+            jitter[0] += dv.length();
+            if (tt % 10 == 0) ColossalCraft.LOG.info("[test] big mech t={} pos={} vel={} tilt={} feet={}", tt, c.position(), c.vel, c.tilt, c.walker.status);
+        }); }
+        h.runAfterDelay(202, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] big mech dz={} dy={} jitter(sum |dv|)={} tilt={}", c.getZ() - start[0], c.getY() - start[1], jitter[0], c.tilt);
+            h.assertTrue(c.getZ() - start[0] < -2.0, "big mech should walk forward, dz=" + (c.getZ() - start[0]));
+            h.assertTrue(c.tilt == 0, "big mech fell over");
+            h.assertTrue(Math.abs(c.getY() - start[1]) < 1.0, "big mech sank or rose: " + (c.getY() - start[1]));
             h.succeed();
         });
     }

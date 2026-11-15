@@ -34,7 +34,12 @@ public class HullCoreScreen extends Screen {
             "Turns all the time while powered: propellers, wheels, turrets.",
             "Slow idle motion: tails, antennae, heads.",
             "Follows the keyframes you set in the Animate tab."};
-    private static final String[] TABS = {"Overview", "Joints", "Power", "Help"};
+    private static final String[] HULL_TABS = {"Overview", "Power", "Help"}, LOCO_TABS = {"Joints", "Gait", "Keys"};
+    private boolean loco() { return data.getBoolean("Loco"); }
+    private String[] tabs() { return loco() ? LOCO_TABS : HULL_TABS; }
+    private String cur() { return tabs()[Math.max(0, Math.min(tab, tabs().length - 1))]; }
+    /** Keys tab: the action waiting for a key press, or -1. */
+    private int binding = -1;
     private static final String[] VIEWS = {"ViewX", "ViewZ", "ViewTop"}, VIEW_NAMES = {"Side X", "Side Z", "Top"};
     private static final int CORE_COL = 0xFF2CFF7A, JOINT_COL = 0xFFFFD34A, BAD_COL = 0xFFFF4A4A, SEL_COL = 0xFFFFFFFF;
     private static final int[] PART_COLS = {0xFF3AA0FF, 0xFF2A7FD9, 0xFF5BC0FF, 0xFF1E66B3, 0xFF4C8DFF, 0xFF77B8FF};
@@ -55,7 +60,7 @@ public class HullCoreScreen extends Screen {
 
     public HullCoreScreen(BlockPos pos, CompoundTag data) { super(Component.literal("Hull Core")); this.pos = pos; this.data = data; }
 
-    public boolean matches(BlockPos p, CompoundTag d) { return built() ? d.getInt("Entity") == entity() : p.equals(pos) && !d.getBoolean("Built"); }
+    public boolean matches(BlockPos p, CompoundTag d) { return d.getBoolean("Loco") == loco() && (built() ? d.getInt("Entity") == entity() : p.equals(pos) && !d.getBoolean("Built")); }
     public void setData(CompoundTag d) { data = d; rebuild(); }
     public void setTab(int t) { tab = t; scroll = 0; rebuild(); }
     public void setView(int v) { view = v; preset(v); rebuild(); }
@@ -75,6 +80,7 @@ public class HullCoreScreen extends Screen {
     private void rebuild() {
         clearWidgets(); buildTree();
         int l = left(), t = top();
+        String[] TABS = tabs();
         for (int i = 0; i < TABS.length; i++) {
             int ti = i;
             Button b = Button.builder(Component.literal(TABS[i]), x -> { tab = ti; scroll = 0; rebuild(); }).bounds(l + 6, t + 28 + i * 24, NAV - 10, 20).build();
@@ -101,13 +107,15 @@ public class HullCoreScreen extends Screen {
         }
         addRenderableWidget(act);
 
-        if (tab == 1) {
+        if (cur().equals("Gait")) gaitWidgets(l + NAV + 8, t + 30);
+        if (cur().equals("Keys")) keyWidgets(l + NAV + 8, t + 30);
+        if (cur().equals("Joints")) {
             jointWidgets(l + NAV + 8 + 168, t + 30);
         }
     }
 
     private static final int[] MODE_CYCLE = {0, 1, 3, 4};
-    private static final int[] LIMITS = {20, 30, 45, 60, 90};
+    private static final int[] LIMITS = {5, 10, 20, 30, 45, 60, 90};
 
     /** Only two small controls: what the joint does, and how far it may turn. */
     private void jointWidgets(int x, int y) {
@@ -126,6 +134,71 @@ public class HullCoreScreen extends Screen {
         Button lb = Button.builder(Component.literal("Limit \u00B1" + lim + "\u00B0"), z -> send(2, selected, nextLim / 2)).bounds(x + w + 4, by, w, 14).build();
         lb.setTooltip(Tooltip.create(Component.literal("How far this joint may turn either way (legs bend within this). Click for \u00B1" + nextLim + "\u00B0.")));
         addRenderableWidget(lb);
+        if (data.getInt("GaitMode") == 4 && j.getBoolean("LegHip")) {
+            int grp = j.getInt("Group");
+            Button gb = Button.builder(Component.literal("Step group " + (grp + 1)), z -> send(15, selected, grp + 1)).bounds(x, by - 16, w * 2 + 4, 14).build();
+            gb.setTooltip(Tooltip.create(Component.literal("Custom gait: legs in the same group step together. Groups take turns 1, 2, 3, 4.")));
+            addRenderableWidget(gb);
+        }
+    }
+
+    // ------------------------------------------------------------------ Gait & Keys (Locomotion Controller)
+    private void gaitWidgets(int x, int y) {
+        int ik = data.getInt("IKMode"), gm = data.getInt("GaitMode");
+        Button b1 = Button.builder(Component.literal("IK: " + com.colossalcraft.colossus.StructureModel.IK_MODES[ik]), z -> send(11, -1, ik + 1)).bounds(x, y + 12, 150, 16).build();
+        b1.setTooltip(Tooltip.create(Component.literal("Analytic 2-link: exact hip+knee solution (falls back to FABRIK for longer legs). FABRIK: fast, any number of joints in the leg's plane. CCD: works with any joint axes.")));
+        addRenderableWidget(b1);
+        Button b2 = Button.builder(Component.literal("Gait: " + com.colossalcraft.colossus.StructureModel.GAIT_MODES[gm]), z -> send(12, -1, gm + 1)).bounds(x, y + 32, 150, 16).build();
+        b2.setTooltip(Tooltip.create(Component.literal("Biped: left/right. Digitigrade: knees bend backwards like a bird. Quadruped: diagonal pairs step together. Spider: every other leg round the body. Custom: set each leg's step group in Joints.")));
+        addRenderableWidget(b2);
+        int gs = (int) Math.round(data.getDouble("GaitSpeed") * 100);
+        addRenderableWidget(Button.builder(Component.literal("-"), z -> send(9, -1, gs - (gs > 50 ? 10 : 5))).bounds(x + 110, y + 52, 18, 14).build());
+        addRenderableWidget(Button.builder(Component.literal("+"), z -> send(9, -1, gs + (gs >= 50 ? 10 : 5))).bounds(x + 132, y + 52, 18, 14).build());
+    }
+
+    private void gait(GuiGraphics g, int x, int y) {
+        g.drawString(font, "KINEMATICS", x, y, DIM, false);
+        g.drawString(font, String.format("Step speed %.2f /s", data.getDouble("GaitSpeed")), x, y + 55, TXT, false);
+        int ix = x + 160, iy = y + 12;
+        g.drawString(font, "Legs found: " + data.getInt("Legs"), ix, iy, data.getInt("Legs") > 0 ? TXT : WARN, false); iy += 12;
+        g.drawString(font, "Sprint: 1.6x step speed", ix, iy, DIM, false); iy += 12;
+        g.drawString(font, "Raise/Lower: knee legs", ix, iy, DIM, false); iy += 12;
+        int jd = data.getInt("JumpDrives");
+        g.drawString(font, "Jump Drives: " + jd, ix, iy, jd > 0 ? TXT : DIM, false); iy += 12;
+        if (jd > 0) {
+            float lv = data.contains("JumpLevel") ? data.getFloat("JumpLevel") : 0;
+            bar(g, ix, iy, 120, Math.max(0, lv), 0xFFB98CFF, data.contains("JumpLevel") ? String.format("charge %.0f%%", lv * 100) : "charges once built",
+                    "A Jump Drive charges slowly from the Colossus' power and lets it all go at once: the legs kick past their motors and the Hull launches. Needs 20% charge.");
+            iy += 14;
+        }
+        String[] help = {"Set hips and knees to Leg in the Joints tab.", "Put a Ball Joint above each foot to keep it level.", "Keys tab: choose the keys to walk, turn, raise,", "lower, sprint and jump."};
+        int hy = y + 80; for (String h : help) { g.drawString(font, h, x, hy, DIM, false); hy += 11; }
+    }
+
+    private static String keyName(int code) { return InputConstantsName.of(code); }
+
+    private void keyWidgets(int x, int y) {
+        CompoundTag lc = data.getCompound("LocoCfg");
+        for (int i = 0; i < ClientEvents.ACTIONS.length; i++) {
+            int ai = i, code = lc.contains("K" + i) ? lc.getInt("K" + i) : -1;
+            String label = binding == i ? "> press a key <" : code < 0 ? "Default (" + ClientEvents.defaultKey(i).getTranslatedKeyMessage().getString() + ")" : keyName(code);
+            addRenderableWidget(Button.builder(Component.literal(label), z -> { binding = ai; rebuild(); }).bounds(x + 100, y + 10 + i * 17, 130, 15).build());
+            Button r = Button.builder(Component.literal("Reset"), z -> send(13, ai, -1)).bounds(x + 234, y + 10 + i * 17, 40, 15).build();
+            r.active = code >= 0; addRenderableWidget(r);
+        }
+    }
+    private void keys(GuiGraphics g, int x, int y) {
+        g.drawString(font, "KEYS WHILE PILOTING", x, y, DIM, false);
+        for (int i = 0; i < ClientEvents.ACTIONS.length; i++) g.drawString(font, ClientEvents.ACTIONS[i], x, y + 14 + i * 17, TXT, false);
+        g.drawString(font, "Click a key, then press the new one (Esc = default).", x, y + 12 + ClientEvents.ACTIONS.length * 17, DIM, false);
+    }
+
+    @Override public boolean keyPressed(int key, int scan, int mods) {
+        if (binding >= 0) {
+            send(13, binding, key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE ? -1 : key);
+            binding = -1; rebuild(); return true;
+        }
+        return super.keyPressed(key, scan, mods);
     }
 
     private CompoundTag joint(int id) {
@@ -159,7 +232,7 @@ public class HullCoreScreen extends Screen {
 
     // ------------------------------------------------------------------ input
     @Override public boolean mouseClicked(double mx, double my, int button) {
-        if (tab == 1 && mx >= cvX && mx < cvX + cvW && my >= cvY && my < cvY + cvH) {
+        if (cur().equals("Joints") && mx >= cvX && mx < cvX + cvW && my >= cvY && my < cvY + cvH) {
             int best = -1; double bd = 100;
             for (int[] mk : markers) { double d = Math.pow(mk[1] - mx, 2) + Math.pow(mk[2] - my, 2); if (d < bd) { bd = d; best = mk[0]; } }
             if (best >= 0) { selected = best; rebuild(); return true; }
@@ -168,7 +241,7 @@ public class HullCoreScreen extends Screen {
     }
 
     @Override public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
-        if (tab == 1 && mx >= cvX && mx < cvX + cvW && my >= cvY && my < cvY + cvH) {
+        if (cur().equals("Joints") && mx >= cvX && mx < cvX + cvW && my >= cvY && my < cvY + cvH) {
             if (button == 0) { camYaw += dx * 0.8; camPitch = Math.max(-90, Math.min(90, camPitch - dy * 0.8)); }
             else { panX += dx; panY += dy; }
             return true;
@@ -177,7 +250,7 @@ public class HullCoreScreen extends Screen {
     }
 
     @Override public boolean mouseScrolled(double x, double y, double dx, double dy) {
-        if (tab == 1 && x >= cvX && x < cvX + cvW && y >= cvY && y < cvY + cvH) { camZoom = Math.max(0.25, Math.min(8, camZoom * (dy > 0 ? 1.15 : 1 / 1.15))); return true; }
+        if (cur().equals("Joints") && x >= cvX && x < cvX + cvW && y >= cvY && y < cvY + cvH) { camZoom = Math.max(0.25, Math.min(8, camZoom * (dy > 0 ? 1.15 : 1 / 1.15))); return true; }
         scroll = Math.max(0, Math.min(Math.max(0, treeRows.size() - 15), scroll - (int) Math.signum(dy)));
         return true;
     }
@@ -198,15 +271,18 @@ public class HullCoreScreen extends Screen {
         super.render(g, mx, my, pt);
         tips.clear();
         int l = left(), t = top();
-        g.drawString(font, "HULL CORE", l + 8, t + 7, HEAD, false);
+        g.drawString(font, loco() ? "LOCOMOTION CONTROLLER" : "HULL CORE", l + 8, t + 7, HEAD, false);
         String chip = built() ? "● BUILT - flying/driving" : "● PARKED - just blocks";
         g.drawString(font, chip, l + W - 8 - font.width(chip), t + 7, built() ? OK : WARN, false);
         int cx = l + NAV + 8, cy = t + 30;
-        switch (tab) {
-            case 0 -> overview(g, cx, cy);
-            case 1 -> joints(g, cx, cy, mx, my);
-            case 2 -> power(g, cx, cy);
-            default -> help(g, cx, cy);
+        switch (cur()) {
+            case "Overview" -> overview(g, cx, cy);
+            case "Joints" -> joints(g, cx, cy, mx, my);
+            case "Gait" -> gait(g, cx, cy);
+            case "Keys" -> keys(g, cx, cy);
+            case "Power" -> power(g, cx, cy);
+            case "Help" -> help(g, cx, cy);
+            default -> {}
         }
         // footer status
         ListTag er = strings("Errors");

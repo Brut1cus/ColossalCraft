@@ -84,13 +84,20 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private Vec3 clientLastPos;
     public double clientSpeed;
     // pilot input
-    public float inFwd, inTurn; public boolean inUp, inDown; private int inputAge = 100;
+    public float inFwd, inTurn; public boolean inUp, inDown, inSprint, inJump; private int inputAge = 100;
+    /** Jump Drive charge (CJ) and whether the jump key was down last tick. */
+    public double jumpCharge; private boolean jumpWasDown;
+    /** The pilot asked to leave (V key): only then may they dismount (Crouch is used for 'lower'). */
+    public boolean allowDismount;
     /** Tests/automation: keep the last input even with no pilot. */
     public boolean autopilot;
     /** Physics walker (feet, balance, gait, IK). */
     public final WalkerController walker = new WalkerController();
     private boolean bodyOnly;
     private static final EntityDataAccessor<CompoundTag> IK = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    private static final EntityDataAccessor<Float> JUMP = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
+    /** Jump Drive charge 0..1, or -1 when there is none. */
+    public float jumpLevel() { return entityData.get(JUMP); }
     public String walkerStatus() { return entityData.get(IK).getString("S"); }
 
     public ColossusEntity(EntityType<?> type, Level level) { super(type, level); noPhysics = true; }
@@ -114,7 +121,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder b) {
-        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f).define(HELD, java.util.Optional.empty()).define(IK, new CompoundTag());
+        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f).define(HELD, java.util.Optional.empty()).define(IK, new CompoundTag()).define(JUMP, -1f);
     }
     public boolean hover() { return entityData.get(HOVER); }
     public float syncedEnergy() { return entityData.get(ENERGY); }
@@ -243,12 +250,13 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
 
     private Player pilot() { return getFirstPassenger() instanceof Player p ? p : null; }
 
-    public void setInput(float f, float t, boolean up, boolean down) { inFwd = f; inTurn = t; inUp = up; inDown = down; inputAge = 0; }
+    public void setInput(float f, float t, boolean up, boolean down) { setInput(f, t, up, down, false, false); }
+    public void setInput(float f, float t, boolean up, boolean down, boolean sprint, boolean jump) { inFwd = f; inTurn = t; inUp = up; inDown = down; inSprint = sprint; inJump = jump; inputAge = 0; }
 
     private void physics() {
         double dt = 0.05, M = model.mass, g = StructureModel.G, scale = Config.MASS_SCALE.get(), LS = Config.LIFT_SCALE.get();
         Player pilot = pilot();
-        if (!autopilot && (pilot == null || ++inputAge > 10)) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; }
+        if (!autopilot && (pilot == null || ++inputAge > 10)) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; inSprint = false; inJump = false; }
         if (heldBy() != null) { heldPhysics(); return; }
 
         // buoyancy
@@ -327,7 +335,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         double lift = model.sails * 0.5 * 1.225 * vh * vh * LS;
         boolean powered = model.output > 0 && (model.infinite || energy > 0) && ratio > 0;
         boolean stable = !model.legged || (model.footingOk() && powered && model.balanced());
-        boolean useWalker = walker.usable(model) && model.legged && stable && tilt < 0.1;
+        boolean useWalker = walker.usable(model) && model.legged && model.locoControllers > 0 && stable && tilt < 0.1;
         if (!useWalker) {
             walker.release(model);
             Vec3 F = thrust.scale(ratio).add(0, -M * g + buoy + lift, 0).add(fwW.scale(Math.signum(inFwd) * hT * groundF * ratio));
@@ -338,10 +346,28 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         yawRate += (-inTurn * turnTorque * ratio - torqueY * ratio) / I * dt;
         yawRate = Math.max(-1.5, Math.min(1.5, yawRate)) * (inTurn == 0 && Math.abs(torqueY) < 1 ? 0.8 : 0.95);
 
+        // ---- Jump Drive: charges slowly from the power supply, lets it all go at once
+        double cap = model.jumpDrives * com.colossalcraft.block.SimpleParts.JumpDriveBlock.CAPACITY;
+        if (cap > 0 && jumpCharge < cap && (model.infinite || energy > 0)) {
+            double add = Math.min(cap - jumpCharge, model.jumpDrives * com.colossalcraft.block.SimpleParts.JumpDriveBlock.CHARGE_RATE);
+            if (!model.infinite) add = Math.min(add, energy);
+            jumpCharge += add; if (!model.infinite) energy -= (long) add;
+        }
+        boolean jumpNow = inJump && !jumpWasDown; jumpWasDown = inJump;
+        if (jumpNow && cap > 0 && jumpCharge >= 0.2 * cap && onGroundC) {
+            double dv = Math.min(25, Math.sqrt(2 * jumpCharge / M)); // all of the stored energy becomes motion
+            vel = vel.add(0, dv, 0).add(fwW.scale(dv * 0.35 * Math.signum(inFwd)));
+            jumpCharge = 0;
+            if (useWalker) walker.launch(this);
+            onGroundC = false;
+            if (level() instanceof ServerLevel sl) sl.playSound(null, blockPosition(), SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.BLOCKS, 2f, 0.6f);
+        }
+        entityData.set(JUMP, cap <= 0 ? -1f : (float) (jumpCharge / cap));
+
         // ---- walking: the physics walker moves the Hull only through what its planted feet push against the ground
         if (useWalker) {
             Vec3 ext = thrust.scale(ratio).add(0, buoy + lift, 0);
-            walker.step(this, ext, ratio, inFwd);
+            walker.step(this, ext, ratio, inFwd, inSprint, inUp ? 1 : inDown ? -1 : 0);
             if (walker.unbalanced) stable = false; // weight left the feet: it tips
             walkBlend = 0;
         } else {
@@ -461,9 +487,12 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private List<AABB> surfaceBoxes(Vec3 pos, double yw) {
         List<AABB> out = new ArrayList<>(model.surface.size());
         double e = 0.499;
+        Matrix4d[] W = segWorlds(pos, yw, tilt, art); // where each part really is (legs bent, feet levelled)
         for (BlockPos p : model.surface) {
-            if (bodyOnly && model.legSegs.contains(model.segOf.getOrDefault(p, 0))) continue; // legs touch the world through their feet only
-            Vec3 c = toWorld(new Vec3(p.getX() + .5, p.getY() + .5, p.getZ() + .5), pos, yw);
+            int sg = model.segOf.getOrDefault(p, 0);
+            if (bodyOnly && model.legSegs.contains(sg)) continue; // standing: legs touch the world through their feet only
+            Vector3d wc = W[Math.min(sg, W.length - 1)].transformPosition(new Vector3d(p.getX() + .5, p.getY() + .5, p.getZ() + .5));
+            Vec3 c = new Vec3(wc.x, wc.y, wc.z);
             out.add(new AABB(c.x - e, c.y - e, c.z - e, c.x + e, c.y + e, c.z + e));
         }
         return out;
@@ -784,7 +813,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
                 return false;
             }
         }
-        ejectPassengers();
+        allowDismount = true; ejectPassengers(); allowDismount = false;
         double ratio = energyStart > 0 ? (double) energy / energyStart : 1;
         List<BlockPos> placed = new ArrayList<>();
         for (var e : blocks.entrySet()) {
