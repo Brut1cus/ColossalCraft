@@ -76,9 +76,11 @@
   "death.attack.colossalcraft.crushed": "%1$s was crushed by a Colossus",
   "death.attack.colossalcraft.crushed.player": "%1$s was crushed by a Colossus",
   "block.colossalcraft.flux_accumulator": "Flux Accumulator",
-  "block.colossalcraft.kinetic_dynamo": "Kinetic Dynamo",
+  "block.colossalcraft.kinetic_dynamo": "Kinetic Dynamo (Create)",
   "block.colossalcraft.overdrive_gearbox": "Overdrive Gearbox (1:2, faster)",
   "block.colossalcraft.spur_gearbox": "Spur Gearbox (2:1)",
   "block.colossalcraft.planetary_gearbox": "Planetary Gearbox (5:1)",
-  "block.colossalcraft.worm_drive": "Worm Drive (20:1)"
+  "block.colossalcraft.worm_drive": "Worm Drive (20:1)",
+  "block.colossalcraft.rotor_blade": "Rotor Blade",
+  "block.colossalcraft.gantry_hoist": "Gantry Hoist"
 }

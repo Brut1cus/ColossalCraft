@@ -388,4 +388,104 @@ public class ColossusTests {
         h.assertTrue(shape.minX == 0.5 && shape.maxX == 1.0, "panel should hug the east side: " + shape);
         h.succeed();
     }
+
+    @GameTest(template = "empty16", timeoutTicks = 160)
+    public static void walkerWalksFromItsFeet(GameTestHelper h) {
+        walker(h, false, true);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(20, () -> {
+            ColossusEntity c = find(h); double z0 = c.getZ();
+            c.autopilot = true; c.setInput(1, 0, false, false);
+            h.runAfterDelay(80, () -> {
+                ColossalCraft.LOG.info("[test] walk dz={} phase={} tilt={} vel={}", c.getZ() - z0, c.walkPhase, c.tilt, c.vel);
+                h.assertTrue(c.getZ() - z0 < -1.0, "should walk north (forward), dz=" + (c.getZ() - z0));
+                h.succeed();
+            });
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 160)
+    public static void rotorLiftsItOff(GameTestHelper h) {
+        floor(h);
+        for (int x = 6; x <= 8; x++) for (int z = 6; z <= 8; z++) h.setBlock(x, 6, z, Blocks.OAK_PLANKS);
+        h.setBlock(7, 7, 7, ModRegistry.HULL_CORE.get());
+        h.setBlock(6, 7, 7, ModRegistry.EMBER_BOILER.get());
+        CompoundTag t = new CompoundTag(); t.putLong("Energy", 900_000);
+        h.getBlockEntity(new BlockPos(6, 7, 7)).loadWithComponents(t, h.getLevel().registryAccess());
+        h.setBlock(7, 8, 7, ModRegistry.JOINTS.get(MaterialTier.DIAMOND).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y));
+        h.setBlock(8, 8, 7, ModRegistry.GEARBOXES.get(0).get()); // overdrive: twice as fast
+        h.setBlock(8, 7, 7, ModRegistry.MOTORS.get(MaterialTier.DIAMOND).get());
+        h.setBlock(7, 9, 7, Blocks.OAK_PLANKS); h.setBlock(7, 10, 7, Blocks.OAK_PLANKS);
+        for (int r = 1; r <= 3; r++) {
+            h.setBlock(7 + r, 10, 7, ModRegistry.ROTOR_BLADE.get()); h.setBlock(7 - r, 10, 7, ModRegistry.ROTOR_BLADE.get());
+            h.setBlock(7, 10, 7 + r, ModRegistry.ROTOR_BLADE.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z));
+            h.setBlock(7, 10, 7 - r, ModRegistry.ROTOR_BLADE.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z));
+        }
+        StructureScan.Result r0 = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        CompoundTag jc = new CompoundTag(); jc.putByte("Mode", (byte) StructureModel.SPIN); hc.joints.put(StructureModel.jointKey(r0.model.joints.get(0).key), jc); hc.setChanged();
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        StructureModel.Joint j = r.model.joints.get(0);
+        ColossalCraft.LOG.info("[test] rotor blades={} A2={} torque={} maxSpeed={} mass={}", j.blades, j.bladeA2, j.motorTorque, j.maxSpeed, r.model.mass);
+        h.assertTrue(j.blades == 12 && j.active(), "rotor not set up: blades " + j.blades);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(10, () -> {
+            ColossusEntity c = find(h); double y0 = c.getY(); c.autopilot = true; c.setInput(0, 0, true, false);
+            h.runAfterDelay(120, () -> {
+                ColossalCraft.LOG.info("[test] rotor dy={} spinRate={}", c.getY() - y0, c.spinRate);
+                h.assertTrue(c.getY() - y0 > 0.5, "rotor should lift it, dy=" + (c.getY() - y0));
+                h.succeed();
+            });
+        });
+    }
+
+    @GameTest(template = "empty16")
+    public static void motorGridAddsUp(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        h.setBlock(7, 5, 7, ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
+        for (int y = 2; y <= 4; y++) h.setBlock(7, y, 7, Blocks.STONE_BRICKS);
+        var motor = ModRegistry.MOTORS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+        h.setBlock(8, 5, 7, motor); h.setBlock(8, 5, 8, motor); h.setBlock(8, 4, 7, motor); h.setBlock(8, 4, 8, motor); // 2x2 grid, one touches the joint
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        StructureModel.Joint j = r.model.joints.get(0);
+        h.assertTrue(Math.abs(j.motorTorque - 4 * 150_000 * 1.1) < 1, "2x2 grid torque " + j.motorTorque);
+        h.assertTrue(r.model.motorClusters.stream().anyMatch(mc -> mc.k() == 4 && mc.n() == 2), "no 2x2 cluster");
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 200)
+    public static void hoistLiftsAndParksClear(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        BlockPos hoist = new BlockPos(7, 12, 7);
+        h.setBlock(hoist, ModRegistry.GANTRY_HOIST.get());
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(60, () -> {
+            ColossusEntity c = find(h);
+            h.assertTrue(c.onGroundC, "should have landed first");
+            BlockPos ap = h.absolutePos(hoist);
+            h.getLevel().setBlock(ap, h.getLevel().getBlockState(ap).setValue(com.colossalcraft.block.SimpleParts.GantryHoistBlock.ENGAGED, true), 3);
+            ColossusEntity b = ColossusEntity.below(h.getLevel(), ap);
+            h.assertTrue(b == c, "hoist doesn't see the Colossus");
+            b.holdBy(ap);
+            h.runAfterDelay(40, () -> {
+                h.assertTrue(c.heldBy() != null && !c.onGroundC, "not held");
+                h.assertTrue(c.disassemble(null), "park failed");
+                h.assertBlockPresent(Blocks.AIR, new BlockPos(7, 1, 7));      // a gap under the parked deck
+                h.assertBlockPresent(Blocks.OAK_PLANKS, new BlockPos(7, 2, 7));
+                h.succeed();
+            });
+        });
+    }
+
+    @GameTest(template = "empty16")
+    public static void fuelCanBeTakenBackOut(GameTestHelper h) {
+        h.setBlock(5, 1, 5, ModRegistry.FISSION_REACTOR.get()); // not formed: fuel stays in the slot
+        var be = (com.colossalcraft.block.PowerBlockEntity) h.getBlockEntity(new BlockPos(5, 1, 5));
+        be.fuel.setStackInSlot(0, new net.minecraft.world.item.ItemStack(ModRegistry.ENRICHED_FUEL_CELL.get(), 5));
+        be.energy = com.colossalcraft.tier.EngineTier.FISSION.capacity; // full, so nothing burns
+        h.assertTrue(be.fuel.extractItem(0, 64, false).getCount() == 5, "screen slot should give fuel back");
+        be.fuel.setStackInSlot(0, new net.minecraft.world.item.ItemStack(ModRegistry.ENRICHED_FUEL_CELL.get(), 5));
+        h.assertTrue(be.fuelPipe.extractItem(0, 64, false).isEmpty(), "pipes must not pull fuel out");
+        h.succeed();
+    }
 }

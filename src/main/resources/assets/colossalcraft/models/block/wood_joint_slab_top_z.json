@@ -297,7 +297,8 @@
             3.0,
             9.0,
             5.0
-          ]
+          ],
+          "tintindex": 9
         },
         "south": {
           "texture": "#end",
@@ -306,7 +307,8 @@
             3.0,
             9.0,
             5.0
-          ]
+          ],
+          "tintindex": 9
         },
         "east": {
           "texture": "#side",
@@ -315,7 +317,8 @@
             3.0,
             16,
             5.0
-          ]
+          ],
+          "tintindex": 9
         },
         "west": {
           "texture": "#side",
@@ -324,7 +327,8 @@
             3.0,
             16,
             5.0
-          ]
+          ],
+          "tintindex": 9
         },
         "up": {
           "texture": "#side",
@@ -333,7 +337,8 @@
             0,
             9.0,
             16
-          ]
+          ],
+          "tintindex": 9
         },
         "down": {
           "texture": "#side",
@@ -342,7 +347,8 @@
             0,
             9.0,
             16
-          ]
+          ],
+          "tintindex": 9
         }
       }
     }

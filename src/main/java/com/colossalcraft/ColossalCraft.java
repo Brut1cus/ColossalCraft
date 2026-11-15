@@ -55,7 +55,7 @@ public class ColossalCraft {
     }
 
     private static void caps(RegisterCapabilitiesEvent e) {
-        e.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModRegistry.POWER_BE.get(), (be, side) -> be.tier() == null ? null : be.fuel);
+        e.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModRegistry.POWER_BE.get(), (be, side) -> be.tier() == null ? null : be.fuelPipe);
         e.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModRegistry.FLUX_BE.get(), (be, side) -> be.fe);
     }
 }

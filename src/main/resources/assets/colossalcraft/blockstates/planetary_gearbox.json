@@ -1,7 +1,13 @@
 {
   "variants": {
-    "": {
-      "model": "colossalcraft:block/planetary_gearbox"
+    "axis=x": {
+      "model": "colossalcraft:block/planetary_gearbox_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/planetary_gearbox_y"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/planetary_gearbox_z"
     }
   }
 }

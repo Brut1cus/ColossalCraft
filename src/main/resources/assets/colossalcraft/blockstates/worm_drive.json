@@ -1,7 +1,13 @@
 {
   "variants": {
-    "": {
-      "model": "colossalcraft:block/worm_drive"
+    "axis=x": {
+      "model": "colossalcraft:block/worm_drive_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/worm_drive_y"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/worm_drive_z"
     }
   }
 }

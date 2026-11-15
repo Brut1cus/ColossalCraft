@@ -1,7 +1,13 @@
 {
   "variants": {
-    "": {
-      "model": "colossalcraft:block/overdrive_gearbox"
+    "axis=x": {
+      "model": "colossalcraft:block/overdrive_gearbox_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/overdrive_gearbox_y"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/overdrive_gearbox_z"
     }
   }
 }

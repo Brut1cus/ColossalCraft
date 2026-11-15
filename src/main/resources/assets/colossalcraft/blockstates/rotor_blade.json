@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "colossalcraft:block/rotor_blade_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/rotor_blade_y"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/rotor_blade_z"
+    }
+  }
+}

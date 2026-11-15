@@ -213,3 +213,19 @@ for y in range(3, 13):
         if (x + y) % 3 == 0: px(wd, x, y, hx(0xffb43a))
 rect(wd, 7, 2, 8, 13, shade(STEEL, 1.3)); save(wd, B, 'worm_drive')
 print('gear textures done')
+
+# --- shaft, gearbox frame, rotor blade, hoist hook ---
+sh = Image.new('RGBA', (16, 16))
+for y in range(16):
+    for x in range(16):
+        px(sh, x, y, shade(hx(0xb8c0c8), 1.15 if (x + y) % 4 < 2 else 0.8))
+save(sh, B, 'shaft')
+gf = base(hx(0x4a525a), 720); bevel(gf, hx(0x4a525a)); save(gf, B, 'gearbox_frame')
+rb = base(hx(0x9aa3ab), 721, 0.05)
+for x in range(16): px(rb, x, 7, hx(0x6b737b)); px(rb, x, 8, hx(0xc8d0d8))
+save(rb, B, 'rotor_blade')
+for on in (False, True):
+    hk = base(hx(0x3a3a3a), 722); bevel(hk, hx(0x3a3a3a))
+    rect(hk, 6, 2, 9, 13, hx(0xf2c21a) if on else hx(0x8a8a8a)); rect(hk, 4, 11, 11, 13, hx(0xf2c21a) if on else hx(0x8a8a8a))
+    save(hk, B, 'gantry_hoist_on' if on else 'gantry_hoist')
+print('mech textures done')

@@ -83,7 +83,7 @@ public final class DevShots {
             });
             case 44 -> server(sp -> look(sp, base.offset(1, 9, -1), base.offset(0, 8, 1)));
             case 54 -> shot("0_closeup_chair");
-            case 55 -> server(sp -> look(sp, base.offset(4, 10, -4), base.offset(1, 8, -1)));
+            case 55 -> server(sp -> look(sp, base.offset(5, 5, -3), base.offset(2, 5, 0)));
             case 68 -> shot("0_closeup_joints");
             case 70 -> server(sp -> { if (sp.serverLevel().getBlockEntity(base.offset(-1, 8, 0)) instanceof PowerBlockEntity pe) sp.openMenu(pe, buf -> buf.writeBlockPos(pe.getBlockPos())); });
             case 85 -> shot("0b_engine_gui");
@@ -93,15 +93,18 @@ public final class DevShots {
             case 115 -> shot("1_overview");
             case 117 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
             case 130 -> shot("2_joints");
-            case 131 -> { if (mc.screen instanceof HullCoreScreen s) s.setView(2); }
-            case 133 -> shot("2b_joints_top");
+            case 131 -> { if (mc.screen instanceof HullCoreScreen s) s.turnView(-70, 20, 1.4); }
+            case 133 -> shot("2b_joints_rotated");
             case 134 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(2); }
             case 137 -> shot("2c_animate");
             case 138 -> mc.setScreen(null);
             case 139 -> server(sp -> { sp.getAbilities().flying = false; sp.onUpdateAbilities(); BlockPos p = base.offset(1, 8, 1); sp.connection.teleport(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, 135f, 20f); });
             case 145 -> { ColossalCraft.LOG.info("[devshots] before build player y={}", mc.player.getY()); server(sp -> ColossusEntity.assemble(sp.serverLevel(), base.offset(0, 8, 0), sp)); }
-            case 150, 155, 160, 170, 180 -> ColossalCraft.LOG.info("[devshots] after build t={} player y={} onGround={}", t, mc.player.getY(), mc.player.onGround());
-            case 175 -> shot("3_standing_on_deck");
+            case 150, 155, 159 -> ColossalCraft.LOG.info("[devshots] after build t={} player y={} onGround={}", t, mc.player.getY(), mc.player.onGround());
+            case 160 -> server(sp -> { BlockPos hp = base.offset(0, 14, 0); sp.serverLevel().setBlockAndUpdate(hp, ModRegistry.GANTRY_HOIST.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.GantryHoistBlock.ENGAGED, true));
+                ColossusEntity c = colossus(); if (c != null) c.holdBy(hp); sp.getAbilities().flying = true; sp.onUpdateAbilities(); sp.connection.teleport(base.getX() + 9.5, base.getY() + 7, base.getZ() - 8.5, 45f, 10f); });
+            case 178 -> shot("3_hoist_holding");
+            case 179 -> server(sp -> { ColossusEntity c = colossus(); if (c != null) c.holdBy(null); sp.serverLevel().removeBlock(base.offset(0, 14, 0), false); });
             case 182 -> server(sp -> {
                 ColossusEntity c = colossus(); if (c == null) return;
                 net.minecraft.world.phys.Vec3 hc = c.blockWorldCenter(BlockPos.ZERO);
@@ -135,8 +138,12 @@ public final class DevShots {
         BlockState joint = ModRegistry.JOINTS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
         for (int side : new int[]{-1, 1}) {
             lv.setBlockAndUpdate(b.offset(side, 4, 0), joint);
-            if (side < 0) lv.setBlockAndUpdate(b.offset(side * 2, 4, 0), ModRegistry.MOTORS.get(MaterialTier.IRON).get().defaultBlockState());
-            else { lv.setBlockAndUpdate(b.offset(2, 4, 0), ModRegistry.GEARBOXES.get(1).get().defaultBlockState()); lv.setBlockAndUpdate(b.offset(3, 4, 0), ModRegistry.MOTORS.get(MaterialTier.IRON).get().defaultBlockState()); }
+            var mot = ModRegistry.MOTORS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+            if (side < 0) lv.setBlockAndUpdate(b.offset(side * 2, 4, 0), mot);
+            else {
+                lv.setBlockAndUpdate(b.offset(2, 4, 0), ModRegistry.GEARBOXES.get(1).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
+                for (int[] o : new int[][]{{3, 4, 0}, {3, 4, 1}, {3, 3, 0}, {3, 3, 1}}) lv.setBlockAndUpdate(b.offset(o[0], o[1], o[2]), mot); // 2x2 motor grid
+            }
             for (int y = 1; y <= 3; y++) lv.setBlockAndUpdate(b.offset(side, y, 0), Blocks.STONE_BRICKS.defaultBlockState());
             lv.setBlockAndUpdate(b.offset(side, 0, 0), Blocks.STONE_BRICKS.defaultBlockState());
             lv.setBlockAndUpdate(b.offset(side, 0, -1), Blocks.STONE_BRICK_SLAB.defaultBlockState());
@@ -165,8 +172,7 @@ public final class DevShots {
         StructureScan.Result r = StructureScan.scan(lv, b.offset(0, 7, 0));
         if (lv.getBlockEntity(b.offset(0, 7, 0)) instanceof HullCoreBlockEntity hc) {
             for (StructureModel.Joint j : r.model.joints) {
-                CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.PROGRAM); c.putInt("Amp", 30);
-                c.putIntArray("Keys", new int[]{0, 20, 30, 20, 0, -20, -30, -20}); c.putInt("Phase", j.pivot.x < 0 ? 0 : 180); c.putInt("SpeedX", 100);
+                CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.LEG); c.putInt("Amp", 25);
                 hc.joints.put(StructureModel.jointKey(j.key), c);
             }
             hc.hover = false; hc.setChanged();

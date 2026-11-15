@@ -1,0 +1,6 @@
+{
+  "parent": "colossalcraft:block/gantry_hoist",
+  "textures": {
+    "hook": "colossalcraft:block/gantry_hoist_on"
+  }
+}

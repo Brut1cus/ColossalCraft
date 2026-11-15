@@ -64,6 +64,7 @@ public final class ModRegistry {
     static { cat = Cat.COMMAND; }
     public static final DeferredBlock<HullCoreBlock> HULL_CORE = block("hull_core", HullCoreBlock::new, metal().lightLevel(s -> 7));
     public static final DeferredBlock<PilotSeatBlock> PILOT_SEAT = block("pilot_seat", PilotSeatBlock::new, metal().noOcclusion());
+    public static final DeferredBlock<GantryHoistBlock> GANTRY_HOIST = block("gantry_hoist", GantryHoistBlock::new, metal().noOcclusion());
     public static final DeferredBlock<ScaffoldBlock> GANTRY_SCAFFOLD = block("gantry_scaffold", ScaffoldBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.METAL).instabreak().sound(SoundType.SCAFFOLDING).noOcclusion());
 
@@ -126,6 +127,8 @@ public final class ModRegistry {
     static { cat = Cat.POWER; }
     public static final DeferredBlock<FluxAccumulatorBlock> FLUX_ACCUMULATOR = block("flux_accumulator", FluxAccumulatorBlock::new, metal());
     static { cat = Cat.PROPULSION; }
+    public static final DeferredBlock<RotorBladeBlock> ROTOR_BLADE = block("rotor_blade", RotorBladeBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL).noOcclusion());
     public static final DeferredBlock<SailBlock> SKY_SAIL = block("sky_sail", ThinSailBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.WOOL).strength(0.8f).sound(SoundType.WOOL).noOcclusion());
 

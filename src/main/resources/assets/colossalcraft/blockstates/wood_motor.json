@@ -1,7 +1,13 @@
 {
   "variants": {
-    "": {
-      "model": "colossalcraft:block/wood_motor"
+    "axis=x": {
+      "model": "colossalcraft:block/wood_motor_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/wood_motor_y"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/wood_motor_z"
     }
   }
 }

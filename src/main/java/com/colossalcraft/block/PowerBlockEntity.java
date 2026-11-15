@@ -33,8 +33,15 @@ public class PowerBlockEntity extends BlockEntity implements net.minecraft.world
     public final net.neoforged.neoforge.items.ItemStackHandler fuel = new net.neoforged.neoforge.items.ItemStackHandler(1) {
         @Override public boolean isItemValid(int slot, ItemStack stack) { EngineTier t = tier(); return t != null && t.fuelValue(stack) != 0; }
         @Override protected void onContentsChanged(int slot) { setChanged(); }
-        /** Pipes/hoppers may only pull out leftovers (empty buckets), never fuel. */
-        @Override public ItemStack extractItem(int slot, int amount, boolean simulate) { return isItemValid(slot, getStackInSlot(slot)) ? ItemStack.EMPTY : super.extractItem(slot, amount, simulate); }
+    };
+    /** What hoppers/pipes see: they can put fuel in, but only pull out leftovers (empty buckets). The screen uses {@link #fuel} directly. */
+    public final net.neoforged.neoforge.items.IItemHandler fuelPipe = new net.neoforged.neoforge.items.IItemHandler() {
+        public int getSlots() { return 1; }
+        public ItemStack getStackInSlot(int s) { return fuel.getStackInSlot(s); }
+        public ItemStack insertItem(int s, ItemStack st, boolean sim) { return fuel.insertItem(s, st, sim); }
+        public ItemStack extractItem(int s, int n, boolean sim) { return fuel.isItemValid(s, fuel.getStackInSlot(s)) ? ItemStack.EMPTY : fuel.extractItem(s, n, sim); }
+        public int getSlotLimit(int s) { return fuel.getSlotLimit(s); }
+        public boolean isItemValid(int s, ItemStack st) { return fuel.isItemValid(s, st); }
     };
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, PowerBlockEntity be) {

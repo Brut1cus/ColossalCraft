@@ -59,10 +59,11 @@ blocks.append('gantry_scaffold'); NAMES['gantry_scaffold'] = 'Gantry Scaffold'
 # --- joints & motors ---
 JN = {'wood': 'Timber', 'stone': 'Cobble', 'iron': 'Iron', 'gold': 'Gilded', 'diamond': 'Diamond'}
 AX = {'x': (0, 1, 2), 'y': (1, 0, 2), 'z': (2, 0, 1)}  # axis index, u index, v index
-def box(lo, hi, axis_i):
+def box(lo, hi, axis_i, spin=False):
     faces = {}
     for f, ax in (('north', 2), ('south', 2), ('east', 0), ('west', 0), ('up', 1), ('down', 1)):
         faces[f] = {'texture': '#end' if ax == axis_i else '#side', 'uv': fit_uv(f, lo, hi)}
+        if spin: faces[f]['tintindex'] = 9   # marks parts that turn on a moving Colossus
     return {'from': lo, 'to': hi, 'faces': faces}
 def make(a, u, v, ra, ru, rv):
     lo = [0, 0, 0]; hi = [0, 0, 0]
@@ -78,7 +79,7 @@ def joint_elements(shape, axis, xyz=None):
     (a0, a1), (u0, u1), (v0, v1) = xyz[a], xyz[u], xyz[v]
     els = []
     if shape == 'joint_pin':
-        els.append(box(*make(a, u, v, (a0, a1), (u0, u1), (v0, v1)), a))
+        els.append(box(*make(a, u, v, (a0, a1), (u0, u1), (v0, v1)), a, spin=True))
         for c0, c1 in ((1, 3), (13, 15)): els.append(box(*make(a, u, v, (c0, c1), (u0 - 1, u1 + 1), (v0 - 1, v1 + 1)), a))
         return els
     t = 2 if min(u1 - u0, v1 - v0, a1 - a0) <= 8 else 3
@@ -87,7 +88,7 @@ def joint_elements(shape, axis, xyz=None):
     cu, cv = (u0 + u1) / 2, (v0 + v1) / 2
     hs = max(0.5, min(2, (u1 - u0 - 2 * t) / 2 - 1, (v1 - v0 - 2 * t) / 2 - 1))
     ext = 0 if shape == 'joint' else 0.5
-    els.append(box(*make(a, u, v, (max(0, a0 - ext), min(16, a1 + ext)), (cu - hs, cu + hs), (cv - hs, cv + hs)), a))
+    els.append(box(*make(a, u, v, (max(0, a0 - ext), min(16, a1 + ext)), (cu - hs, cu + hs), (cv - hs, cv + hs)), a, spin=True))
     return els
 PANEL_BOX = {'north': [(0, 16), (0, 16), (0, 8)], 'south': [(0, 16), (0, 16), (8, 16)], 'west': [(0, 8), (0, 16), (0, 16)], 'east': [(8, 16), (0, 16), (0, 16)]}
 SHAPES = [('joint', 'Bearing Joint'), ('joint_slab', 'Slab Joint'), ('joint_panel', 'Panel Joint'), ('joint_pin', 'Pin Joint')]
@@ -119,7 +120,26 @@ for m in MATS:
         w(f'{A}/blockstates/{n}.json', {'variants': variants})
         blocks.append(n); NAMES[n] = f'{JN[m]} {title}'
         w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{item}'})
-for m in MATS: cube_all(f'{m}_motor', name=f'{JN[m]} Servo Motor')
+def axis_box(axis, ra, ru, rv, tx, spin=False):
+    a, u, v = AX[axis]
+    lo, hi = make(a, u, v, ra, ru, rv)
+    faces = {}
+    for f in ('north', 'south', 'east', 'west', 'up', 'down'):
+        faces[f] = {'texture': tx, 'uv': fit_uv(f, lo, hi)}
+        if spin: faces[f]['tintindex'] = 9
+    return {'from': lo, 'to': hi, 'faces': faces}
+def pillar_block(n, name, elements_for_axis, textures):
+    for axis in 'xyz':
+        w(f'{A}/models/block/{n}_{axis}.json', {'parent': 'minecraft:block/block', 'textures': textures, 'elements': elements_for_axis(axis)})
+    w(f'{A}/blockstates/{n}.json', {'variants': {f'axis={ax}': {'model': f'{NS}:block/{n}_{ax}'} for ax in 'xyz'}})
+    w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}_y'})
+    blocks.append(n); NAMES[n] = name
+def motor_els(axis):
+    return [axis_box(axis, (2, 14), (1, 15), (1, 15), '#body'),                      # housing
+            axis_box(axis, (0, 16), (6, 10), (6, 10), '#shaft', spin=True),           # shaft, sticks out both ends
+            axis_box(axis, (0, 1), (4, 12), (4, 12), '#shaft', spin=True), axis_box(axis, (15, 16), (4, 12), (4, 12), '#shaft', spin=True)]
+for m in MATS:
+    pillar_block(f'{m}_motor', f'{JN[m]} Servo Motor', motor_els, {'body': tex(f'{m}_motor'), 'shaft': tex('shaft'), 'particle': tex(f'{m}_motor')})
 # --- engines ---
 for n, nm in [('ember_boiler', 'Ember Boiler'), ('blaze_combustor', 'Blaze Combustor'), ('redstone_dynamo', 'Redstone Dynamo')]:
     orientable(n, n + '_front', n + '_side', n + '_top', nm)
@@ -159,7 +179,7 @@ w(f'{A}/blockstates/sky_sail.json', {'variants': {'': {'model': f'{NS}:block/sky
 blocks.append('sky_sail'); NAMES['sky_sail'] = 'Sky Sail'
 
 for b in blocks:
-    if '_joint' not in b: item_from_block(b)
+    if '_joint' not in b and not b.endswith('_motor'): item_from_block(b)
 ITEMS = {'colossteel_blend': 'Colossteel Blend', 'colossteel_ingot': 'Colossteel Ingot', 'reactor_alloy': 'Reactor Alloy',
          'neutronium_ingot': 'Neutronium Ingot', 'enriched_fuel_cell': 'Enriched Fuel Cell', 'deuterium_cell': 'Deuterium Cell'}
 for i in ITEMS: w(f'{A}/models/item/{i}.json', {'parent': 'minecraft:item/generated', 'textures': {'layer0': f'{NS}:item/{i}'}})
@@ -263,8 +283,19 @@ w(f'{D}/recipe/kinetic_dynamo.json', {'neoforge:conditions': [{'type': 'neoforge
 print('compat data done')
 
 # --- gearboxes + natural ground tag ---
+def gearbox_els(axis):
+    els = []
+    # open steel frame (12 edges) so the gears inside can be seen
+    for (ra, ru, rv) in (((0, 16), (0, 2), (0, 2)), ((0, 16), (14, 16), (0, 2)), ((0, 16), (0, 2), (14, 16)), ((0, 16), (14, 16), (14, 16)),
+                         ((0, 2), (2, 14), (0, 2)), ((0, 2), (2, 14), (14, 16)), ((14, 16), (2, 14), (0, 2)), ((14, 16), (2, 14), (14, 16)),
+                         ((0, 2), (0, 2), (2, 14)), ((0, 2), (14, 16), (2, 14)), ((14, 16), (0, 2), (2, 14)), ((14, 16), (14, 16), (2, 14))):
+        els.append(axis_box(axis, ra, ru, rv, '#frame'))
+    # gear: hub + crossed teeth, plus the shaft through it (all turn)
+    els += [axis_box(axis, (5, 11), (3, 13), (3, 13), '#gear', spin=True), axis_box(axis, (6, 10), (1, 15), (6, 10), '#gear', spin=True),
+            axis_box(axis, (6, 10), (6, 10), (1, 15), '#gear', spin=True), axis_box(axis, (0, 16), (7, 9), (7, 9), '#shaft', spin=True)]
+    return els
 for n, nm in [('overdrive_gearbox', 'Overdrive Gearbox (1:2, faster)'), ('spur_gearbox', 'Spur Gearbox (2:1)'), ('planetary_gearbox', 'Planetary Gearbox (5:1)'), ('worm_drive', 'Worm Drive (20:1)')]:
-    cube_all(n, name=nm); item_from_block(n)
+    pillar_block(n, nm, gearbox_els, {'frame': tex('gearbox_frame'), 'gear': tex(n), 'shaft': tex('shaft'), 'particle': tex(n)})
     w(f'{D}/loot_table/blocks/{n}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{n}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
 lang = json.load(open(f'{A}/lang/en_us.json'))
 for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]
@@ -275,6 +306,23 @@ shaped('spur_gearbox', ['SIS', 'ICI', 'SIS'], {'S': S, 'I': 'minecraft:iron_ingo
 shaped('overdrive_gearbox', ['SGS', 'GBG', 'SGS'], {'S': S, 'G': 'minecraft:gold_ingot', 'B': 'spur_gearbox'})
 shaped('planetary_gearbox', ['SBS', 'BDB', 'SBS'], {'S': S, 'B': 'spur_gearbox', 'D': 'minecraft:diamond'})
 shaped('worm_drive', ['SBS', 'RPR', 'SBS'], {'S': S, 'B': 'minecraft:iron_block', 'R': 'minecraft:redstone', 'P': 'planetary_gearbox'})
+# rotor blade (per axis) and gantry hoist
+def blade_els(axis): return [axis_box(axis, (0, 16), (6, 10), (3, 13), '#all')]
+pillar_block('rotor_blade', 'Rotor Blade', blade_els, {'all': tex('rotor_blade'), 'particle': tex('rotor_blade')})
+w(f'{A}/models/block/gantry_hoist.json', {'parent': 'minecraft:block/block', 'textures': {'beam': tex('gantry_scaffold'), 'hook': tex('gantry_hoist'), 'particle': tex('gantry_hoist')},
+    'elements': [cube_el([0, 12, 0], [16, 16, 16], {'*': '#beam'}), cube_el([5, 4, 5], [11, 12, 11], {'*': '#hook'}), cube_el([6, 1, 7], [10, 4, 9], {'*': '#hook'})]})
+w(f'{A}/models/block/gantry_hoist_on.json', {'parent': f'{NS}:block/gantry_hoist', 'textures': {'hook': tex('gantry_hoist_on')}})
+w(f'{A}/blockstates/gantry_hoist.json', {'variants': {'engaged=false': {'model': f'{NS}:block/gantry_hoist'}, 'engaged=true': {'model': f'{NS}:block/gantry_hoist_on'}}})
+item_from_block('gantry_hoist'); blocks.append('gantry_hoist'); NAMES['gantry_hoist'] = 'Gantry Hoist'
+for b in ('rotor_blade', 'gantry_hoist'):
+    w(f'{D}/loot_table/blocks/{b}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{b}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
+lang = json.load(open(f'{A}/lang/en_us.json'))
+for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]
+w(f'{A}/lang/en_us.json', lang)
+w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in blocks if b not in ('sky_sail', 'kinetic_dynamo', 'gantry_scaffold')] + [{'id': f'{NS}:kinetic_dynamo', 'required': False}]})
+w(f'{D}/tags/block/assembly_blacklist.json', {'values': ['minecraft:scaffolding', f'{NS}:gantry_scaffold', f'{NS}:gantry_hoist']})
+shaped('rotor_blade', ['  S', ' P ', 'S  '], {'S': S, 'P': '#minecraft:planks'}, 4)
+shaped('gantry_hoist', ['GGG', ' C ', ' I '], {'G': 'gantry_scaffold', 'C': 'minecraft:chain', 'I': 'minecraft:iron_block'})
 w(f'{D}/tags/block/natural_ground.json', {'values': ['#minecraft:dirt', '#minecraft:sand', '#minecraft:base_stone_overworld', '#minecraft:base_stone_nether',
     'minecraft:gravel', 'minecraft:snow', 'minecraft:snow_block', 'minecraft:powder_snow', 'minecraft:ice', 'minecraft:packed_ice', 'minecraft:blue_ice',
     'minecraft:clay', 'minecraft:end_stone', 'minecraft:short_grass', 'minecraft:tall_grass', 'minecraft:fern', 'minecraft:large_fern', 'minecraft:dead_bush',

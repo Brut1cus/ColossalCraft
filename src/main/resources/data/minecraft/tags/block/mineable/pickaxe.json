@@ -59,6 +59,8 @@
     "colossalcraft:spur_gearbox",
     "colossalcraft:planetary_gearbox",
     "colossalcraft:worm_drive",
+    "colossalcraft:rotor_blade",
+    "colossalcraft:gantry_hoist",
     {
       "id": "colossalcraft:kinetic_dynamo",
       "required": false

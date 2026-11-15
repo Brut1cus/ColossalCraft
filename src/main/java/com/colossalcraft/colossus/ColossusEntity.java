@@ -85,6 +85,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public double clientSpeed;
     // pilot input
     public float inFwd, inTurn; public boolean inUp, inDown; private int inputAge = 100;
+    /** Tests/automation: keep the last input even with no pilot. */
+    public boolean autopilot;
 
     public ColossusEntity(EntityType<?> type, Level level) { super(type, level); noPhysics = true; }
 
@@ -107,7 +109,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder b) {
-        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f);
+        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f).define(HELD, java.util.Optional.empty());
     }
     public boolean hover() { return entityData.get(HOVER); }
     public float syncedEnergy() { return entityData.get(ENERGY); }
@@ -232,9 +234,10 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public void setInput(float f, float t, boolean up, boolean down) { inFwd = f; inTurn = t; inUp = up; inDown = down; inputAge = 0; }
 
     private void physics() {
-        double dt = 0.05, M = model.mass, g = StructureModel.G, scale = Config.MASS_SCALE.get();
+        double dt = 0.05, M = model.mass, g = StructureModel.G, scale = Config.MASS_SCALE.get(), LS = Config.LIFT_SCALE.get();
         Player pilot = pilot();
-        if (pilot == null || ++inputAge > 10) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; }
+        if (!autopilot && (pilot == null || ++inputAge > 10)) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; }
+        if (heldBy() != null) { heldPhysics(); return; }
 
         // buoyancy
         double vw = 0, vl = 0; int n = 0, step = Math.max(1, blocks.size() / 1500);
@@ -251,58 +254,97 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         double buoy = (1000 * vw + 3100 * vl) * scale * g;
         double subFrac = Math.min(1, (vw + vl) / Math.max(1, blocks.size()));
 
-        double fy = -M * g + buoy;
-        double up = model.thrustCap[Direction.UP.ordinal()], down = model.thrustCap[Direction.DOWN.ordinal()];
+        // ---- jets: every thruster pushes along its real (turned) direction, from where it sits
+        double up = model.thrustCap[Direction.UP.ordinal()];
         double vT = 0, dT = 0;
         if (pilot != null && inUp) vT = 1;
         else if (pilot != null && inDown) dT = 1;
         else if (hover() && up > 0) vT = Math.max(0, Math.min(1, (M * g - buoy - M * vel.y * 2) / up));
-        double draw = vT * model.thrustPow[Direction.UP.ordinal()] + dT * model.thrustPow[Direction.DOWN.ordinal()];
+        Vec3 fwL = Vec3.atLowerCornerOf(model.forward.getNormal());
+        Matrix4d[] W = segWorlds(position(), yaw, tilt, art);
+        Vec3 thrust = Vec3.ZERO; double torqueY = 0, draw = 0;
+        for (StructureModel.Thruster t : model.thrusterList) {
+            Vec3 pl = Vec3.atLowerCornerOf(t.push().getNormal());
+            double thr;
+            if (t.push() == Direction.UP) thr = vT;
+            else if (t.push() == Direction.DOWN) thr = dT;
+            else if (pl.dot(fwL) > 0.5) thr = Math.max(0, inFwd);
+            else if (pl.dot(fwL) < -0.5) thr = Math.max(0, -inFwd);
+            else { // side jets fire to turn the way the pilot steers
+                Vec3 rl = Vec3.atCenterOf(t.pos()).subtract(model.com);
+                double m = rl.cross(pl).y;
+                thr = inTurn * m > 0 ? Math.abs(inTurn) : 0;
+            }
+            if (thr <= 0) continue;
+            Vector3d dw = W[Math.min(t.seg(), W.length - 1)].transformDirection(new Vector3d(pl.x, pl.y, pl.z)).normalize();
+            Vec3 f = new Vec3(dw.x, dw.y, dw.z).scale(t.force() * thr);
+            Vec3 r = blockWorldCenter(t.pos()).subtract(position());
+            thrust = thrust.add(f); torqueY += r.cross(f).y; draw += t.power() * thr;
+        }
+        // ---- propellers/rotors: blades on Spin joints push along the axis; thrust ~ area * (speed)^2
+        double omegaWanted = spinRate * 20;
+        for (StructureModel.Joint j : model.joints) {
+            if (j.mode != StructureModel.SPIN || !j.active() || j.blades == 0) continue;
+            double om = Math.min(omegaWanted, Math.toRadians(j.maxSpeed));
+            om = Math.min(om, Math.sqrt(j.motorTorque / Math.max(1e-6, 0.5 * 1.225 * 0.1 * LS * j.bladeA3)));
+            double T = 0.5 * 1.225 * om * om * j.bladeA2 * 0.4 * LS;
+            Vec3 a = StructureModel.axisVec(j.axis).scale(j.thrustSign);
+            Vector3d dw = W[Math.max(0, j.parentSeg)].transformDirection(new Vector3d(a.x, a.y, a.z)).normalize();
+            thrust = thrust.add(new Vec3(dw.x, dw.y, dw.z).scale(T));
+            draw += 0.5 * 1.225 * 0.1 * LS * j.bladeA3 * om * om * om / 400000; // power to beat blade drag
+        }
 
-        Direction fwd = model.forward; Direction dir = inFwd >= 0 ? fwd : fwd.getOpposite();
-        double hT = Math.abs(inFwd), hCap = model.thrustCap[dir.ordinal()];
-        draw += hT * model.thrustPow[dir.ordinal()];
         boolean walkers = model.hasWalkers() && tilt < 0.1;
-        double stability = model.gyroCap <= 0 ? 0.25 : Math.min(1, model.gyroCap / M);
-        double ground = onGroundC ? (walkers ? model.walkDrive() * Math.max(0.25, stability) : 0) + model.driveForce : 0;
-        if (subFrac > 0.05 && !onGroundC) ground += model.driveForce * 0.5; // motors as propellers in water
+        double hT = Math.abs(inFwd);
+        double groundF = onGroundC ? model.driveForce : 0;
+        if (subFrac > 0.05 && !onGroundC) groundF += model.driveForce * 0.5; // motors as propellers in water
         draw += hT * (model.drivePower + (walkers ? model.walkPower() : 0));
-
-        double lat = 0, latPow = 0;
-        for (Direction d : Direction.Plane.HORIZONTAL) if (d.getAxis() != fwd.getAxis()) { lat += model.thrustCap[d.ordinal()]; latPow += model.thrustPow[d.ordinal()]; }
         double r = Math.max(1, model.radius);
-        double turnTorque = model.gyroCap * 0.6 + lat * r * 0.5 + (onGroundC ? (model.driveForce + model.walkDrive()) * r * 0.3 : 0);
-        draw += Math.abs(inTurn) * (model.gyroPower + latPow * 0.5);
+        double turnTorque = model.gyroCap * 0.6 + (onGroundC ? model.driveForce * r * 0.3 : 0);
+        draw += Math.abs(inTurn) * model.gyroPower;
         if (model.joints.stream().anyMatch(j -> j.mode == StructureModel.SPIN && j.active())) draw += model.walkPower() * 0.2;
+        if (model.legged) draw += model.gyroPower; // gyros hold a walker up all the time
 
-        if (model.legged) draw += model.gyroPower; // gyros hold a legged Colossus up all the time
         double avail = model.infinite ? model.output : (energy > 0 ? model.output : 0);
         double ratio = draw <= 0 ? 1 : Math.min(1, avail / draw);
         if (!model.infinite && draw > 0) { ratio = Math.min(ratio, energy / draw); energy = Math.max(0, energy - (long) Math.ceil(draw * ratio)); }
 
-        Vec3 fw = Vec3.atLowerCornerOf(fwd.getNormal());
         double cs = Math.cos(yaw), sn = Math.sin(yaw);
-        Vec3 fwW = new Vec3(fw.x * cs - fw.z * sn, 0, fw.x * sn + fw.z * cs);
-        double fh = Math.signum(inFwd) * (hT * hCap + hT * ground) * ratio;
+        Vec3 fwW = new Vec3(fwL.x * cs - fwL.z * sn, 0, fwL.x * sn + fwL.z * cs);
         double vh = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
-        double lift = model.sails * 0.5 * 1.225 * vh * vh * Config.LIFT_SCALE.get();
-        fy += (vT * up - dT * down) * ratio + lift;
-        Vec3 F = new Vec3(fwW.x * fh, fy, fwW.z * fh);
+        double lift = model.sails * 0.5 * 1.225 * vh * vh * LS;
+        Vec3 F = thrust.scale(ratio).add(0, -M * g + buoy + lift, 0).add(fwW.scale(Math.signum(inFwd) * hT * groundF * ratio));
         vel = vel.add(F.scale(dt / M));
 
         double I = M * (r * r + 1) / 3;
-        yawRate += -inTurn * turnTorque * ratio / I * dt;
-        yawRate = Math.max(-1.5, Math.min(1.5, yawRate)) * (inTurn == 0 ? 0.8 : 0.95);
+        yawRate += (-inTurn * turnTorque * ratio - torqueY * ratio) / I * dt;
+        yawRate = Math.max(-1.5, Math.min(1.5, yawRate)) * (inTurn == 0 && Math.abs(torqueY) < 1 ? 0.8 : 0.95);
 
-        double hd = onGroundC ? 0.85 : subFrac > 0.05 ? 0.93 : 0.985;
+        // ---- footing: a walker stays up only with a powered gyro in the core part, motors up every leg, and its weight over its feet
+        boolean powered = model.output > 0 && (model.infinite || energy > 0) && ratio > 0;
+        boolean stable = !model.legged || (model.footingOk() && powered && model.balanced());
+
+        // ---- walking from the feet: planted feet push the body; speed comes from leg motion, force from leg motors
+        boolean kinematic = false;
+        if (onGroundC && walkers && stable && hT > 0 && ratio > 0) {
+            double dPhase = 2 * Math.PI * model.gaitSpeed / 20 * model.gaitScale() * Math.signum(inFwd);
+            double[] st = model.legStep(walkPhase, walkPhase + dPhase, fwL.scale(Math.signum(inFwd)), tickCount);
+            if (st[2] > 0) {
+                Vec3 vk = new Vec3(st[0] * cs - st[1] * sn, 0, st[0] * sn + st[1] * cs).scale(20);
+                double dvMax = st[2] * ratio / M * dt;
+                Vec3 diff = new Vec3(vk.x - vel.x, 0, vk.z - vel.z);
+                if (diff.length() > dvMax) diff = diff.normalize().scale(dvMax);
+                vel = vel.add(diff);
+                kinematic = true;
+            }
+            walkPhase += dPhase; walkBlend = Math.min(1, walkBlend + 0.1);
+        } else walkBlend = Math.max(0, walkBlend - 0.08);
+
+        double hd = kinematic ? 1.0 : onGroundC ? 0.85 : subFrac > 0.05 ? 0.93 : 0.985;
         vel = new Vec3(vel.x * hd, vel.y * (subFrac > 0.05 ? 0.9 : 0.995), vel.z * hd);
         double max = Config.MAX_SPEED.get();
         if (vel.length() > max) vel = vel.normalize().scale(max);
 
-        // animation state
-        // ---- footing: a legged Colossus stays up only with a powered gyro in a foot and motors up to the core
-        boolean powered = model.output > 0 && (model.infinite || energy > 0) && ratio > 0;
-        boolean stable = !model.legged || (model.footingOk() && powered && model.balanced());
         double oldTilt = tilt;
         if (model.legged && onGroundC && !stable && tilt < MAX_TILT) {
             if (tilt == 0) {
@@ -317,17 +359,53 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             if (tilt >= MAX_TILT) { tiltRate = 0; if (level() instanceof ServerLevel sl) sl.playSound(null, blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 1f, 0.5f); }
         } else if (stable && tilt > 0) { tilt = Math.max(0, tilt - 0.5 * dt); tiltRate = 0; if (tilt == 0) warnedFall = false; }
         if (tilt != oldTilt) liftOutOfGround();
-        if (tilt > 0.1) walkers = false;
-        if (onGroundC && walkers && hT > 0 && ratio > 0) { walkPhase += 2 * Math.PI * model.gaitSpeed / 20 * model.gaitScale() * Math.signum(inFwd); walkBlend = Math.min(1, walkBlend + 0.1); }
-        else walkBlend = Math.max(0, walkBlend - 0.08);
-        double targetSpin = pilot != null && ratio > 0 && energy + (model.infinite ? 1 : 0) > 0 ? 0.15 + 0.6 * Math.max(hT, vT) : 0;
-        double spinCap = Double.MAX_VALUE;
+
+        // rotor/propeller throttle: forward for propellers, up/down and hover for lifting rotors
+        double rotThr = Math.max(hT, vT);
+        boolean rotors = model.joints.stream().anyMatch(j -> j.mode == StructureModel.SPIN && j.active() && j.blades > 0);
+        if (rotors) {
+            if (inUp) rotThr = 1;
+            else if (inDown) rotThr = Math.max(rotThr, 0.3);
+            else if (hover()) rotThr = Math.max(rotThr, Math.max(0.3, Math.min(1, 0.6 - vel.y * 0.3)));
+        }
+        double spinCap = 1.5; // rad per tick
         for (StructureModel.Joint j : model.joints) if (j.mode == StructureModel.SPIN && j.active()) spinCap = Math.min(spinCap, Math.toRadians(j.maxSpeed) / 20);
-        targetSpin = Math.min(targetSpin, spinCap);
+        double targetSpin = (pilot != null || autopilot) && ratio > 0 && energy + (model.infinite ? 1 : 0) > 0 ? Math.max(0.15, rotThr) * spinCap : 0;
         spinRate += (targetSpin - spinRate) * 0.05; spin += spinRate;
 
         moveWithCollision(vel.scale(dt));
         rotateWithCollision(yaw + yawRate * dt);
+    }
+
+    // ------------------------------------------------------------ gantry hoist
+    private static final EntityDataAccessor<java.util.Optional<BlockPos>> HELD = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.OPTIONAL_BLOCK_POS);
+    public BlockPos heldBy() { return entityData.get(HELD).orElse(null); }
+    public void holdBy(BlockPos hoist) { entityData.set(HELD, java.util.Optional.ofNullable(hoist)); }
+    /** The Colossus right below a hoist (up to 32 blocks down), or null. */
+    public static ColossusEntity below(Level level, BlockPos hoist) {
+        Vec3 from = Vec3.atBottomCenterOf(hoist).subtract(0, 0.05, 0), to = from.subtract(0, 32, 0);
+        for (ColossusEntity c : ColossusCollision.all(level)) if (!c.isRemoved() && c.model != null && c.raycastBlock(from, to) != null) return c;
+        return null;
+    }
+    public static void releaseFrom(Level level, BlockPos hoist) {
+        for (ColossusEntity c : ColossusCollision.all(level)) if (hoist.equals(c.heldBy())) c.holdBy(null);
+    }
+    /** Held by a hoist: no falling, stands upright, and is lifted until there is a block of air under it. */
+    private void heldPhysics() {
+        BlockPos h = heldBy();
+        BlockState hs = level().getBlockState(h);
+        if (!(hs.getBlock() instanceof com.colossalcraft.block.SimpleParts.GantryHoistBlock) || !hs.getValue(com.colossalcraft.block.SimpleParts.GantryHoistBlock.ENGAGED)) { holdBy(null); return; }
+        vel = Vec3.ZERO; yawRate = 0; walkBlend = Math.max(0, walkBlend - 0.08);
+        if (tilt > 0) { tilt = Math.max(0, tilt - 0.5 * 0.05); liftOutOfGround(); }
+        List<AABB> boxes = surfaceBoxes(position(), yaw);
+        List<Vec3> centers = new ArrayList<>(); for (AABB bx : boxes) centers.add(bx.getCenter());
+        Map<Long, List<AABB>> world = gatherWorld(centers, 2.2);
+        double probe = sweep(1, boxes, world, -1.0);
+        if (probe > -0.999 && getY() + (model.localBounds.maxY - model.com.y) < h.getY()) {
+            double lift = sweep(1, boxes, world, 0.1);
+            setPos(getX(), getY() + lift, getZ());
+        }
+        onGroundC = false;
     }
 
     // ------------------------------------------------------------ world collision

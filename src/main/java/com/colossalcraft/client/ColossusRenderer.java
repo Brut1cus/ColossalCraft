@@ -73,6 +73,9 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         Matrix4d baseM = new Matrix4d().rotateY(-yaw);
         if (tl != 0) baseM.rotate(tl, axis.x, axis.y, axis.z);
         baseM.translate(-m.com.x, -m.com.y, -m.com.z);
+        double[] angles = new double[m.joints.size()];
+        double wp = Mth.lerp(pt, e.prevWalkPhase, e.walkPhase), wb = Mth.lerp(pt, e.prevWalkBlend, e.walkBlend), spn = Mth.lerp(pt, e.prevSpin, e.spin);
+        for (StructureModel.Joint j : m.joints) angles[j.id] = m.angle(j, wp, wb, spn, e.tickCount + pt);
         Matrix4d[] segM = new Matrix4d[m.segs.size()];
         for (int i = 0; i < segM.length; i++) segM[i] = new Matrix4d(baseM).mul(art[i]);
         for (StructureModel.Seg s : m.segs) {
@@ -81,8 +84,12 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             ps.mulPose(new Matrix4f(local));
             for (BlockPos p : s.blocks) {
                 Integer jid = m.jointOf.get(p);
-                if (jid != null && !m.joints.get(jid).childSegs.isEmpty()) continue; // bearings are drawn with their moving side below
-                drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp);
+                double[] sp = m.spinParts.get(p);
+                if (jid != null && !m.joints.get(jid).childSegs.isEmpty()) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.STATIC, null, 0);
+                else if (sp != null && m.blocks.get(p).getBlock() instanceof com.colossalcraft.block.SimpleParts.GearboxBlock)
+                    drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL_SPIN_TOO, m.blocks.get(p).getValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS), angles[(int) sp[0]] * sp[1]);
+                else if (sp != null || isClusterMember(m, p)) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.STATIC, null, 0);
+                else drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL, null, 0);
             }
             ps.popPose();
         }
@@ -92,14 +99,86 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             Matrix4d local = segM[j.childSegs.get(0)];
             ps.pushPose();
             ps.mulPose(new Matrix4f(local));
-            for (BlockPos p : j.blocks) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp);
+            for (BlockPos p : j.blocks) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.SPIN, null, 0);
             ps.popPose();
+        }
+        // motor groups: one shaft per group, as thick as the group, turning with its joint (times its gear ratio)
+        for (StructureModel.MotorCluster mc : m.motorClusters) {
+            BlockPos rep0 = mc.blocks().get(0);
+            Matrix4d local = segM[m.segOf.getOrDefault(rep0, 0)];
+            double ang = mc.joint() >= 0 ? angles[mc.joint()] * mc.ratio() : e.walkPhase * 2;
+            ps.pushPose();
+            ps.mulPose(new Matrix4f(local));
+            ps.translate(mc.center().x, mc.center().y, mc.center().z);
+            var ax = StructureModel.axisVec(mc.axis());
+            ps.mulPose(new org.joml.Quaternionf().rotateAxis((float) ang, (float) ax.x, (float) ax.y, (float) ax.z));
+            float n = mc.n();
+            ps.scale(mc.axis() == net.minecraft.core.Direction.Axis.X ? 1 : n, mc.axis() == net.minecraft.core.Direction.Axis.Y ? 1 : n, mc.axis() == net.minecraft.core.Direction.Axis.Z ? 1 : n);
+            ps.translate(-0.5, -0.5, -0.5);
+            Vector3d w = local.transformPosition(new Vector3d(mc.center().x, mc.center().y, mc.center().z));
+            lp.set(ex + w.x, ey + w.y, ez + w.z);
+            drawQuads(m.blocks.get(rep0), ps, buf, level == null ? light : LevelRenderer.getLightColor(level, lp), Part.SPIN);
+            ps.popPose();
+        }
+        // gantry hoist chain
+        BlockPos hoist = e.heldBy();
+        if (hoist != null && level != null) {
+            net.minecraft.world.level.block.state.BlockState chain = net.minecraft.world.level.block.Blocks.CHAIN.defaultBlockState();
+            for (int y = hoist.getY() - 1; y > hoist.getY() - 33; y--) {
+                net.minecraft.world.phys.Vec3 a = new net.minecraft.world.phys.Vec3(hoist.getX() + .5, y + 1, hoist.getZ() + .5);
+                if (e.raycastBlock(a, a.subtract(0, 1, 0)) != null) break;
+                ps.pushPose();
+                ps.translate(hoist.getX() - ex, y - ey, hoist.getZ() - ez);
+                lp.set(hoist.getX(), y, hoist.getZ());
+                try { blocks.renderSingleBlock(chain, ps, buf, LevelRenderer.getLightColor(level, lp), OverlayTexture.NO_OVERLAY); } catch (Exception ignored) {}
+                ps.popPose();
+            }
         }
         super.render(e, yawIgnored, pt, ps, buf, light);
     }
 
+    enum Part { ALL, STATIC, SPIN, ALL_SPIN_TOO }
+
+    private static boolean isClusterMember(StructureModel m, BlockPos p) { return m.blocks.get(p).getBlock() instanceof com.colossalcraft.block.SimpleParts.MotorBlock; }
+
+    /** Draws only the model faces of one kind: STATIC = housing, SPIN = faces marked tintindex 9 (shafts, axles, gears). */
+    private void drawQuads(BlockState st, PoseStack ps, MultiBufferSource buf, int light, Part part) {
+        var model = blocks.getBlockModel(st);
+        var rnd = net.minecraft.util.RandomSource.create(42);
+        for (var rt : model.getRenderTypes(st, rnd, net.neoforged.neoforge.client.model.data.ModelData.EMPTY)) {
+            var vc = buf.getBuffer(net.neoforged.neoforge.client.RenderTypeHelper.getEntityRenderType(rt, false));
+            for (int d = -1; d < 6; d++) {
+                rnd.setSeed(42);
+                for (var q : model.getQuads(st, d < 0 ? null : net.minecraft.core.Direction.from3DDataValue(d), rnd, net.neoforged.neoforge.client.model.data.ModelData.EMPTY, rt)) {
+                    boolean spin = q.getTintIndex() == 9;
+                    if ((part == Part.STATIC && spin) || (part == Part.SPIN && !spin)) continue;
+                    vc.putBulkData(ps.last(), q, 1f, 1f, 1f, 1f, light, OverlayTexture.NO_OVERLAY);
+                }
+            }
+        }
+    }
+
     private void drawBlock(ColossusEntity e, StructureModel m, BlockPos p, Matrix4d local, PoseStack ps, MultiBufferSource buf, float pt, int light,
-                           double ex, double ey, double ez, net.minecraft.client.multiplayer.ClientLevel level, BlockPos.MutableBlockPos lp) {
+                           double ex, double ey, double ez, net.minecraft.client.multiplayer.ClientLevel level, BlockPos.MutableBlockPos lp,
+                           Part part, net.minecraft.core.Direction.Axis spinAxis, double spinAngle) {
+        if (part != Part.ALL) {
+            BlockState st = m.blocks.get(p); if (st == null) return;
+            Vector3d w = local.transformPosition(new Vector3d(p.getX() + .5, p.getY() + .5, p.getZ() + .5));
+            lp.set(ex + w.x, ey + w.y, ez + w.z);
+            int li = level == null ? light : LevelRenderer.getLightColor(level, lp);
+            ps.pushPose();
+            ps.translate(p.getX(), p.getY(), p.getZ());
+            if (part == Part.ALL_SPIN_TOO) {
+                drawQuads(st, ps, buf, li, Part.STATIC);
+                ps.translate(.5, .5, .5);
+                var ax = StructureModel.axisVec(spinAxis);
+                ps.mulPose(new org.joml.Quaternionf().rotateAxis((float) spinAngle, (float) ax.x, (float) ax.y, (float) ax.z));
+                ps.translate(-.5, -.5, -.5);
+                drawQuads(st, ps, buf, li, Part.SPIN);
+            } else drawQuads(st, ps, buf, li, part);
+            ps.popPose();
+            return;
+        }
         if (!m.visible.contains(p)) return;
         BlockState st = m.blocks.get(p);
         if (st == null) return;

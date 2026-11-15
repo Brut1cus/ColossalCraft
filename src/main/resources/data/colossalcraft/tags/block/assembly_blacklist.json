@@ -1,6 +1,7 @@
 {
   "values": [
     "minecraft:scaffolding",
-    "colossalcraft:gantry_scaffold"
+    "colossalcraft:gantry_scaffold",
+    "colossalcraft:gantry_hoist"
   ]
 }

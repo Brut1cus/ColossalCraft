@@ -24,8 +24,10 @@ import java.util.*;
  */
 public class StructureModel {
     public static final double G = 9.81;
-    public static final String[] MODES = {"LOCKED", "WALK A", "WALK B", "SPIN", "SWAY", "PROGRAM"};
-    public static final int LOCKED = 0, WALK_A = 1, WALK_B = 2, SPIN = 3, SWAY = 4, PROGRAM = 5;
+    public static final String[] MODES = {"LOCKED", "LEG", "LEG", "SPIN", "SWAY", "PROGRAM"};
+    /** LEG (1) drives a leg from the hip; 2 is an old save value and behaves like LEG. */
+    public static final int LOCKED = 0, WALK_A = 1, LEG = 1, WALK_B = 2, SPIN = 3, SWAY = 4, PROGRAM = 5;
+    public static boolean isLegMode(int m) { return m == LEG || m == WALK_B; }
     public static final int KEYS = 8;
     /** Reserved key in the joint config for whole-walker gait settings. */
     public static final String GAIT = "_gait";
@@ -51,11 +53,23 @@ public class StructureModel {
         public double maxSpeed;
         /** Program: keyframe angles (degrees), phase offset (degrees), speed factor, play even when standing still. */
         public int[] keys = new int[KEYS]; public int phase; public double speedFactor = 1; public boolean loop;
+        /** Leg data: the foot it stands on (local), automatic step timing (0 or 0.5). */
+        public boolean leg; public Vec3 foot = Vec3.ZERO; public double autoPhase;
+        /** Propeller data (Spin joints): sum of blade area * r^2, area * r^3, and which way along the axis it pushes. */
+        public double bladeA2, bladeA3; public int blades; public double thrustSign = 1;
         /** Gear ratios seen by this joint's motors (for the screen). */
         public final List<Double> ratios = new ArrayList<>();
         public boolean stalled() { return mode != LOCKED && !childSegs.isEmpty() && (motorTorque <= 0 || motorTorque < reqTorque); }
         public boolean active() { return mode != LOCKED && !childSegs.isEmpty() && !stalled(); }
     }
+    public record Thruster(BlockPos pos, Direction push, double force, double power, int seg) {}
+    /** Motors of the same material and axis touching each other: one bigger motor (n x n grid). */
+    public record MotorCluster(List<BlockPos> blocks, MaterialTier tier, Direction.Axis axis, int k, int n, Vec3 center, int joint, double ratio) {}
+    public final List<Thruster> thrusterList = new ArrayList<>();
+    public final List<MotorCluster> motorClusters = new ArrayList<>();
+    /** Motor and gearbox blocks that turn: {joint id, ratio (turns per joint turn)}. */
+    public final Map<BlockPos, double[]> spinParts = new HashMap<>();
+    public final Set<Integer> footSegs = new TreeSet<>();
     public record EngineInfo(String name, long energy, long capacity, int output, boolean running, String note, boolean zeroPoint) {}
 
     public final Map<BlockPos, BlockState> blocks;
@@ -231,7 +245,7 @@ public class StructureModel {
                 BlockPos n = jp.relative(d); BlockState ns = blocks.get(n);
                 if (ns == null) continue;
                 if (ns.getBlock() instanceof MotorBlock) motorGear.putIfAbsent(n, new double[]{j.id, 1, 1});
-                else if (ns.getBlock() instanceof GearboxBlock g && !seen.containsKey(n)) { seen.put(n, new double[]{g.ratio, g.efficiency}); gq.add(n); }
+                else if (ns.getBlock() instanceof GearboxBlock g && !seen.containsKey(n)) { seen.put(n, new double[]{g.ratio, g.efficiency}); gq.add(n); spinParts.put(n, new double[]{j.id, g.ratio}); }
             }
             while (!gq.isEmpty()) {
                 BlockPos gp = gq.poll(); double[] cur = seen.get(gp);
@@ -239,22 +253,15 @@ public class StructureModel {
                     BlockPos n = gp.relative(d); BlockState ns = blocks.get(n);
                     if (ns == null) continue;
                     if (ns.getBlock() instanceof MotorBlock) motorGear.putIfAbsent(n, new double[]{j.id, cur[0], cur[1]});
-                    else if (ns.getBlock() instanceof GearboxBlock g && !seen.containsKey(n) && seen.size() < 64) { seen.put(n, new double[]{cur[0] * g.ratio, cur[1] * g.efficiency}); gq.add(n); }
+                    else if (ns.getBlock() instanceof GearboxBlock g && !seen.containsKey(n) && seen.size() < 64) { seen.put(n, new double[]{cur[0] * g.ratio, cur[1] * g.efficiency}); gq.add(n); spinParts.put(n, new double[]{j.id, cur[0] * g.ratio}); }
                 }
             }
         }
         // ---- parts: motors, engines, thrusters, gyros, seat ----
         for (var e : blocks.entrySet()) {
             BlockPos p = e.getKey(); BlockState s = e.getValue(); Block b = s.getBlock();
-            if (b instanceof MotorBlock mb) {
-                double[] mg = motorGear.get(p);
-                if (mg != null) {
-                    Joint j = joints.get((int) mg[0]); double ratio = mg[1], eff = mg[2];
-                    j.motors++; j.motorTorque += mb.tier.motorTorque * ratio * eff; j.motorPower += mb.tier.motorPower; j.motorDrive += mb.tier.driveForce;
-                    double sp = mb.tier.motorRpm * 6 / ratio;
-                    j.maxSpeed = j.maxSpeed == 0 ? sp : Math.min(j.maxSpeed, sp); j.ratios.add(ratio);
-                }
-                else { driveMotors++; driveForce += mb.tier.driveForce; drivePower += mb.tier.motorPower; }
+            if (b instanceof MotorBlock) {
+                // handled as clusters below
             } else if (b instanceof ColossalBattery cb) {
                 CompoundTag tag = this.bes.get(p); long en = tag == null ? 0 : tag.getLong("Energy");
                 output += cb.output(); energy += en;
@@ -268,11 +275,52 @@ public class StructureModel {
             } else if (b instanceof ThrusterBlock tb) {
                 Direction push = s.getValue(ThrusterBlock.FACING).getOpposite();
                 thrustCap[push.ordinal()] += tb.tier.force; thrustPow[push.ordinal()] += tb.tier.power; thrusters++;
+                thrusterList.add(new Thruster(p, push, tb.tier.force, tb.tier.power, segOf.getOrDefault(p, 0)));
             } else if (b instanceof GyroBlock gb) { gyroCap += gb.capacity; gyroPower += gb.capacity / 3000.0; segGyro.merge(segOf.getOrDefault(p, 0), gb.capacity, Double::sum); }
-            else if (b instanceof SailBlock) sails++;
+            else if (b instanceof SailBlock && !(b instanceof RotorBladeBlock)) sails++;
             else if (b instanceof PilotSeatBlock && seat == null) { seat = p; forward = s.getValue(PilotSeatBlock.FACING); }
         }
 
+        // ---- motor clusters (parallel motors) ----
+        Set<BlockPos> doneM = new HashSet<>();
+        for (var e : blocks.entrySet()) {
+            if (!(e.getValue().getBlock() instanceof MotorBlock mb0) || doneM.contains(e.getKey())) continue;
+            Direction.Axis ax = e.getValue().getValue(RotatedPillarBlock.AXIS);
+            List<BlockPos> cl = new ArrayList<>(); ArrayDeque<BlockPos> mq = new ArrayDeque<>(); mq.add(e.getKey()); doneM.add(e.getKey());
+            double cx = 0, cy = 0, cz = 0;
+            while (!mq.isEmpty()) {
+                BlockPos p = mq.poll(); cl.add(p); cx += p.getX() + .5; cy += p.getY() + .5; cz += p.getZ() + .5;
+                for (Direction d : Direction.values()) {
+                    BlockPos n = p.relative(d); BlockState ns = blocks.get(n);
+                    if (ns != null && !doneM.contains(n) && ns.getBlock() instanceof MotorBlock mb && mb.tier == mb0.tier && ns.getValue(RotatedPillarBlock.AXIS) == ax) { doneM.add(n); mq.add(n); }
+                }
+            }
+            int k = cl.size(), n = Math.max(1, (int) Math.round(Math.sqrt(k)));
+            double[] best = null;
+            for (BlockPos p : cl) { double[] mg = motorGear.get(p); if (mg != null && (best == null || mg[1] < best[1])) best = mg; }
+            Vec3 center = new Vec3(cx / k, cy / k, cz / k);
+            if (best == null) { driveMotors += k; driveForce += k * mb0.tier.driveForce; drivePower += k * mb0.tier.motorPower; motorClusters.add(new MotorCluster(cl, mb0.tier, ax, k, n, center, -1, 1)); continue; }
+            Joint j = joints.get((int) best[0]); double ratio = best[1], eff = best[2];
+            double bonus = 1 + 0.1 * (n - 1); // a solid grid of motors shares one bigger shaft
+            j.motors += k; j.motorTorque += k * mb0.tier.motorTorque * ratio * eff * bonus; j.motorPower += k * mb0.tier.motorPower; j.motorDrive += k * mb0.tier.driveForce;
+            double sp = mb0.tier.motorRpm * 6 / ratio;
+            j.maxSpeed = j.maxSpeed == 0 ? sp : Math.min(j.maxSpeed, sp); j.ratios.add(ratio);
+            motorClusters.add(new MotorCluster(cl, mb0.tier, ax, k, n, center, j.id, ratio));
+            for (BlockPos p : cl) spinParts.put(p, new double[]{j.id, ratio});
+        }
+        // ---- propeller blades on Spin joints ----
+        for (var e : blocks.entrySet()) {
+            if (!(e.getValue().getBlock() instanceof SailBlock)) continue;
+            int sg = segOf.getOrDefault(e.getKey(), 0), guard = 0;
+            Joint spinJ = null;
+            while (sg > 0 && guard++ < 1000) { Seg sgm = segs.get(sg); if (sgm.parentJoint < 0) break; Joint pj = joints.get(sgm.parentJoint); if (pj.mode == SPIN) { spinJ = pj; break; } sg = Math.max(0, pj.parentSeg); }
+            if (spinJ == null) continue;
+            Vec3 a = axisVec(spinJ.axis), c = Vec3.atCenterOf(e.getKey()).subtract(spinJ.pivot);
+            double r = c.subtract(a.scale(a.dot(c))).length();
+            double area = e.getValue().getBlock() instanceof RotorBladeBlock ? 0.6 : 1.0;
+            spinJ.bladeA2 += area * r * r; spinJ.bladeA3 += area * r * r * r; spinJ.blades++;
+        }
+        for (Joint j : joints) if (j.blades > 0) { double d = j.subCom.subtract(j.pivot).dot(axisVec(j.axis)); j.thrustSign = d < 0 ? -1 : 1; }
         for (Joint j : joints) for (BlockPos p : j.blocks) jointOf.put(p, j.id);
         // ---- joint torque & static load ----
         for (Joint j : joints) {
@@ -300,6 +348,8 @@ public class StructureModel {
             footSegs.add(segOf.getOrDefault(p, 0));
             x0 = Math.min(x0, p.getX()); z0 = Math.min(z0, p.getZ()); x1 = Math.max(x1, p.getX() + 1); z1 = Math.max(z1, p.getZ() + 1);
         }
+        this.footSegs.addAll(footSegs);
+        setupLegs(minY);
         legged = footSegs.stream().anyMatch(sg -> sg != 0) && joints.stream().anyMatch(j -> j.mode == WALK_A || j.mode == WALK_B || j.mode == PROGRAM);
         coreGyro = segGyro.getOrDefault(0, 0.0);
         if (!legged) return;
@@ -325,6 +375,49 @@ public class StructureModel {
         }
         footingGyro = coreGyro > 0 && pathsOk ? coreGyro : 0;
     }
+    /** Legs: hip joints set to Leg or Program, with a horizontal axis, that have a foot below them. */
+    private void setupLegs(int minY) {
+        Vec3 f = Vec3.atLowerCornerOf(forward.getNormal()), right = new Vec3(-f.z, 0, f.x);
+        List<Joint> left = new ArrayList<>(), rightL = new ArrayList<>();
+        for (Joint j : joints) {
+            if (!(isLegMode(j.mode) || j.mode == PROGRAM) || j.axis == Direction.Axis.Y) continue;
+            double fx = 0, fz = 0; int n = 0;
+            for (int fs : footSegs) {
+                int cur = fs, guard = 0; boolean under = false;
+                while (cur > 0 && guard++ < 1000) { Seg sg = segs.get(cur); if (sg.parentJoint < 0) break; if (sg.parentJoint == j.id) { under = true; break; } cur = Math.max(0, joints.get(sg.parentJoint).parentSeg); }
+                if (!under) continue;
+                for (BlockPos p : segs.get(fs).blocks) if (p.getY() == minY && solid.contains(p)) { fx += p.getX() + .5; fz += p.getZ() + .5; n++; }
+            }
+            if (n == 0) continue;
+            j.leg = true; j.foot = new Vec3(fx / n, minY, fz / n);
+            if (isLegMode(j.mode)) (j.pivot.subtract(com).dot(right) < 0 ? left : rightL).add(j);
+        }
+        Comparator<Joint> byFront = Comparator.comparingDouble(j -> -j.pivot.subtract(com).dot(f));
+        left.sort(byFront); rightL.sort(byFront);
+        for (int i = 0; i < left.size(); i++) left.get(i).autoPhase = (i % 2) * 0.5;
+        for (int i = 0; i < rightL.size(); i++) rightL.get(i).autoPhase = ((i + 1) % 2) * 0.5;
+    }
+
+    /**
+     * Walking from the feet: for one gait step (phase0 -> phase1), feet that move backwards stay planted and push the body forwards.
+     * Returns {local dx, local dz, total push force N}. desired = local direction the pilot wants (forward or back).
+     */
+    public double[] legStep(double phase0, double phase1, Vec3 desired, double time) {
+        double sx = 0, sz = 0, force = 0; int stance = 0;
+        for (Joint j : joints) {
+            if (!j.leg || !j.active()) continue;
+            double d = angle(j, phase1, 1, 0, time) - angle(j, phase0, 1, 0, time);
+            Vec3 a = axisVec(j.axis), r = j.foot.subtract(j.pivot);
+            Vec3 footMove = a.cross(r).scale(d);           // how the foot moves relative to the body
+            Vec3 bodyMove = new Vec3(-footMove.x, 0, -footMove.z);
+            if (bodyMove.dot(desired) <= 1e-9) continue;   // this foot is swinging forward through the air
+            sx += bodyMove.x; sz += bodyMove.z; stance++;
+            force += j.motorTorque / Math.max(0.5, r.length());
+        }
+        if (stance == 0) return new double[]{0, 0, 0};
+        return new double[]{sx / stance, sz / stance, force};
+    }
+
     public double coreGyro;
     public AABB support;
     /** How far (blocks) the centre of mass sits outside the support area. Zero when balanced. */
@@ -336,7 +429,7 @@ public class StructureModel {
     public double neededSpeed(Joint j) {
         double cps = gaitSpeed;
         return switch (j.mode) {
-            case WALK_A, WALK_B -> j.amp * 2 * Math.PI * cps;
+            case WALK_A, WALK_B -> 4 * j.amp * cps;
             case PROGRAM -> { int mx = 0; for (int i = 0; i < KEYS; i++) mx = Math.max(mx, Math.abs(j.keys[(i + 1) % KEYS] - j.keys[i])); yield mx * KEYS * cps * j.speedFactor; }
             case SWAY -> j.amp * 0.5 * 0.06 * 20;
             case SPIN -> 360;
@@ -374,8 +467,11 @@ public class StructureModel {
         if (!j.active()) return 0;
         double amp = Math.toRadians(j.amp);
         return switch (j.mode) {
-            case WALK_A -> amp * Math.sin(walkPhase) * walkBlend;
-            case WALK_B -> amp * Math.sin(walkPhase + Math.PI) * walkBlend;
+            case WALK_A, WALK_B -> {
+                // stance: foot sweeps from front (+amp) to back (-amp); swing: returns to the front
+                double f = walkPhase / (2 * Math.PI) + j.autoPhase + j.phase / 360.0; f -= Math.floor(f);
+                yield amp * (f < 0.5 ? 1 - 4 * f : -1 + 4 * (f - 0.5)) * walkBlend;
+            }
             case SPIN -> spin;
             case SWAY -> amp * 0.5 * Math.sin(time * 0.06 + j.id * 0.9);
             case PROGRAM -> {

@@ -25,7 +25,8 @@
             5,
             16,
             11
-          ]
+          ],
+          "tintindex": 9
         },
         "south": {
           "texture": "#side",
@@ -34,7 +35,8 @@
             5,
             16,
             11
-          ]
+          ],
+          "tintindex": 9
         },
         "east": {
           "texture": "#end",
@@ -43,7 +45,8 @@
             5,
             11,
             11
-          ]
+          ],
+          "tintindex": 9
         },
         "west": {
           "texture": "#end",
@@ -52,7 +55,8 @@
             5,
             11,
             11
-          ]
+          ],
+          "tintindex": 9
         },
         "up": {
           "texture": "#side",
@@ -61,7 +65,8 @@
             5,
             16,
             11
-          ]
+          ],
+          "tintindex": 9
         },
         "down": {
           "texture": "#side",
@@ -70,7 +75,8 @@
             5,
             16,
             11
-          ]
+          ],
+          "tintindex": 9
         }
       }
     },

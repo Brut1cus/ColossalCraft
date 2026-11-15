@@ -48,13 +48,14 @@ public final class SimpleParts {
     }
 
     /** Servo motor. Touching a joint: drives that joint. Not touching a joint: drives the Colossus over ground. */
-    public static class MotorBlock extends Block {
+    /** Servo motor. AXIS = its shaft. Motors of the same material and axis side by side work as one bigger motor. */
+    public static class MotorBlock extends RotatedPillarBlock {
         public final MaterialTier tier;
         public MotorBlock(MaterialTier t, Properties p) { super(p); tier = t; }
     }
 
     /** Gearbox: placed between Servo Motors and a joint. Multiplies torque by ratio (times efficiency) and divides speed by ratio. Chains multiply. */
-    public static class GearboxBlock extends Block {
+    public static class GearboxBlock extends RotatedPillarBlock {
         public final double ratio, efficiency; public final String label;
         public GearboxBlock(double ratio, double efficiency, String label, Properties p) { super(p); this.ratio = ratio; this.efficiency = efficiency; this.label = label; }
     }
@@ -126,7 +127,7 @@ public final class SimpleParts {
         public PilotSeatBlock(Properties p) { super(p); registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH)); }
         @Override protected com.mojang.serialization.MapCodec<? extends HorizontalDirectionalBlock> codec() { return null; }
         @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(FACING); }
-        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(FACING, c.getHorizontalDirection()); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(FACING, c.getHorizontalDirection().getOpposite()) /* faces the player who places it */; }
         @Override protected BlockState rotate(BlockState s, Rotation r) { return s.setValue(FACING, r.rotate(s.getValue(FACING))); }
         @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return SHAPES.get(s.getValue(FACING)); }
         @Override protected net.minecraft.world.InteractionResult useWithoutItem(BlockState s, net.minecraft.world.level.Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
@@ -159,5 +160,48 @@ public final class SimpleParts {
     /** Lift surface. */
     public static class SailBlock extends Block {
         public SailBlock(Properties p) { super(p); }
+    }
+
+    /** Propeller / rotor blade: put on the turning side of a Spin joint. Thrust grows with blade area and speed squared. */
+    public static class RotorBladeBlock extends SailBlock {
+        private static final java.util.EnumMap<Direction.Axis, VoxelShape> SH = new java.util.EnumMap<>(Direction.Axis.class);
+        static { SH.put(Direction.Axis.X, Block.box(0, 6, 3, 16, 10, 13)); SH.put(Direction.Axis.Y, Block.box(3, 0, 6, 13, 16, 10)); SH.put(Direction.Axis.Z, Block.box(3, 6, 0, 13, 10, 16)); }
+        public static final net.minecraft.world.level.block.state.properties.EnumProperty<Direction.Axis> AXIS = BlockStateProperties.AXIS;
+        public RotorBladeBlock(Properties p) { super(p); registerDefaultState(stateDefinition.any().setValue(AXIS, Direction.Axis.X)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(AXIS); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(AXIS, c.getClickedFace().getAxis()); }
+        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return SH.get(s.getValue(AXIS)); }
+        @Override protected BlockState rotate(BlockState s, Rotation r) { return RotatedPillarBlock.rotatePillar(s, r); }
+    }
+
+    /** Gantry Hoist: hangs from scaffolding. Right-click to grab the Colossus below and lift it clear of the ground, again to let go. */
+    public static class GantryHoistBlock extends Block {
+        public static final net.minecraft.world.level.block.state.properties.BooleanProperty ENGAGED = net.minecraft.world.level.block.state.properties.BooleanProperty.create("engaged");
+        private static final VoxelShape SHAPE = Shapes.or(Block.box(0, 10, 0, 16, 16, 16), Block.box(5, 2, 5, 11, 10, 11));
+        public GantryHoistBlock(Properties p) { super(p); registerDefaultState(stateDefinition.any().setValue(ENGAGED, false)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(ENGAGED); }
+        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return SHAPE; }
+        @Override protected net.minecraft.world.InteractionResult useWithoutItem(BlockState s, net.minecraft.world.level.Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
+            if (!level.isClientSide) {
+                boolean on = !s.getValue(ENGAGED);
+                level.setBlock(pos, s.setValue(ENGAGED, on), 3);
+                if (on) level.scheduleTick(pos, this, 1);
+                com.colossalcraft.colossus.ColossusEntity c = on ? com.colossalcraft.colossus.ColossusEntity.below(level, pos) : null;
+                if (!on) com.colossalcraft.colossus.ColossusEntity.releaseFrom(level, pos);
+                else if (c != null) c.holdBy(pos);
+                player.displayClientMessage(net.minecraft.network.chat.Component.literal(on ? (c != null ? "Hoist engaged: lifting the Colossus off the ground." : "Hoist engaged: waiting for a Colossus below (up to 32 blocks).") : "Hoist released."), true);
+            }
+            return net.minecraft.world.InteractionResult.sidedSuccess(level.isClientSide);
+        }
+        @Override protected void tick(BlockState s, net.minecraft.server.level.ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource r) {
+            if (!s.getValue(ENGAGED)) return;
+            com.colossalcraft.colossus.ColossusEntity c = com.colossalcraft.colossus.ColossusEntity.below(level, pos);
+            if (c != null && c.heldBy() == null) c.holdBy(pos);
+            level.scheduleTick(pos, this, 10);
+        }
+        @Override protected void onRemove(BlockState s, net.minecraft.world.level.Level level, BlockPos pos, BlockState ns, boolean moving) {
+            if (!ns.is(this)) com.colossalcraft.colossus.ColossusEntity.releaseFrom(level, pos);
+            super.onRemove(s, level, pos, ns, moving);
+        }
     }
 }

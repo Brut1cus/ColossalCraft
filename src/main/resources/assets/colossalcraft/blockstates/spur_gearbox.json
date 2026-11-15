@@ -1,7 +1,13 @@
 {
   "variants": {
-    "": {
-      "model": "colossalcraft:block/spur_gearbox"
+    "axis=x": {
+      "model": "colossalcraft:block/spur_gearbox_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/spur_gearbox_y"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/spur_gearbox_z"
     }
   }
 }

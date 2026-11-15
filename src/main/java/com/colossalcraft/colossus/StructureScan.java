@@ -139,6 +139,25 @@ public final class StructureScan {
         return t;
     }
 
+    /** Blocks for the 3D joints view: visible blocks (max ~6000), packed as {x|y|z, id}. id = part + 1, or 1000 + joint id. */
+    public static CompoundTag points(StructureModel m) {
+        CompoundTag t = new CompoundTag();
+        List<BlockPos> list = new ArrayList<>(m.visible);
+        for (BlockPos p : m.jointOf.keySet()) if (!m.visible.contains(p)) list.add(p);
+        int step = Math.max(1, list.size() / 6000);
+        int x0 = (int) m.localBounds.minX, y0 = (int) m.localBounds.minY, z0 = (int) m.localBounds.minZ;
+        int[] arr = new int[(list.size() / step + 1) * 2]; int n = 0;
+        for (int i = 0; i < list.size(); i += step) {
+            BlockPos p = list.get(i);
+            Integer jid = m.jointOf.get(p);
+            arr[n++] = (Math.min(1023, p.getX() - x0) << 20) | (Math.min(1023, p.getY() - y0) << 10) | Math.min(1023, p.getZ() - z0);
+            arr[n++] = jid != null ? 1000 + jid : m.segOf.getOrDefault(p, 0) + 1;
+        }
+        t.putIntArray("P", java.util.Arrays.copyOf(arr, n));
+        t.putInt("X0", x0); t.putInt("Y0", y0); t.putInt("Z0", z0);
+        return t;
+    }
+
     public static String tons(double kg) { return kg >= 1e6 ? String.format("%,.0f t", kg / 1000) : String.format("%.1f t", kg / 1000); }
 
     public static String kilo(double v) {
@@ -193,7 +212,7 @@ public final class StructureScan {
         ListTag ct = new ListTag();
         for (BlockPos[] c2 : r.contacts) { CompoundTag c = new CompoundTag(); c.putInt("X", c2[1].getX()); c.putInt("Y", c2[1].getY()); c.putInt("Z", c2[1].getZ()); ct.add(c); }
         t.put("Contacts", ct);
-        t.put("ViewX", view(m, 0, 1, 2, false, true)); t.put("ViewZ", view(m, 2, 1, 0, false, true)); t.put("ViewTop", view(m, 0, 2, 1, true, false));
+        t.put("Points", points(m));
         t.putBoolean("Legged", m.legged); t.putBoolean("FootOK", m.footingOk()); t.putDouble("FootGyro", m.footingGyro);
         ListTag feet = new ListTag();
         for (StructureModel.Foot f : m.feet) { CompoundTag c = new CompoundTag(); c.putInt("Seg", f.seg()); c.putDouble("Gyro", f.gyro()); c.putBoolean("Ok", f.ok()); c.putString("Problem", f.problem()); feet.add(c); }
