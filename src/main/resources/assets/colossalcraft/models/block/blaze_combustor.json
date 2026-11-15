@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "colossalcraft:block/blaze_combustor_front",
+    "side": "colossalcraft:block/blaze_combustor_side",
+    "top": "colossalcraft:block/blaze_combustor_top"
+  }
+}

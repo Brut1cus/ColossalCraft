@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "NLN",
+    "LIL",
+    "NLN"
+  ],
+  "key": {
+    "N": {
+      "item": "colossalcraft:neutronium_ingot"
+    },
+    "L": {
+      "item": "colossalcraft:vacuum_lattice"
+    },
+    "I": {
+      "item": "colossalcraft:ion_lance"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:graviton_lens",
+    "count": 1
+  }
+}

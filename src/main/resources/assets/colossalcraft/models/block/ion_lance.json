@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "colossalcraft:block/ion_lance_side",
+    "north": "colossalcraft:block/ion_lance_nozzle",
+    "south": "colossalcraft:block/ion_lance_side",
+    "east": "colossalcraft:block/ion_lance_side",
+    "west": "colossalcraft:block/ion_lance_side",
+    "up": "colossalcraft:block/ion_lance_side",
+    "down": "colossalcraft:block/ion_lance_side"
+  }
+}

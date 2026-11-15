@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "colossalcraft:block/blaze_jet_side",
+    "north": "colossalcraft:block/blaze_jet_nozzle",
+    "south": "colossalcraft:block/blaze_jet_side",
+    "east": "colossalcraft:block/blaze_jet_side",
+    "west": "colossalcraft:block/blaze_jet_side",
+    "up": "colossalcraft:block/blaze_jet_side",
+    "down": "colossalcraft:block/blaze_jet_side"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SES",
+    "EAE",
+    "SVS"
+  ],
+  "key": {
+    "S": {
+      "item": "colossalcraft:colossteel_ingot"
+    },
+    "E": {
+      "item": "colossalcraft:ender_coil"
+    },
+    "A": {
+      "item": "colossalcraft:arc_thruster"
+    },
+    "V": {
+      "item": "colossalcraft:void_casing"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:ion_lance",
+    "count": 1
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "colossalcraft:block/arc_thruster_side",
+    "north": "colossalcraft:block/arc_thruster_nozzle",
+    "south": "colossalcraft:block/arc_thruster_side",
+    "east": "colossalcraft:block/arc_thruster_side",
+    "west": "colossalcraft:block/arc_thruster_side",
+    "up": "colossalcraft:block/arc_thruster_side",
+    "down": "colossalcraft:block/arc_thruster_side"
+  }
+}

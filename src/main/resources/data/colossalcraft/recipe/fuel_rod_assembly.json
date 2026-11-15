@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "AGA",
+    "AFA",
+    "AGA"
+  ],
+  "key": {
+    "A": {
+      "item": "colossalcraft:reactor_alloy"
+    },
+    "G": {
+      "item": "minecraft:glowstone"
+    },
+    "F": {
+      "item": "colossalcraft:enriched_fuel_cell"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:fuel_rod_assembly",
+    "count": 2
+  }
+}

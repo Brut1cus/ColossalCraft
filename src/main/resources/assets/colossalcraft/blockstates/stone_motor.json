@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "colossalcraft:block/stone_motor"
+    }
+  }
+}

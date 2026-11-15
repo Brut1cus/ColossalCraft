@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "colossalcraft:block/gold_joint_end",
+    "side": "colossalcraft:block/gold_joint_side"
+  }
+}

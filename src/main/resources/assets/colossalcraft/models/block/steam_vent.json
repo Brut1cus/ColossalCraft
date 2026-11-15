@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "colossalcraft:block/steam_vent_side",
+    "north": "colossalcraft:block/steam_vent_nozzle",
+    "south": "colossalcraft:block/steam_vent_side",
+    "east": "colossalcraft:block/steam_vent_side",
+    "west": "colossalcraft:block/steam_vent_side",
+    "up": "colossalcraft:block/steam_vent_side",
+    "down": "colossalcraft:block/steam_vent_side"
+  }
+}

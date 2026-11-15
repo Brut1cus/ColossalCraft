@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ADA",
+    "LIL",
+    "ADA"
+  ],
+  "key": {
+    "A": {
+      "item": "colossalcraft:reactor_alloy"
+    },
+    "D": {
+      "item": "minecraft:diamond_block"
+    },
+    "L": {
+      "item": "colossalcraft:leadlined_casing"
+    },
+    "I": {
+      "item": "colossalcraft:ion_drive"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:fission_reactor",
+    "count": 1
+  }
+}

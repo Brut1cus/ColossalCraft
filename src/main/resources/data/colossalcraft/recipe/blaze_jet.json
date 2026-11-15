@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SBS",
+    "BVB",
+    "SBS"
+  ],
+  "key": {
+    "S": {
+      "item": "colossalcraft:colossteel_ingot"
+    },
+    "B": {
+      "item": "minecraft:blaze_rod"
+    },
+    "V": {
+      "item": "colossalcraft:steam_vent"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:blaze_jet",
+    "count": 1
+  }
+}

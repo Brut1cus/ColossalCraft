@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "colossalcraft:block/fusion_torus_front",
+    "side": "colossalcraft:block/containment_casing",
+    "top": "colossalcraft:block/containment_casing"
+  }
+}

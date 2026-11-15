@@ -1,8 +1,0 @@
-{
-  "parent": "minecraft:block/orientable",
-  "textures": {
-    "front": "colosalcraft:block/pilot_seat_front",
-    "side": "colosalcraft:block/pilot_seat_side",
-    "top": "colosalcraft:block/pilot_seat_top"
-  }
-}

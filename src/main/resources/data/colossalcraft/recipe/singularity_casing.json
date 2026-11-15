@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "NCN",
+    "C C",
+    "NCN"
+  ],
+  "key": {
+    "N": {
+      "item": "colossalcraft:neutronium_ingot"
+    },
+    "C": {
+      "item": "minecraft:crying_obsidian"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:singularity_casing",
+    "count": 8
+  }
+}

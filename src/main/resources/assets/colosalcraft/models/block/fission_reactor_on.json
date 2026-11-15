@@ -1,8 +1,0 @@
-{
-  "parent": "minecraft:block/orientable",
-  "textures": {
-    "front": "colosalcraft:block/fission_reactor_front_on",
-    "side": "colosalcraft:block/leadlined_casing",
-    "top": "colosalcraft:block/leadlined_casing"
-  }
-}

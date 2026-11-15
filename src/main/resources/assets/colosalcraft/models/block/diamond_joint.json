@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/cube_column",
-  "textures": {
-    "end": "colosalcraft:block/diamond_joint_end",
-    "side": "colosalcraft:block/diamond_joint_side"
-  }
-}

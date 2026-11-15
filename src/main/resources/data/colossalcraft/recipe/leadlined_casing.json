@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "AOA",
+    "SIS",
+    "AOA"
+  ],
+  "key": {
+    "A": {
+      "item": "colossalcraft:reactor_alloy"
+    },
+    "O": {
+      "item": "minecraft:obsidian"
+    },
+    "S": {
+      "item": "colossalcraft:colossteel_ingot"
+    },
+    "I": {
+      "item": "minecraft:iron_block"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:leadlined_casing",
+    "count": 8
+  }
+}

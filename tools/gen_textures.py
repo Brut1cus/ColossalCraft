@@ -1,7 +1,7 @@
-# Procedural 16x16 texture generator for ColosalCraft
+# Procedural 16x16 texture generator for ColossalCraft
 import random, os, math
 from PIL import Image
-OUT = os.path.join(os.path.dirname(__file__), '..', 'src/main/resources/assets/colosalcraft/textures')
+OUT = os.path.join(os.path.dirname(__file__), '..', 'src/main/resources/assets/colossalcraft/textures')
 B = os.path.join(OUT, 'block'); I = os.path.join(OUT, 'item')
 os.makedirs(B, exist_ok=True); os.makedirs(I, exist_ok=True)
 

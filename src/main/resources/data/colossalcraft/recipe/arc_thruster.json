@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SLS",
+    "RJR",
+    "SLS"
+  ],
+  "key": {
+    "S": {
+      "item": "colossalcraft:colossteel_ingot"
+    },
+    "L": {
+      "item": "minecraft:lightning_rod"
+    },
+    "R": {
+      "item": "minecraft:redstone_block"
+    },
+    "J": {
+      "item": "colossalcraft:blaze_jet"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:arc_thruster",
+    "count": 1
+  }
+}

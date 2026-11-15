@@ -1,8 +1,0 @@
-{
-  "parent": "minecraft:block/orientable",
-  "textures": {
-    "front": "colosalcraft:block/zero_point_core_front",
-    "side": "colosalcraft:block/singularity_casing",
-    "top": "colosalcraft:block/singularity_casing"
-  }
-}

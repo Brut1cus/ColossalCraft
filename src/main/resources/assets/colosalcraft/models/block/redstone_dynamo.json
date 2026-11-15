@@ -1,8 +1,0 @@
-{
-  "parent": "minecraft:block/orientable",
-  "textures": {
-    "front": "colosalcraft:block/redstone_dynamo_front",
-    "side": "colosalcraft:block/redstone_dynamo_side",
-    "top": "colosalcraft:block/redstone_dynamo_top"
-  }
-}

@@ -1,4 +1,4 @@
-# ColosalCraft: Design Blueprint
+# ColossalCraft: Design Blueprint
 *Minecraft 1.21.1 · Forge (NeoForge discussed in §0) · Build mechs, ships, robots and creatures as single moving bodies*
 
 ---
@@ -284,7 +284,7 @@ for each LEG:
 - **Body control:** the body's height and tilt are a PD target. Hip motors push the body toward the support polygon's centroid, offset in the direction of travel.
 
 ### 7.5 Balance (the hard part, solved in a game-friendly way)
-Real biped balance (ZMP, capture point) is a research problem. ColosalCraft uses three layers:
+Real biped balance (ZMP, capture point) is a research problem. ColossalCraft uses three layers:
 
 1. **Support-polygon check:** if the COM's ground projection leaves the polygon formed by the stance feet, the scheduler triggers a recovery step toward the falling direction (capture-point heuristic: `stepTo = COM + v·√(h/g)`).
 2. **Gyro Stabilizer block:** applies a corrective torque toward upright. Its strength is bounded by tier and power draw, so bipeds need gyros and hexapods don't.
@@ -458,8 +458,8 @@ V_displaced = submerged voxel volume + enclosed air volume below the waterline
 ## 13. Code architecture (packages)
 
 ```
-com.colosalcraft
-├── ColosalCraft.java              // mod entry, registries
+com.colossalcraft
+├── ColossalCraft.java              // mod entry, registries
 ├── registry/                      // Blocks, Items, BlockEntities, Entities, Menus, DataComponents
 ├── content/
 │   ├── block/ joint/ engine/ aero/ control/ power/

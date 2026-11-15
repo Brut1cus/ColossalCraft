@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "colossalcraft:item/enriched_fuel_cell"
+  }
+}

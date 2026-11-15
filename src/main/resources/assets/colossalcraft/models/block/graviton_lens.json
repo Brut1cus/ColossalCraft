@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "colossalcraft:block/graviton_lens_side",
+    "north": "colossalcraft:block/graviton_lens_nozzle",
+    "south": "colossalcraft:block/graviton_lens_side",
+    "east": "colossalcraft:block/graviton_lens_side",
+    "west": "colossalcraft:block/graviton_lens_side",
+    "up": "colossalcraft:block/graviton_lens_side",
+    "down": "colossalcraft:block/graviton_lens_side"
+  }
+}

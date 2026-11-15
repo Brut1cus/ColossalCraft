@@ -1,7 +1,7 @@
 # Generates blockstates, models, lang, loot tables, recipes and tags.
 import json, os
 R = os.path.join(os.path.dirname(__file__), '..', 'src/main/resources')
-NS = 'colosalcraft'
+NS = 'colossalcraft'
 A = f'{R}/assets/{NS}'; D = f'{R}/data/{NS}'
 def w(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -77,10 +77,10 @@ for i in ITEMS: w(f'{A}/models/item/{i}.json', {'parent': 'minecraft:item/genera
 lang = {f'block.{NS}.{b}': NAMES[b] for b in blocks}
 lang.update({f'item.{NS}.{i}': n for i, n in ITEMS.items()})
 lang.update({
-    'itemGroup.colosalcraft': 'ColosalCraft', 'entity.colosalcraft.colossus': 'Colossus',
-    'key.categories.colosalcraft': 'ColosalCraft', 'key.colosalcraft.pilot': 'Enter / Leave Pilot Throne',
-    'key.colosalcraft.descend': 'Colossus: Go Down', 'key.colosalcraft.hover': 'Colossus: Hover Assist', 'key.colosalcraft.disassemble': 'Colossus: Land (Disassemble)',
-    'death.attack.colosalcraft.crushed': '%1$s was crushed by a Colossus', 'death.attack.colosalcraft.crushed.player': '%1$s was crushed by a Colossus',
+    'itemGroup.colossalcraft': 'ColossalCraft', 'entity.colossalcraft.colossus': 'Colossus',
+    'key.categories.colossalcraft': 'ColossalCraft', 'key.colossalcraft.pilot': 'Enter / Leave Pilot Throne',
+    'key.colossalcraft.descend': 'Colossus: Go Down', 'key.colossalcraft.hover': 'Colossus: Hover Assist', 'key.colossalcraft.disassemble': 'Colossus: Land (Disassemble)',
+    'death.attack.colossalcraft.crushed': '%1$s was crushed by a Colossus', 'death.attack.colossalcraft.crushed.player': '%1$s was crushed by a Colossus',
 })
 w(f'{A}/lang/en_us.json', lang)
 
@@ -94,7 +94,7 @@ w(f'{D}/tags/block/assembly_blacklist.json', {'values': ['#minecraft:dirt', '#mi
     'minecraft:gravel', 'minecraft:bedrock', 'minecraft:end_stone', 'minecraft:snow', 'minecraft:snow_block', 'minecraft:clay', 'minecraft:ice', 'minecraft:packed_ice',
     'minecraft:short_grass', 'minecraft:tall_grass', 'minecraft:end_portal', 'minecraft:end_portal_frame', 'minecraft:nether_portal', 'minecraft:end_gateway',
     'minecraft:sculk', 'minecraft:mycelium', 'minecraft:soul_sand', 'minecraft:soul_soil', 'minecraft:magma_block', 'minecraft:obsidian_placeholder_skip'.replace('_placeholder_skip', '') if False else 'minecraft:bedrock']})
-w(f'{D}/damage_type/crushed.json', {'message_id': 'colosalcraft.crushed', 'scaling': 'never', 'exhaustion': 0.1})
+w(f'{D}/damage_type/crushed.json', {'message_id': 'colossalcraft.crushed', 'scaling': 'never', 'exhaustion': 0.1})
 w(f'{D}/colossal_density/defaults.json', {'values': {'minecraft:iron_block': 7870, 'minecraft:gold_block': 19300, 'minecraft:diamond_block': 3500, '#minecraft:logs': 650}})
 
 # --- recipes ---

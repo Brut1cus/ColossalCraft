@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ACA",
+    "CSC",
+    "ACA"
+  ],
+  "key": {
+    "A": {
+      "item": "colossalcraft:reactor_alloy"
+    },
+    "C": {
+      "item": "minecraft:copper_block"
+    },
+    "S": {
+      "item": "colossalcraft:colossteel_ingot"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:containment_casing",
+    "count": 8
+  }
+}

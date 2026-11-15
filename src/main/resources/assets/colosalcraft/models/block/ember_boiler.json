@@ -1,8 +1,0 @@
-{
-  "parent": "minecraft:block/orientable",
-  "textures": {
-    "front": "colosalcraft:block/ember_boiler_front",
-    "side": "colosalcraft:block/ember_boiler_side",
-    "top": "colosalcraft:block/ember_boiler_top"
-  }
-}

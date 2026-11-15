@@ -1,10 +1,10 @@
-# ColosalCraft (NeoForge 1.21.1)
+# ColossalCraft (NeoForge 1.21.1)
 
 Build Colossi (mechs, ships, robots, creatures) out of any blocks, then turn them into one moving thing.
 
 ## Install
 1. Install **NeoForge 21.1.x** for Minecraft **1.21.1**.
-2. Put `colosalcraft-1.21.1-0.1.0.jar` in your `mods` folder.
+2. Put `colossalcraft-1.21.1-0.1.0.jar` in your `mods` folder.
 
 ## Build it yourself
 ```bash

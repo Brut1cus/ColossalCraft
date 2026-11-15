@@ -3,8 +3,8 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.148'
 }
 version = '0.1.0'
-group = 'com.colosalcraft'
-base { archivesName = 'colosalcraft-1.21.1' }
+group = 'com.colossalcraft'
+base { archivesName = 'colossalcraft-1.21.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 repositories { mavenCentral() }
 // Create (optional dependency): compile against it, only load it at runtime with -PwithCreate
@@ -18,10 +18,10 @@ neoForge {
     version = '21.1.266'
     runs {
         client { client() }
-        devShots { client(); gameDirectory = project.file('run-devshots'); systemProperty 'colosalcraft.devshots', 'true'; programArguments.addAll('--width', '1280', '--height', '720') }
+        devShots { client(); gameDirectory = project.file('run-devshots'); systemProperty 'colossalcraft.devshots', 'true'; programArguments.addAll('--width', '1280', '--height', '720') }
         server { server(); programArgument '--nogui' }
-        gameTestServer { type = 'gameTestServer'; systemProperty 'neoforge.enabledGameTestNamespaces', 'colosalcraft' }
+        gameTestServer { type = 'gameTestServer'; systemProperty 'neoforge.enabledGameTestNamespaces', 'colossalcraft' }
     }
-    mods { colosalcraft { sourceSet sourceSets.main } }
+    mods { colossalcraft { sourceSet sourceSets.main } }
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release = 21 }

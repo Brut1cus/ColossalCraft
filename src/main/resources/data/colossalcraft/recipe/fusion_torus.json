@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ANA",
+    "PFP",
+    "ANA"
+  ],
+  "key": {
+    "A": {
+      "item": "colossalcraft:reactor_alloy"
+    },
+    "N": {
+      "item": "minecraft:nether_star"
+    },
+    "P": {
+      "item": "colossalcraft:plasma_coil"
+    },
+    "F": {
+      "item": "colossalcraft:fission_reactor"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:fusion_torus",
+    "count": 1
+  }
+}
