@@ -6,7 +6,7 @@ Build a machine block by block, place a **Hull Core**, and the Core turns those 
 - One self-contained jar. NeoForge is the only requirement; every other mod is an optional extra.
 - Design: [`docs/BLUEPRINT.md`](docs/BLUEPRINT.md) · Progress and next steps: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
-> **Status: Phase 1 (foundation), pre-alpha.** This branch is a ground-up rewrite of the earlier entity-based prototype. Scanning, Segment splitting, ship-space assembly/disassembly, the physics engine and the walker maths are in place. **Assembled Colossi are not drawn yet** (the Segment renderer and the click/collision redirect are Phase 2), so treat assembly as a developer preview. The old `colossalcraft-1.21.1-0.1.0.jar` in the repo root is the previous prototype and is unrelated to this code.
+> **Status: Phase 1 (foundation), pre-alpha.** This branch is a ground-up rewrite of the earlier entity-based prototype. Scanning, Segment splitting, ship-space assembly/disassembly, the physics engine and the walker maths are in place. **Assembled Colossi are not drawn yet** (the Segment renderer and the click/collision redirect are Phase 2), so treat assembly as a developer preview.
 
 ## Build
 
