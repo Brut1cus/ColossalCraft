@@ -50,6 +50,8 @@ public final class ColossusManager {
         final List<ConstraintHandle> joints = new ArrayList<>();
         double[] strainSeconds;
         boolean ready;
+        /** Physics time of the snapshot strain was last integrated on; -1 before the first. */
+        double strainTime = -1;
         /** Gyro Stabilizers, if any: the controller runs on the physics thread; the units map each rotor to its blocks. */
         GyroController gyros;
         final List<GyroBinding> gyroUnits = new ArrayList<>();
@@ -102,6 +104,9 @@ public final class ColossusManager {
     public void spawn(ColossusRecord r) {
         Live l = new Live();
         live.put(r.id, l);
+        // terrain first: the physics thread steps the new bodies at once, and the next game tick (which would refresh
+        // the cache) can be late; a machine with no ground under it falls into the floor and is thrown out crooked
+        cacheTerrainAround(r, level.getGameTime());
         List<BodyPlanner.SegmentInput> segs = segments(r);
         List<BodyDesc> bodies = new ArrayList<>();
         for (BodyPlanner.SegmentInput s : segs) bodies.add(BodyPlanner.body(s, r.id.hashCode() | 1));
@@ -117,8 +122,8 @@ public final class ColossusManager {
         if (ColossusConfig.JOINTS_HOLD_POSE.get()) {
             for (int i = 0; i < r.joints.size(); i++) {
                 ConstraintHandle h = l.joints.get(i);
-                double max = BodyPlanner.holdLimit(joint(r.joints.get(i)), ColossusData.SCALING);
-                if (h != null && max > 0) physics.enqueue(be -> be.setMotorTarget(h, 0, max));
+                BodyPlanner.JointInput ji = joint(r.joints.get(i));
+                physics.enqueue(be -> BodyPlanner.hold(be, h, ji, ColossusData.SCALING));
             }
         }
         attachGyros(r, l);
@@ -234,28 +239,24 @@ public final class ColossusManager {
 
         PhysicsWorld.Snapshot snap = physics().snapshot();
         long now = level.getGameTime();
-        double dt = 1 / 20.0;
         for (ColossusRecord r : data.all()) {
             Live l = live.get(r.id);
             if (l == null || !l.ready) continue;
             // 1. poses
-            double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE, minZ = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
             for (int i = 0; i < r.segments.size(); i++) {
                 BodyState bs = snap.body(l.bodies.get(i));
-                if (bs == BodyState.MISSING) continue;
-                ColossusRecord.SegmentRecord s = r.segments.get(i);
-                s.pose = bs.pose();
-                Vec3 p = s.pose.position();
-                double rad = Math.sqrt(s.cells.length) + 4;
-                minX = Math.min(minX, p.x() - rad); minY = Math.min(minY, p.y() - rad); minZ = Math.min(minZ, p.z() - rad);
-                maxX = Math.max(maxX, p.x() + rad); maxY = Math.max(maxY, p.y() + rad); maxZ = Math.max(maxZ, p.z() + rad);
+                if (bs != BodyState.MISSING) r.segments.get(i).pose = bs.pose();
             }
             // 2. terrain around the machine
-            if (minX < maxX) terrain.refresh(level, minX, minY - 4, minZ, maxX, maxY, maxZ, now, 40);
+            cacheTerrainAround(r, now);
             // 3. gyro power from redstone on board
             if (l.gyros != null) updateGyroThrottles(l);
             // 4. strain: creak -> slip -> break
-            if (ColossusConfig.JOINT_BREAKING.get()) trackStrain(r, l, snap, dt);
+            // integrate over physics time actually simulated: ticks that run back-to-back (catch-up after lag, test
+            // servers) see the same snapshot several times and must not count it again
+            double dt = l.strainTime < 0 ? 0 : snap.time() - l.strainTime;
+            l.strainTime = snap.time();
+            if (ColossusConfig.JOINT_BREAKING.get() && dt > 0) trackStrain(r, l, snap, Math.min(dt, 0.25));
         }
         if (now % 200 == 0) {
             terrain.evictOlderThan(now, 1200);
@@ -266,6 +267,18 @@ public final class ColossusManager {
             if (!live.containsKey(r.id)) continue;
             PacketDistributor.sendToPlayersInDimension(level, PoseSync.of(r));
         }
+    }
+
+    /** Refresh the physics terrain cache around every Segment of a Colossus (sections older than 2 s). */
+    private void cacheTerrainAround(ColossusRecord r, long now) {
+        double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE, minZ = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
+        for (ColossusRecord.SegmentRecord s : r.segments) {
+            Vec3 p = s.pose.position();
+            double rad = Math.sqrt(s.cells.length) + 4;
+            minX = Math.min(minX, p.x() - rad); minY = Math.min(minY, p.y() - rad); minZ = Math.min(minZ, p.z() - rad);
+            maxX = Math.max(maxX, p.x() + rad); maxY = Math.max(maxY, p.y() + rad); maxZ = Math.max(maxZ, p.z() + rad);
+        }
+        if (minX < maxX) terrain.refresh(level, minX, minY - 4, minZ, maxX, maxY, maxZ, now, 40);
     }
 
     private void trackStrain(ColossusRecord r, Live l, PhysicsWorld.Snapshot snap, double dt) {
@@ -314,6 +327,9 @@ public final class ColossusManager {
         }
         data.setDirty();
     }
+
+    /** Seconds of physics simulated in this dimension so far (the latest snapshot's time). */
+    public double physicsTime() { return physics == null ? 0 : physics.snapshot().time(); }
 
     public double lastStepMillis() { return physics == null ? 0 : physics.lastStepMillis(); }
 

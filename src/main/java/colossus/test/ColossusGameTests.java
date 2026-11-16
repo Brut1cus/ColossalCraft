@@ -220,4 +220,41 @@ public class ColossusGameTests {
             h.assertTrue(found, "disassembled gyro lost its spin");
         });
     }
+
+    /**
+     * A quadruped on ball-bearing hips stands on held joints instead of flopping onto its belly, and keeps standing past
+     * the strain meter's snap time: a plank-frame deck keeps each 1x1 hip at about 60% of its rating.
+     */
+    @GameTest(template = "empty16", timeoutTicks = 100_000)
+    public static void quadrupedStandsOnHeldBallHips(GameTestHelper h) {
+        floor(h);
+        for (int x = 5; x <= 9; x++) for (int z = 5; z <= 9; z++) if (x == 5 || x == 9 || z == 5 || z == 9 || x == 7 || z == 7) h.setBlock(x, 6, z, Blocks.OAK_PLANKS);
+        h.setBlock(7, 7, 7, ColossusRegistries.HULL_CORES.get(CoreTier.WOODEN).get());
+        for (int[] c : new int[][]{{5, 5}, {9, 5}, {5, 9}, {9, 9}}) {
+            h.setBlock(c[0], 5, c[1], ColossusRegistries.JOINTS.get(JointKind.BALL_BEARING).get().defaultBlockState().setValue(JointBlock.AXIS, Direction.Axis.Y));
+            for (int y = 2; y <= 4; y++) h.setBlock(c[0], y, c[1], Blocks.OAK_PLANKS);
+            h.setBlock(c[0], 1, c[1], ColossusRegistries.FOOT_PAD.get());
+        }
+        StructureScanner.Result scan = AssemblyService.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        h.assertTrue(scan.ok(), "scan errors: " + scan.errors());
+        UUID id = AssemblyService.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null);
+        h.assertTrue(id != null, "assembly failed");
+        ColossusRecord rec = ColossusSavedData.get(h.getLevel()).byId(id);
+        int root = rec.segments.indexOf(rec.root());
+        double y0 = rec.root().pose.position().y();
+        double start = ColossusManager.get(h.getLevel()).physicsTime();
+        // physics runs in real time while the test server races through ticks: wait for 4 s of simulated time (past
+        // the 3 s strain snap), not for a tick count
+        h.succeedWhen(() -> {
+            h.assertTrue(ColossusManager.get(h.getLevel()).physicsTime() - start > 4, "waiting for physics");
+            var pose = ColossusManager.get(h.getLevel()).pose(rec, root);
+            double drop = y0 - pose.position().y();
+            double tilt = Math.toDegrees(pose.rotation().angle());
+            long broken = rec.joints.stream().filter(j -> j.broken).count();
+            AssemblyService.disassemble(h.getLevel(), id, null);
+            if (drop > 0.5 || tilt > 5 || broken > 0) {
+                h.fail(String.format(java.util.Locale.ROOT, "deck dropped %.2f m, tilted %.1f°, %d joints snapped", drop, tilt, broken));
+            }
+        });
+    }
 }

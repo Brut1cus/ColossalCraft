@@ -9,13 +9,15 @@ final class XpbdJoint {
     final int id;
     final ConstraintDesc d;
     final XpbdBody a, b;
-    /** Rest relative rotation qA⁻¹·qB captured at creation (FIXED, DOCK, SLIDER, SPRING_DAMPER). */
+    /** Rest relative rotation qA⁻¹·qB captured at creation (FIXED, DOCK, SLIDER, SPRING_DAMPER; ball/universal servo reference). */
     final Quat restRel;
     /** Reference vectors perpendicular to the axis, in each body's frame, aligned at creation (angle = 0). */
     final Vec3 refA, refB;
 
     boolean motorOn;
     double motorTarget, motorMax;
+    /** Orientation servo (ball, universal): target rotation relative to {@link #restRel}, in A's frame. */
+    Quat motorRot = Quat.IDENTITY;
     boolean broken;
 
     // per-step accumulators

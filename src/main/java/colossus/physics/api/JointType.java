@@ -23,5 +23,12 @@ public enum JointType {
 
     JointType(int rot, int lin) { this.rotationalDof = rot; this.linearDof = lin; }
 
-    public boolean motorisable() { return this == HINGE || this == SWIVEL || this == SLIDER; }
+    /** Has a servo: a scalar one ({@link #scalarMotor}) or an orientation one ({@link #orientationMotor}). */
+    public boolean motorisable() { return scalarMotor() || orientationMotor(); }
+
+    /** Driven by {@code setMotorTarget}: an angle (hinge, swivel) or an offset (slider). */
+    public boolean scalarMotor() { return this == HINGE || this == SWIVEL || this == SLIDER; }
+
+    /** Driven by {@code setMotorOrientation}: a relative rotation (ball, universal). */
+    public boolean orientationMotor() { return this == BALL || this == UNIVERSAL; }
 }

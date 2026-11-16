@@ -19,7 +19,7 @@ import java.util.Map;
  * torques, matching the blueprint's τ = Kp·(θt − θ) − Kd·ω clamped by the joint's rated torque.
  * <p>
  * Implemented: dynamic and static bodies, gravity, external forces, hinge/swivel/ball/universal/slider/spring/fixed/dock
- * joints with limits, motors, breaking, voxel terrain contacts with static and dynamic Coulomb friction, restitution,
+ * joints with limits, motors (scalar for hinge/swivel/slider, 3-axis orientation for ball/universal), breaking, voxel terrain contacts with static and dynamic Coulomb friction, restitution,
  * sleeping, contact reporting.
  * Not yet: body-vs-body contacts, CCD, islands on worker threads (see docs/ROADMAP.md, Phase 1 → Phase 2).
  */
@@ -86,6 +86,15 @@ public final class XpbdBackend implements PhysicsBackend {
         if (b == null || b.isStatic) return;
         b.torque = b.torque.add(t);
         if (t.lengthSq() > 1e-6) b.wake();
+    }
+
+    @Override public void setMotorOrientation(ConstraintHandle c, Quat target, double max) {
+        XpbdJoint j = joints.get(c.id());
+        if (j == null) return;
+        j.motorOn = max > 0;
+        j.motorRot = target.normalize();
+        j.motorMax = max;
+        if (j.motorOn) { j.a.wake(); j.b.wake(); }
     }
 
     @Override public void setMotorTarget(ConstraintHandle c, double target, double max) {
@@ -393,6 +402,22 @@ public final class XpbdBackend implements PhysicsBackend {
                     b.jointTorque = b.jointTorque.add(r2.cross(fv));
                     a.jointForce = a.jointForce.sub(fv);
                     a.jointTorque = a.jointTorque.sub(r1.cross(fv));
+                }
+                case BALL, UNIVERSAL -> {
+                    // 3-axis PD toward qB* = qA·T·rest; error as a world rotation vector taking qB to qB*
+                    Quat target = a.q.mul(j.motorRot).mul(j.restRel);
+                    Vec3 err = target.mul(b.q.conjugate()).toRotationVector();
+                    Vec3 relW = b.w.sub(a.w);
+                    Vec3 u = err.lengthSq() > 1e-12 ? err.normalize() : relW.lengthSq() > 1e-12 ? relW.normalize() : Vec3.Y;
+                    double ieff = 1.0 / Math.max(1e-12, a.invMassRot(u) + b.invMassRot(u));
+                    double kp = d.stiffness() > 0 ? d.stiffness() : j.motorMax / 0.25;
+                    double kd = d.damping() > 0 ? d.damping() : 2 * Math.sqrt(kp * ieff);
+                    Vec3 tau = err.mul(kp).sub(relW.mul(kd));
+                    double tl = tau.length();
+                    if (tl > j.motorMax) tau = tau.mul(j.motorMax / tl);
+                    a.jointTorque = a.jointTorque.sub(tau);
+                    b.jointTorque = b.jointTorque.add(tau);
+                    if (tl > 1e-3) { a.wake(); b.wake(); }
                 }
                 default -> {}
             }

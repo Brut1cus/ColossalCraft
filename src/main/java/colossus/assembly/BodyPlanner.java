@@ -32,8 +32,10 @@ public final class BodyPlanner {
     public static ConstraintDesc constraint(JointInput j, List<SegmentInput> segs, List<BodyHandle> handles, double gravity) {
         SegmentInput a = segs.get(j.parent()), b = segs.get(j.child());
         Vec3 ax = j.axisVector();
+        // a universal joint is a cross: the child's hinge axis is perpendicular to the parent's, or the solver snaps it 90°
+        Vec3 axB = j.kind().type == JointType.UNIVERSAL ? (j.axis() == 0 ? Vec3.Y : j.axis() == 1 ? Vec3.Z : Vec3.X) : ax;
         ConstraintDesc d = ConstraintDesc.of(j.kind().type, handles.get(j.parent()), handles.get(j.child()),
-                j.anchorRel().sub(a.comRel()), j.anchorRel().sub(b.comRel()), ax, ax);
+                j.anchorRel().sub(a.comRel()), j.anchorRel().sub(b.comRel()), ax, axB);
         return switch (j.kind().type) {
             case HINGE, SLIDER -> d.withLimits(j.kind().lower, j.kind().upper);
             case BALL -> d.withCone(j.kind().upper, Math.toRadians(45));
@@ -50,6 +52,14 @@ public final class BodyPlanner {
         if (!j.kind().type.motorisable()) return 0;
         return j.kind().type == JointType.SLIDER ? scaling.loadCapacity(j.kind().component, j.footprint())
                 : scaling.torqueCapacity(j.kind().component, j.footprint());
+    }
+
+    /** Servo-hold a joint in the pose it was assembled in, at its rated torque (no-op for joints without a servo). */
+    public static void hold(PhysicsBackend backend, ConstraintHandle h, JointInput j, ComponentScaling scaling) {
+        double max = holdLimit(j, scaling);
+        if (h == null || max <= 0) return;
+        if (j.kind().type.orientationMotor()) backend.setMotorOrientation(h, colossus.physics.math.Quat.IDENTITY, max);
+        else backend.setMotorTarget(h, 0, max);
     }
 
     /** Load ratio of a joint (1 = at its rating) from the last physics step. */
