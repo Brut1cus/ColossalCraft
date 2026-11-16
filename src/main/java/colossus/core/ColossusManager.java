@@ -3,6 +3,9 @@ package colossus.core;
 import colossus.assembly.BodyPlanner;
 import colossus.assembly.JointKind;
 import colossus.brain.balance.GyroController;
+import colossus.brain.walker.Limb;
+import colossus.brain.walker.LimbDiscovery;
+import colossus.brain.walker.WalkerBrain;
 import colossus.brain.balance.GyroStabilizer;
 import colossus.core.data.ColossusData;
 import colossus.gyro.GyroStabilizerBlockEntity;
@@ -55,6 +58,8 @@ public final class ColossusManager {
         /** Gyro Stabilizers, if any: the controller runs on the physics thread; the units map each rotor to its blocks. */
         GyroController gyros;
         final List<GyroBinding> gyroUnits = new ArrayList<>();
+        /** The walker brain, if the machine has legs (runs on the physics thread every step). */
+        WalkerBrain walker;
     }
 
     /** One rotor and the ship-space blocks whose redstone power drives it. */
@@ -127,7 +132,82 @@ public final class ColossusManager {
             }
         }
         attachGyros(r, l);
+        attachWalker(r, l);
+        attachSeats(r);
         l.ready = true;
+    }
+
+    /**
+     * One rideable seat entity per Pilot Seat block. A player already sitting on one before assembly keeps their seat:
+     * that temporary seat is adopted instead of making a new one.
+     */
+    private void attachSeats(ColossusRecord r) {
+        for (int si = 0; si < r.segments.size(); si++) {
+            ColossusRecord.SegmentRecord s = r.segments.get(si);
+            for (long c : s.cells) {
+                if (!level.getBlockState(s.plotPos(c)).is(ColossusRegistries.PILOT_SEAT.get())) continue;
+                BlockPos before = r.origin.offset(BlockPos.of(c));
+                colossus.pilot.SeatEntity seat = level.getEntitiesOfClass(colossus.pilot.SeatEntity.class, new net.minecraft.world.phys.AABB(before))
+                        .stream().filter(e -> e.colossus() == null).findFirst().orElse(null);
+                if (seat == null) {
+                    seat = colossus.pilot.SeatEntity.onBlock(level, before);
+                    level.addFreshEntity(seat);
+                }
+                seat.link(r.id, si, c);
+            }
+        }
+    }
+
+    /**
+     * Finds the machine's legs and, if it has at least two, starts a walker brain that drives their joints. Foot Pad
+     * Segments count as feet even if they do not touch the ground at assembly; snapped joints are left out.
+     */
+    private void attachWalker(ColossusRecord r, Live l) {
+        if (l.walker != null) { physics().removeController(l.walker); l.walker = null; }
+        if (!ColossusConfig.WALKER_ENABLED.get()) return;
+        List<BodyPlanner.SegmentInput> segs = segments(r);
+        List<BodyPlanner.JointInput> joints = new ArrayList<>();
+        for (ColossusRecord.JointRecord j : r.joints) joints.add(joint(j));
+        int root = Math.max(0, r.segments.indexOf(r.root()));
+        boolean[] footPad = new boolean[r.segments.size()];
+        for (int si = 0; si < footPad.length; si++) {
+            ColossusRecord.SegmentRecord s = r.segments.get(si);
+            for (long c : s.cells) if (level.getBlockState(s.plotPos(c)).is(ColossusRegistries.FOOT_PAD.get())) { footPad[si] = true; break; }
+        }
+        List<Limb> limbs = LimbDiscovery.discover(segs, joints, root, si -> footPad[si], ji -> r.joints.get(ji).broken || l.joints.get(ji) == null);
+        if (limbs.size() < 2) return;
+        List<WalkerBrain.Leg> legs = new ArrayList<>();
+        for (Limb limb : limbs) {
+            WalkerBrain.Drive[] drives = new WalkerBrain.Drive[limb.joints().length];
+            for (int k = 0; k < drives.length; k++) drives[k] = drive(limb.joints()[k], joints, segs, l);
+            WalkerBrain.Drive ankle = limb.hasAnkle() ? drive(limb.ankle(), joints, segs, l) : null;
+            legs.add(new WalkerBrain.Leg(limb, drives, ankle, l.bodies.get(limb.footSegment()), segs.get(limb.footSegment()).comRel()));
+        }
+        l.walker = new WalkerBrain(l.bodies.get(root), segs.get(root).comRel(), legs, terrain, ColossusConfig.walkerParams());
+        physics().addController(l.walker);
+    }
+
+    private WalkerBrain.Drive drive(int ji, List<BodyPlanner.JointInput> joints, List<BodyPlanner.SegmentInput> segs, Live l) {
+        BodyPlanner.JointInput j = joints.get(ji);
+        return new WalkerBrain.Drive(l.joints.get(ji), j.kind().type, BodyPlanner.holdLimit(j, ColossusData.SCALING),
+                l.bodies.get(j.parent()), l.bodies.get(j.child()), j.anchorRel().sub(segs.get(j.parent()).comRel()), j.axisVector());
+    }
+
+    /**
+     * Walking command for a legged Colossus, in its own frame: forward and left speed (m/s), turn rate (rad/s, positive
+     * turns left). Returns false if it has no walker brain.
+     */
+    public boolean command(UUID id, double forward, double strafe, double yawRate) {
+        Live l = live.get(id);
+        if (l == null || l.walker == null) return false;
+        l.walker.command(forward, strafe, yawRate);
+        return true;
+    }
+
+    /** Number of legs the walker brain drives (0 if none). */
+    public int legCount(UUID id) {
+        Live l = live.get(id);
+        return l == null || l.walker == null ? 0 : l.walker.legs().size();
     }
 
     /** Finds Gyro Stabilizer blocks in each Segment's plot, merges N×N squares into rotors and starts their controller. */
@@ -221,6 +301,7 @@ public final class ColossusManager {
     public void despawn(UUID id) {
         Live l = live.remove(id);
         if (l == null || physics == null) return;
+        if (l.walker != null) physics.removeController(l.walker);
         if (l.gyros != null) {
             physics.removeController(l.gyros);
             storeGyroSpin(l); // disassembly copies the block entities next, so the rotors keep their speed
@@ -296,6 +377,7 @@ public final class ColossusManager {
                 physics.removeConstraint(h);
                 l.joints.set(i, null);
                 Colossus.LOG.info("Colossus {} joint {} ({}) snapped at {}% load", r.id, i, j.kind, Math.round(ratio * 100));
+                if (l.walker != null) attachWalker(r, l); // re-discover the legs that are left
             }
         }
     }

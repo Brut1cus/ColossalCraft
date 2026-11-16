@@ -3,6 +3,7 @@ package colossus.core;
 import colossus.assembly.AssemblyService;
 import colossus.shipyard.ColossusRecord;
 import colossus.shipyard.ColossusSavedData;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -18,7 +19,7 @@ import java.util.UUID;
 
 /**
  * Operator commands (permission level 2):
- * {@code /colossus scan <pos>}, {@code assemble <pos>}, {@code disassemble <id>}, {@code disassemble nearest}, {@code gyros},
+ * {@code /colossus scan <pos>}, {@code assemble <pos>}, {@code disassemble <id>}, {@code disassemble nearest}, {@code walk <forward> [turn]}, {@code stop}, {@code gyros},
  * {@code list}, {@code physics}.
  */
 public final class ColossusCommands {
@@ -55,6 +56,12 @@ public final class ColossusCommands {
                     }
                     return 1;
                 }))
+                .then(Commands.literal("walk")
+                        .then(Commands.argument("forward", DoubleArgumentType.doubleArg(-5, 5))
+                                .executes(c -> walk(c, DoubleArgumentType.getDouble(c, "forward"), 0))
+                                .then(Commands.argument("turn", DoubleArgumentType.doubleArg(-2, 2))
+                                        .executes(c -> walk(c, DoubleArgumentType.getDouble(c, "forward"), DoubleArgumentType.getDouble(c, "turn"))))))
+                .then(Commands.literal("stop").executes(c -> walk(c, 0, 0)))
                 .then(Commands.literal("gyros").executes(c -> {
                     ColossusRecord r = nearest(c.getSource());
                     if (r == null) { reply(c, "No Colossus in this dimension."); return 0; }
@@ -73,6 +80,16 @@ public final class ColossusCommands {
                     reply(c, String.format(Locale.ROOT, "backend=%s lastStep=%.2fms", m.backendId(), m.lastStepMillis()));
                     return 1;
                 })));
+    }
+
+    /** Walking command for the nearest legged Colossus: forward speed (m/s) and turn rate (rad/s, positive = left). */
+    private static int walk(CommandContext<CommandSourceStack> c, double forward, double turn) {
+        ColossusRecord r = nearest(c.getSource());
+        if (r == null) { reply(c, "No Colossus in this dimension."); return 0; }
+        ColossusManager m = ColossusManager.get(c.getSource().getLevel());
+        if (!m.command(r.id, forward, 0, turn)) { reply(c, "Nearest Colossus has no legs the walker brain can drive."); return 0; }
+        reply(c, forward == 0 && turn == 0 ? "Stopping." : String.format(Locale.ROOT, "Walking: %.2f m/s, turning %.2f rad/s (%d legs).", forward, turn, m.legCount(r.id)));
+        return 1;
     }
 
     private static ColossusRecord nearest(CommandSourceStack src) {

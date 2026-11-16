@@ -91,37 +91,37 @@
       "restitution": 0.1
     },
     "colossus:thrust_bearing": {
-      "mass": 1000,
+      "mass": 250,
       "friction": 0.4,
       "restitution": 0.1
     },
     "colossus:ball_bearing": {
-      "mass": 1000,
+      "mass": 250,
       "friction": 0.4,
       "restitution": 0.1
     },
     "colossus:universal_joint": {
-      "mass": 1000,
+      "mass": 250,
       "friction": 0.4,
       "restitution": 0.1
     },
     "colossus:swivel_bearing": {
-      "mass": 1000,
+      "mass": 250,
       "friction": 0.4,
       "restitution": 0.1
     },
     "colossus:slider_joint": {
-      "mass": 1000,
+      "mass": 250,
       "friction": 0.4,
       "restitution": 0.1
     },
     "colossus:spring_damper": {
-      "mass": 1000,
+      "mass": 250,
       "friction": 0.4,
       "restitution": 0.1
     },
     "colossus:fixed_weld": {
-      "mass": 1000,
+      "mass": 250,
       "friction": 0.4,
       "restitution": 0.1
     }

@@ -6,6 +6,10 @@ import colossus.assembly.JointBlock;
 import colossus.assembly.JointKind;
 import colossus.assembly.graph.CoreTier;
 import colossus.gyro.GyroStabilizerBlock;
+import colossus.pilot.PilotSeatBlock;
+import colossus.pilot.SeatEntity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
 import colossus.gyro.GyroStabilizerBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -29,12 +33,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 
-/** Content: Hull Cores (five tiers), Core Lattice, the seven joint blocks, the Foot Pad and the Gyro Stabilizer. */
+/** Content: Hull Cores (five tiers), Core Lattice, the seven joint blocks, the Foot Pad, the Gyro Stabilizer and the Pilot Seat. */
 public final class ColossusRegistries {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Colossus.MODID);
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Colossus.MODID);
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Colossus.MODID);
     public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Colossus.MODID);
+    public static final DeferredRegister<EntityType<?>> ENTITY_TYPES = DeferredRegister.create(Registries.ENTITY_TYPE, Colossus.MODID);
 
     private static final List<DeferredItem<?>> TAB_ITEMS = new ArrayList<>();
 
@@ -75,6 +80,16 @@ public final class ColossusRegistries {
     /** Powered control-moment gyro; an N×N square merges into one rotor (see {@code GyroStabilizer}). Redstone sets its throttle. */
     public static final DeferredBlock<GyroStabilizerBlock> GYRO_STABILIZER = block("gyro_stabilizer", GyroStabilizerBlock::new, metal());
 
+    // ---- Piloting ----
+    /** Sit here to drive the Colossus (W/S, A/D). */
+    public static final DeferredBlock<PilotSeatBlock> PILOT_SEAT = block("pilot_seat", PilotSeatBlock::new,
+            BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2f).sound(SoundType.WOOD).noOcclusion());
+
+    /** The rideable, invisible part of a Pilot Seat; follows the seat on an assembled Colossus. Never saved. */
+    public static final DeferredHolder<EntityType<?>, EntityType<SeatEntity>> SEAT = ENTITY_TYPES.register("seat",
+            () -> EntityType.Builder.<SeatEntity>of(SeatEntity::new, MobCategory.MISC).sized(0.9f, 0.5f)
+                    .clientTrackingRange(10).updateInterval(1).noSave().noSummon().build("seat"));
+
     // ---- Block entities ----
     @SuppressWarnings("DataFlowIssue")
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HullCoreBlockEntity>> HULL_CORE_BE = BLOCK_ENTITIES.register("hull_core",
@@ -96,6 +111,7 @@ public final class ColossusRegistries {
         ITEMS.register(modBus);
         BLOCK_ENTITIES.register(modBus);
         TABS.register(modBus);
+        ENTITY_TYPES.register(modBus);
     }
 
     private ColossusRegistries() {}
