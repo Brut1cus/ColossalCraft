@@ -6,7 +6,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,18 +41,18 @@ public final class StructureSync {
     }
 
     public static void sendToLevel(ServerLevel level, ColossusRecord r) {
-        for (SegmentBlocks p : payloads(level, r, SegmentBlocks.MAX_CELLS_PER_PART)) PacketDistributor.sendToPlayersInDimension(level, p);
+        for (SegmentBlocks p : payloads(level, r, SegmentBlocks.MAX_CELLS_PER_PART)) colossus.net.Send.toLevel(level, p);
     }
 
     public static void sendAll(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
         for (ColossusRecord r : ColossusSavedData.get(level).all()) {
-            for (SegmentBlocks p : payloads(level, r, SegmentBlocks.MAX_CELLS_PER_PART)) PacketDistributor.sendToPlayer(player, p);
+            for (SegmentBlocks p : payloads(level, r, SegmentBlocks.MAX_CELLS_PER_PART)) colossus.net.Send.toPlayer(player, p);
         }
     }
 
     public static void removed(ServerLevel level, UUID id) {
-        PacketDistributor.sendToPlayersInDimension(level, new ColossusRemoved(id));
+        colossus.net.Send.toLevel(level, new ColossusRemoved(id));
     }
 
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent e) {

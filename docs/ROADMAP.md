@@ -34,7 +34,10 @@ Build the hardest shared foundation first (ship space, interaction and the physi
 | Gyro Stabilizer (blueprint "stabilizer assist" / hovercraft gyro): powered control-moment gyro. Torque capacity = rotor angular momentum I·ω × gimbal rate; an N×N square merges into one rotor with N⁴ the inertia; bigger rotors spin up slower; a momentum budget means it rejects disturbances but cannot hold a permanent lean. Redstone sets the throttle until kinetic power exists. Runs every physics step via `PhysicsWorld.StepController`; `/colossus gyros` shows rpm, capacity and saturation. Rotors spin up in the world and keep their speed through assembly. A gyro steadies its own Segment and whatever is joined to it by torque-carrying joints; unmotorised ball bearings pass no torque, so a gyro on a torso cannot stop free-hipped legs tipping (seen in a client test: the torso stayed level 4 s longer, then the legs went). Walkers still need the brain's hip and knee servos | done |
 
 | Walker brain, part 1 (`brain.walker`, pure Java, not wired into the game yet): limb discovery (root-to-foot joint chains → IK chains), exact ball-hip + hinge-knee leg IK, and `WalkerBrain` as a physics-step controller: desired body pose from the command, lateral-sequence walk with body sway toward the next support triangle, a static-stability check on CoM and capture point, footholds clamped to the leg's reach, touchdown planted where the foot really lands, IK against the desired pose, joint servos. Servos are now stiff enough to hold a loaded leg within a few degrees (full torque at 0.05 rad). Tested: IK exact, servos land feet where IK says, the machine stands under the brain, the first step lands near its foothold upright | done |
-| Walker brain, part 2: sustained walking. A first step works, but over several gait cycles tilt builds up and steps get vetoed until the test quadruped topples. Likely next: body attitude feedback in the stance legs (or the blueprint's force-based balance: wrench → foot forces → τ = JᵀF), ankles that keep feet flat, swing timing. Then `/colossus walk`, the Pilot Seat and the 50-block gate GameTest | to do |
+| Walker brain, part 2: sustained walking. Ankles (a ball or universal joint at the end of a leg keeps the foot level; legs without one rock on their foot edges), a crawl gait (duty 0.9, four-legged phases between swings), body sway proportional to the time between lift-offs, turning on the spot, and a servo budget sized to the machine's weight. A plank-built 2x2 quadruped walks ~0.45 m/s at under 2° of tilt; a 63 t stone-decked one too | done |
+| Walker in the game: legged Colossi get a walker brain on spawn (Foot Pad Segments count as feet; rebuilt when a joint snaps); `/colossus walk <forward> [turn]` and `/colossus stop`; server config `[walker]` (enabled, maxSpeed, crouch, stepHeight, turnRate) | done |
+| Pilot Seat: sit on it (before or after assembly) to drive the Colossus with W/S and A/D; a rideable seat entity follows the seat block on the moving body; `PilotInput` payload client → server, checked against the rider, stops the machine when input stops | done |
+| **Gate:** a quadruped walks 50 blocks upright (GameTest `quadrupedWalksFiftyBlocks`) | see CI |
 
 Still to do in Phase 2:
 
@@ -43,7 +46,7 @@ Still to do in Phase 2:
 - Assembly GUI (3D preview, colour-coded Segments, CoM and support polygon), Rigging GUI (limits, gains, solver, pole vector), Gait Editor.
 - Walker brain wired in: limb discovery, gait planner → foot targets → IK → joint motor targets, balance controller torques.
 - Jolt backend via jolt-jni (jar-in-jar natives) behind `PhysicsBackend`; body-vs-body contacts and CCD in XPBD.
-- Pilot Seat, control discovery and binding profiles, control-state payload.
+- Control discovery and binding profiles (more controls than walk and turn: gaits, crouch, joints, weapons).
 - **Gate:** a quadruped walks 50 blocks upright (GameTest).
 
 ## Phase 3+: per the blueprint
@@ -52,6 +55,8 @@ Wheels and drivetrains → propellers, wings, balloons, hovercraft → kinetic n
 
 ## Decisions taken where the blueprint disagreed with itself
 
+- **Joint ratings and block masses:** the first component ratings (1x1 bearing 20 kN·m, 50 kN) could not hold one iron block (7.8 t) at arm's length, and a plank-built walker on 2x2 joints could barely move. Base ratings are 5x higher (bearing and joint 100 kN·m, 250 kN; still × N³ / N^2.5 for merged joints), joint housings weigh 250 kg (hollow) and Hull Cores 1 t (one controller block, not a lump of metal). All of it is data (`component_scaling`, `block_physics`).
+- **Quadruped gaits:** the blueprint lists walk, trot, pace and gallop. A slower statically stable crawl (the walk's lateral sequence at duty 0.9) is the default under 0.6 m/s: at duty 0.75 exactly three feet are always down and walkers could not shift their weight safely.
 - **Quadruped walk order:** the gait list says "walk (lateral sequence)", but the example offsets in the gait table (0, 0.5, 0.75, 0.25 for LF, RF, LH, RH) give a diagonal sequence under the planner's phase convention, which needs large diagonal body sways. The walk uses 0.5, 0, 0.75, 0.25: legs lift LH, LF, RH, RF.
 
 - **Gyro power:** the blueprint says the Gyro Stabilizer is "powered" but kinetic and electric power arrive in Phase 3+. Until then redstone signal strength is its throttle; it will also accept shaft power or FE when those exist.

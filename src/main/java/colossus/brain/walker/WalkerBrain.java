@@ -125,7 +125,10 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
     private double desiredYaw, standDrop, footBaseY;
 
     /** Legs are re-ordered front to back, left before right (LF, RF, LH, RH, ...), the order gaits expect. */
-    public WalkerBrain(BodyHandle root, Vec3 rootComRel, List<Leg> legs, TerrainQuery terrain, Params params) {
+    /**
+     * @param machineMass the whole Colossus's mass, kg: sets the servo budget (see {@link #servoBudget})
+     */
+    public WalkerBrain(BodyHandle root, Vec3 rootComRel, double machineMass, List<Leg> legs, TerrainQuery terrain, Params params) {
         if (legs.size() < 2) throw new IllegalArgumentException("a walker needs at least two legs");
         this.root = root;
         this.rootComRel = rootComRel;
@@ -141,6 +144,7 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
         double r = 0;
         for (Leg l : legs) { Vec3 h = l.limb.hip().sub(rootComRel); r += Math.hypot(h.x(), h.z()); }
         this.turnRadius = Math.max(0.5, r / legs.size());
+        this.budget = servoBudget(machineMass, legLength, legs.size());
         this.planner = new GaitPlanner(GaitPattern.defaultsFor(legs.size()), Math.max(0.3, legLength * params.strideScale()));
         for (Leg l : this.legs) l.limb.chain().pole = new Vec3(0, 0, 1); // knees forward
     }
@@ -272,7 +276,7 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
             // foot orientation relative to the shin so that, in the world, the foot is level and faces the heading
             Quat shin = l.limb.chain().forward(r.pose()).end();
             Quat footInBase = inv.mul(heading);
-            backend.setMotorOrientation(l.ankle.handle(), shin.conjugate().mul(footInBase).normalize(), l.ankle.maxEffort() * share);
+            backend.setMotorOrientation(l.ankle.handle(), shin.conjugate().mul(footInBase).normalize(), effort(l.ankle) * share);
         }
     }
 
@@ -281,16 +285,29 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
     private double speedNow, turnRate;
     /** Mean horizontal distance from the root's centre of mass to the hips: the radius feet circle when turning. */
     private final double turnRadius;
+    /** Most torque any leg servo is asked for, N·m (see {@link #servoBudget}). */
+    private final double budget;
+
+    /**
+     * Servo torque the legs need, with margin: about 1.5× the machine's weight over a leg's length, shared by the legs.
+     * Servos use the smaller of this and their joint's rating. Servo stiffness follows the torque limit, so a light
+     * machine on big joints would otherwise be driven by springs sized for a far heavier load and shake itself apart.
+     */
+    public static double servoBudget(double machineMass, double legLength, int legs) {
+        return 1.5 * machineMass * 9.81 * legLength / Math.max(1, legs);
+    }
     /** Steps on which commanded progress paused, by reason (diagnostics). */
     public int pausedLead, pausedHeld;
-    private static final double CROUCH_SECONDS = 1.0;
+    private static final double CROUCH_SECONDS = 1.0, ANKLELESS_CROUCH = 0.05;
 
     private void initialise(Pose body) {
         initialised = true;
         desiredPos = body.position();
         basePos = body.position();
         standY0 = body.position().y();
-        standDrop = params.crouch() * legLength;
+        // legs without an ankle tilt their feet onto an edge as the knees bend: crouch them only a little
+        boolean ankles = legs.stream().allMatch(l -> l.limb.hasAnkle());
+        standDrop = (ankles ? params.crouch() : Math.min(params.crouch(), ANKLELESS_CROUCH)) * legLength;
         desiredYaw = headingOf(body.rotation());
         double y = 0;
         for (Leg l : legs) {
@@ -371,12 +388,16 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
         return p.y();
     }
 
-    private static void drive(PhysicsBackend backend, Leg l, IkChain.Pose pose, double share) {
+    private void drive(PhysicsBackend backend, Leg l, IkChain.Pose pose, double share) {
         for (int k = 0; k < l.drives.length; k++) {
             Drive d = l.drives[k];
             if (d.handle() == null) continue;
-            if (d.type().orientationMotor()) backend.setMotorOrientation(d.handle(), pose.ball[k], d.maxEffort() * share);
-            else backend.setMotorTarget(d.handle(), pose.value[k], d.maxEffort() * share);
+            double effort = effort(d) * share;
+            if (d.type().orientationMotor()) backend.setMotorOrientation(d.handle(), pose.ball[k], effort);
+            else backend.setMotorTarget(d.handle(), pose.value[k], effort);
         }
     }
+
+    /** Servo limit for a drive: its rating, but no more than the machine needs (sliders carry force: rating only). */
+    private double effort(Drive d) { return d.type() == JointType.SLIDER ? d.maxEffort() : Math.min(d.maxEffort(), budget); }
 }

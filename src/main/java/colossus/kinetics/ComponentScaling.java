@@ -30,16 +30,19 @@ public final class ComponentScaling {
 
     public ComponentScaling() { resetToDefaults(); }
 
-    /** Built-in defaults; datapacks override per component. */
+    /**
+     * Built-in defaults; datapacks override per component. Calibrated against block masses (iron 7.8 t, planks 0.4 t):
+     * a 1x1 bearing holds a few hundred kilonewton-metres' worth of machine, so a plank-built walker on 2x2 joints walks.
+     */
     public void resetToDefaults() {
-        table.put(Component.BEARING, new Coefficients(20_000, 50_000, 3.0, 2.5));
-        table.put(Component.JOINT, new Coefficients(20_000, 50_000, 3.0, 2.5));
-        table.put(Component.GEARBOX, new Coefficients(15_000, 40_000, 3.0, 2.5));
-        table.put(Component.SHAFT, new Coefficients(10_000, 30_000, 3.0, 2.0));
-        table.put(Component.MOTOR, new Coefficients(8_000, 30_000, 3.0, 2.0));
-        table.put(Component.PROPELLER_HUB, new Coefficients(12_000, 40_000, 3.0, 2.5));
-        table.put(Component.WHEEL, new Coefficients(10_000, 60_000, 3.0, 2.5));
-        table.put(Component.PISTON, new Coefficients(0, 120_000, 0, 2.5));
+        table.put(Component.BEARING, new Coefficients(100_000, 250_000, 3.0, 2.5));
+        table.put(Component.JOINT, new Coefficients(100_000, 250_000, 3.0, 2.5));
+        table.put(Component.GEARBOX, new Coefficients(75_000, 200_000, 3.0, 2.5));
+        table.put(Component.SHAFT, new Coefficients(50_000, 150_000, 3.0, 2.0));
+        table.put(Component.MOTOR, new Coefficients(40_000, 150_000, 3.0, 2.0));
+        table.put(Component.PROPELLER_HUB, new Coefficients(60_000, 200_000, 3.0, 2.5));
+        table.put(Component.WHEEL, new Coefficients(50_000, 300_000, 3.0, 2.5));
+        table.put(Component.PISTON, new Coefficients(0, 600_000, 0, 2.5));
     }
 
     public void set(Component c, Coefficients k) { table.put(c, k); }

@@ -253,7 +253,8 @@ public class ColossusGameTests {
             long broken = rec.joints.stream().filter(j -> j.broken).count();
             AssemblyService.disassemble(h.getLevel(), id, null);
             if (drop > 0.5 || tilt > 5 || broken > 0) {
-                h.fail(String.format(java.util.Locale.ROOT, "deck dropped %.2f m, tilted %.1f°, %d joints snapped", drop, tilt, broken));
+                // a real failure, not an assertion succeedWhen would retry
+                throw new IllegalStateException(String.format(java.util.Locale.ROOT, "deck dropped %.2f m, tilted %.1f°, %d joints snapped", drop, tilt, broken));
             }
         });
     }
@@ -308,10 +309,10 @@ public class ColossusGameTests {
             worst[0] = Math.max(worst[0], tilt);
             long broken = rec.joints.stream().filter(j -> j.broken).count();
             double walked = pose.position().z() - z0;
-            if (level.getGameTime() % 100 == 0) colossus.core.Colossus.LOG.info("WALKDBG physics={} walked={} tilt={} x={}", String.format("%.1f", m.physicsTime() - t0), String.format("%.2f", walked), String.format("%.1f", tilt), String.format("%.2f", pose.position().x()));
             if (tilt > 30 || broken > 0 || m.physicsTime() - t0 > 240) {
                 cleanUp(level, id, forced);
-                h.fail(String.format(java.util.Locale.ROOT, "walked %.1f blocks in %.0f s, tilt %.1f° (worst %.1f°), %d joints snapped",
+                // not h.fail(): succeedWhen retries assertion failures until the timeout, so a fall would hang the test
+                throw new IllegalStateException(String.format(java.util.Locale.ROOT, "walked %.1f blocks in %.0f s, tilt %.1f° (worst %.1f°), %d joints snapped",
                         walked, m.physicsTime() - t0, tilt, worst[0], broken));
             }
             h.assertTrue(walked >= 50, String.format(java.util.Locale.ROOT, "walked %.1f of 50 blocks", walked));
@@ -342,8 +343,9 @@ public class ColossusGameTests {
         var seats = h.getLevel().getEntitiesOfClass(colossus.pilot.SeatEntity.class, new net.minecraft.world.phys.AABB(h.absolutePos(new BlockPos(6, 5, 6))).inflate(1));
         h.assertTrue(seats.size() == 1 && id.equals(seats.get(0).colossus()), "expected one seat linked to the Colossus, found " + seats.size());
         var seat = seats.get(0);
-        var pilot = h.makeMockServerPlayerInLevel();
-        var bystander = h.makeMockServerPlayerInLevel();
+        var pilot = net.neoforged.neoforge.common.util.FakePlayerFactory.get(h.getLevel(), new com.mojang.authlib.GameProfile(UUID.randomUUID(), "pilot"));
+        var bystander = net.neoforged.neoforge.common.util.FakePlayerFactory.get(h.getLevel(), new com.mojang.authlib.GameProfile(UUID.randomUUID(), "bystander"));
+        pilot.setPos(seat.getX(), seat.getY(), seat.getZ());
         h.assertTrue(pilot.startRiding(seat), "could not sit down");
         h.assertTrue(colossus.pilot.PilotInput.apply(pilot, new colossus.pilot.PilotInput(seat.getId(), 1, 0)), "rider's input refused");
         h.assertTrue(!colossus.pilot.PilotInput.apply(bystander, new colossus.pilot.PilotInput(seat.getId(), 1, 0)), "a bystander steered");

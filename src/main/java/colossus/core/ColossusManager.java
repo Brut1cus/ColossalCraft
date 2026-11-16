@@ -23,7 +23,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -183,7 +182,9 @@ public final class ColossusManager {
             WalkerBrain.Drive ankle = limb.hasAnkle() ? drive(limb.ankle(), joints, segs, l) : null;
             legs.add(new WalkerBrain.Leg(limb, drives, ankle, l.bodies.get(limb.footSegment()), segs.get(limb.footSegment()).comRel()));
         }
-        l.walker = new WalkerBrain(l.bodies.get(root), segs.get(root).comRel(), legs, terrain, ColossusConfig.walkerParams());
+        double mass = 0;
+        for (BodyPlanner.SegmentInput seg : segs) mass += seg.mass();
+        l.walker = new WalkerBrain(l.bodies.get(root), segs.get(root).comRel(), mass, legs, terrain, ColossusConfig.walkerParams());
         physics().addController(l.walker);
     }
 
@@ -346,7 +347,7 @@ public final class ColossusManager {
         // 5. pose sync to clients (drawn by colossus.client.render.SegmentRenderer)
         for (ColossusRecord r : data.all()) {
             if (!live.containsKey(r.id)) continue;
-            PacketDistributor.sendToPlayersInDimension(level, PoseSync.of(r));
+            colossus.net.Send.toLevel(level, PoseSync.of(r));
         }
     }
 

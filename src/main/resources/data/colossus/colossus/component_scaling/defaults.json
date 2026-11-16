@@ -1,49 +1,49 @@
 {
   "bearing": {
-    "base_torque": 20000,
-    "base_load": 50000,
+    "base_torque": 100000,
+    "base_load": 250000,
     "torque_exponent": 3.0,
     "load_exponent": 2.5
   },
   "joint": {
-    "base_torque": 20000,
-    "base_load": 50000,
+    "base_torque": 100000,
+    "base_load": 250000,
     "torque_exponent": 3.0,
     "load_exponent": 2.5
   },
   "gearbox": {
-    "base_torque": 15000,
-    "base_load": 40000,
+    "base_torque": 75000,
+    "base_load": 200000,
     "torque_exponent": 3.0,
     "load_exponent": 2.5
   },
   "shaft": {
-    "base_torque": 10000,
-    "base_load": 30000,
+    "base_torque": 50000,
+    "base_load": 150000,
     "torque_exponent": 3.0,
     "load_exponent": 2.0
   },
   "motor": {
-    "base_torque": 8000,
-    "base_load": 30000,
+    "base_torque": 40000,
+    "base_load": 150000,
     "torque_exponent": 3.0,
     "load_exponent": 2.0
   },
   "propeller_hub": {
-    "base_torque": 12000,
-    "base_load": 40000,
+    "base_torque": 60000,
+    "base_load": 200000,
     "torque_exponent": 3.0,
     "load_exponent": 2.5
   },
   "wheel": {
-    "base_torque": 10000,
-    "base_load": 60000,
+    "base_torque": 50000,
+    "base_load": 300000,
     "torque_exponent": 3.0,
     "load_exponent": 2.5
   },
   "piston": {
     "base_torque": 0,
-    "base_load": 120000,
+    "base_load": 600000,
     "torque_exponent": 0.0,
     "load_exponent": 2.5
   }

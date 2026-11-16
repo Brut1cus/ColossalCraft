@@ -221,7 +221,9 @@ def data():
             'colossus:foot_pad': p(300, 0.9, 0.05), 'colossus:gyro_stabilizer': p(3000, 0.4, 0.1),
             # bearing housings are mostly hollow; heavy housings overload small joints and make legs as heavy as the
             # body they carry (a walker needs light legs)
-            **{f'colossus:{j}': p(250, 0.4, 0.1) for j, _ in JOINTS}},
+            **{f'colossus:{j}': p(250, 0.4, 0.1) for j, _ in JOINTS},
+            # a Hull Core is one controller block, not a 7.8 t lump of metal at the top of the machine
+            **{f'colossus:{t}_hull_core': p(1000, 0.5, 0.1) for t, _ in TIERS}},
         'tags': {
             'c:storage_blocks/steel': p(7850, 0.4, 0.2), 'c:storage_blocks/lead': p(11300, 0.5, 0.05),
             'minecraft:wool': p(50, 0.6), 'minecraft:leaves': p(50, 0.6), 'minecraft:planks': p(400, 0.5, 0.2),
@@ -230,15 +232,17 @@ def data():
             'wool': p(50), 'plant': p(50), 'wood': p(500, 0.5, 0.2), 'stone': p(1600, 0.7), 'metal': p(7800, 0.4, 0.2),
             'netherite': p(15000, 0.5), 'glass': p(800, 0.3), 'gravel': p(1500, 0.6), 'sand': p(1500, 0.5), 'snow': p(300, 0.1),
             'slime': p(1100, 0.8, 0.8), 'mud': p(1700, 0.8, 0.0)}})
+    # calibrated against block masses: at the first values (5x lower) a 1x1 joint could not hold one iron block at arm's
+    # length and a plank-built walker on 2x2 joints could barely move
     w(f'{D}/colossus/component_scaling/defaults.json', {
-        'bearing': {'base_torque': 20000, 'base_load': 50000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
-        'joint': {'base_torque': 20000, 'base_load': 50000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
-        'gearbox': {'base_torque': 15000, 'base_load': 40000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
-        'shaft': {'base_torque': 10000, 'base_load': 30000, 'torque_exponent': 3.0, 'load_exponent': 2.0},
-        'motor': {'base_torque': 8000, 'base_load': 30000, 'torque_exponent': 3.0, 'load_exponent': 2.0},
-        'propeller_hub': {'base_torque': 12000, 'base_load': 40000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
-        'wheel': {'base_torque': 10000, 'base_load': 60000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
-        'piston': {'base_torque': 0, 'base_load': 120000, 'torque_exponent': 0.0, 'load_exponent': 2.5}})
+        'bearing': {'base_torque': 100000, 'base_load': 250000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
+        'joint': {'base_torque': 100000, 'base_load': 250000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
+        'gearbox': {'base_torque': 75000, 'base_load': 200000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
+        'shaft': {'base_torque': 50000, 'base_load': 150000, 'torque_exponent': 3.0, 'load_exponent': 2.0},
+        'motor': {'base_torque': 40000, 'base_load': 150000, 'torque_exponent': 3.0, 'load_exponent': 2.0},
+        'propeller_hub': {'base_torque': 60000, 'base_load': 200000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
+        'wheel': {'base_torque': 50000, 'base_load': 300000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
+        'piston': {'base_torque': 0, 'base_load': 600000, 'torque_exponent': 0.0, 'load_exponent': 2.5}})
     gaits = {
         'quad_walk': ([0.5, 0, 0.75, 0.25], 0.75, False, 0, 1.5), 'quad_trot': ([0, 0.5, 0.5, 0], 0.5, True, 1.2, 4),
         'quad_pace': ([0, 0.5, 0, 0.5], 0.5, True, 1.2, 4), 'quad_gallop': ([0, 0.1, 0.6, 0.5], 0.35, True, 3.5, 99),
