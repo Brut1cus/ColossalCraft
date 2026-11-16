@@ -66,10 +66,26 @@ public final class LimbDiscovery {
     }
 
     /** IK chain for a joint path: one link per driven joint, passive joints folded into the bones. */
+    /** An ankle sits at most this far above the foot point. */
+    public static final double ANKLE_HEIGHT = 2.0;
+
     static Limb build(List<BodyPlanner.JointInput> joints, List<Integer> path, Vec3 foot, int footSeg) {
+        Vec3 footPointOf = foot;
         List<Integer> driven = new ArrayList<>();
         for (int j : path) if (joints.get(j).kind().type.motorisable()) driven.add(j);
         if (driven.isEmpty()) return null;
+        // an ankle: a ball or universal joint at the end of a leg of two or more driven joints, close above the foot.
+        // It keeps the foot flat; the IK chain ends at it
+        int ankle = -1;
+        Vec3 ankleRest = null;
+        int last = driven.get(driven.size() - 1);
+        BodyPlanner.JointInput lj = joints.get(last);
+        if (driven.size() >= 3 && lj.kind().type.orientationMotor() && lj.anchorRel().y() - foot.y() <= ANKLE_HEIGHT) {
+            ankle = last;
+            ankleRest = lj.anchorRel();
+            driven.remove(driven.size() - 1);
+            foot = ankleRest; // the chain's end effector
+        }
         List<IkChain.Link> links = new ArrayList<>();
         for (int i = 0; i < driven.size(); i++) {
             BodyPlanner.JointInput ji = joints.get(driven.get(i));
@@ -87,7 +103,8 @@ public final class LimbDiscovery {
             });
         }
         int[] ids = driven.stream().mapToInt(Integer::intValue).toArray();
-        return new Limb(ids, new IkChain(links), joints.get(ids[0]).anchorRel(), foot, footSeg);
+        Vec3 footRest = ankle >= 0 ? footPointOf : foot;
+        return new Limb(ids, new IkChain(links), joints.get(ids[0]).anchorRel(), footRest, footSeg, ankle, ankleRest);
     }
 
     /** Is this joint type one the brain drives? */

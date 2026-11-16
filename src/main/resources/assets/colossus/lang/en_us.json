@@ -7,6 +7,8 @@
   "block.colossus.singularity_hull_core": "Singularity Hull Core",
   "block.colossus.core_lattice": "Core Lattice",
   "block.colossus.foot_pad": "Foot Pad",
+  "block.colossus.pilot_seat": "Pilot Seat",
+  "entity.colossus.seat": "Pilot Seat",
   "block.colossus.gyro_stabilizer": "Gyro Stabilizer",
   "block.colossus.thrust_bearing": "Thrust Bearing",
   "block.colossus.ball_bearing": "Ball Bearing",

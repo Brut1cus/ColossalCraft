@@ -20,6 +20,7 @@ JOINTS = [('thrust_bearing', 'Thrust Bearing'), ('ball_bearing', 'Ball Bearing')
           ('fixed_weld', 'Fixed Weld')]
 SIMPLE = [('core_lattice', 'Core Lattice'), ('foot_pad', 'Foot Pad')]
 GYRO = ('gyro_stabilizer', 'Gyro Stabilizer')
+SEAT = ('pilot_seat', 'Pilot Seat')
 
 # ----------------------------------------------------------------------------- textures
 def textures():
@@ -78,6 +79,15 @@ def textures():
         for y in range(6, 10): px(side, x, y, shade(brass, 0.6 + 0.04 * ((x + y) % 4)))
     for (x, y) in [(2, 2), (13, 2), (2, 13), (13, 13)]: px(side, x, y, shade(housing, 1.5))
     side.save(f'{out}/gyro_stabilizer_side.png')
+    # Pilot Seat: wool cushion on a dark wood frame
+    wood = (110, 80, 50); cushion = (170, 40, 40)
+    top = img(cushion, 5151, 0.06); frame(top, shade(cushion, 0.8))
+    for i in range(3, 13): px(top, i, 7, shade(cushion, 0.75)); px(top, 7, i, shade(cushion, 0.75))
+    top.save(f'{out}/pilot_seat_top.png')
+    side = img(wood, 5252); frame(side, wood)
+    for x in range(16):
+        for y in range(0, 4): px(side, x, y, shade(cushion, 0.9))
+    side.save(f'{out}/pilot_seat_side.png')
     joint_col = {'thrust_bearing': (200, 160, 70), 'ball_bearing': (180, 180, 190), 'universal_joint': (150, 170, 200),
                  'swivel_bearing': (190, 120, 80), 'slider_joint': (120, 160, 120), 'spring_damper': (200, 200, 90),
                  'fixed_weld': (150, 150, 150)}
@@ -113,6 +123,13 @@ def models():
         w(f'{A}/blockstates/{n}.json', {'variants': {'': {'model': f'{NS}:block/{n}'}}})
         w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}'})
         lang[f'block.{NS}.{n}'] = name
+    n, name = SEAT
+    w(f'{A}/models/block/{n}.json', {'parent': 'minecraft:block/slab',
+                                      'textures': {'bottom': f'{NS}:block/{n}_side', 'top': f'{NS}:block/{n}_top', 'side': f'{NS}:block/{n}_side'}})
+    w(f'{A}/blockstates/{n}.json', {'variants': {'': {'model': f'{NS}:block/{n}'}}})
+    w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}'})
+    lang[f'block.{NS}.{n}'] = name
+    lang['entity.colossus.seat'] = 'Pilot Seat'
     n, name = GYRO
     w(f'{A}/models/block/{n}.json', {'parent': 'minecraft:block/cube_column',
                                       'textures': {'end': f'{NS}:block/{n}_end', 'side': f'{NS}:block/{n}_side'}})
@@ -157,9 +174,9 @@ def shapeless(name, items, count=1):
                                   'result': {'id': f'{NS}:{name}', 'count': count}})
 
 def data():
-    all_blocks = [f'{t}_hull_core' for t, _ in TIERS] + [n for n, _ in SIMPLE] + [n for n, _ in JOINTS] + [GYRO[0]]
+    all_blocks = [f'{t}_hull_core' for t, _ in TIERS] + [n for n, _ in SIMPLE] + [n for n, _ in JOINTS] + [GYRO[0], SEAT[0]]
     for n in all_blocks: loot(n)
-    axe = ['wooden_hull_core']
+    axe = ['wooden_hull_core', 'pilot_seat']
     hoe = ['foot_pad']
     w(f'{ROOT}/data/minecraft/tags/block/mineable/pickaxe.json', {'values': [f'{NS}:{n}' for n in all_blocks if n not in axe + hoe]})
     w(f'{ROOT}/data/minecraft/tags/block/mineable/axe.json', {'values': [f'{NS}:{n}' for n in axe]})
@@ -187,6 +204,7 @@ def data():
     shapeless('spring_damper', [f'{NS}:slider_joint', '#c:slime_balls', '#c:ingots/iron'])
     shaped('fixed_weld', ['NIN', 'I I', 'NIN'], {'I': '#c:ingots/iron', 'N': '#c:nuggets/iron'}, 4)
     shaped('foot_pad', ['WWW', 'III'], {'W': '#minecraft:wool', 'I': '#c:ingots/iron'}, 2)
+    shaped('pilot_seat', ['  W', 'WWW', 'P P'], {'W': '#minecraft:wool', 'P': '#minecraft:planks'})
     shaped('gyro_stabilizer', ['IRI', 'GBG', 'IRI'], {'I': '#c:ingots/iron', 'R': '#c:dusts/redstone', 'G': '#c:ingots/gold',
                                                       'B': '#c:storage_blocks/iron'})
 
@@ -201,8 +219,11 @@ def data():
             'minecraft:copper_block': p(8900, 0.4, 0.2), 'minecraft:ice': p(900, 0.02), 'minecraft:packed_ice': p(900, 0.02),
             'minecraft:blue_ice': p(900, 0.01), 'minecraft:slime_block': p(1100, 0.8, 0.8), 'minecraft:honey_block': p(1400, 0.9, 0.0),
             'colossus:foot_pad': p(300, 0.9, 0.05), 'colossus:gyro_stabilizer': p(3000, 0.4, 0.1),
-            # bearing housings are mostly hollow; at solid-steel mass a 1x1 joint could not carry its own housings
-            **{f'colossus:{j}': p(1000, 0.4, 0.1) for j, _ in JOINTS}},
+            # bearing housings are mostly hollow; heavy housings overload small joints and make legs as heavy as the
+            # body they carry (a walker needs light legs)
+            **{f'colossus:{j}': p(250, 0.4, 0.1) for j, _ in JOINTS},
+            # a Hull Core is one controller block, not a 7.8 t lump of metal at the top of the machine
+            **{f'colossus:{t}_hull_core': p(1000, 0.5, 0.1) for t, _ in TIERS}},
         'tags': {
             'c:storage_blocks/steel': p(7850, 0.4, 0.2), 'c:storage_blocks/lead': p(11300, 0.5, 0.05),
             'minecraft:wool': p(50, 0.6), 'minecraft:leaves': p(50, 0.6), 'minecraft:planks': p(400, 0.5, 0.2),
@@ -211,15 +232,17 @@ def data():
             'wool': p(50), 'plant': p(50), 'wood': p(500, 0.5, 0.2), 'stone': p(1600, 0.7), 'metal': p(7800, 0.4, 0.2),
             'netherite': p(15000, 0.5), 'glass': p(800, 0.3), 'gravel': p(1500, 0.6), 'sand': p(1500, 0.5), 'snow': p(300, 0.1),
             'slime': p(1100, 0.8, 0.8), 'mud': p(1700, 0.8, 0.0)}})
+    # calibrated against block masses: at the first values (5x lower) a 1x1 joint could not hold one iron block at arm's
+    # length and a plank-built walker on 2x2 joints could barely move
     w(f'{D}/colossus/component_scaling/defaults.json', {
-        'bearing': {'base_torque': 20000, 'base_load': 50000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
-        'joint': {'base_torque': 20000, 'base_load': 50000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
-        'gearbox': {'base_torque': 15000, 'base_load': 40000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
-        'shaft': {'base_torque': 10000, 'base_load': 30000, 'torque_exponent': 3.0, 'load_exponent': 2.0},
-        'motor': {'base_torque': 8000, 'base_load': 30000, 'torque_exponent': 3.0, 'load_exponent': 2.0},
-        'propeller_hub': {'base_torque': 12000, 'base_load': 40000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
-        'wheel': {'base_torque': 10000, 'base_load': 60000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
-        'piston': {'base_torque': 0, 'base_load': 120000, 'torque_exponent': 0.0, 'load_exponent': 2.5}})
+        'bearing': {'base_torque': 100000, 'base_load': 250000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
+        'joint': {'base_torque': 100000, 'base_load': 250000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
+        'gearbox': {'base_torque': 75000, 'base_load': 200000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
+        'shaft': {'base_torque': 50000, 'base_load': 150000, 'torque_exponent': 3.0, 'load_exponent': 2.0},
+        'motor': {'base_torque': 40000, 'base_load': 150000, 'torque_exponent': 3.0, 'load_exponent': 2.0},
+        'propeller_hub': {'base_torque': 60000, 'base_load': 200000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
+        'wheel': {'base_torque': 50000, 'base_load': 300000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
+        'piston': {'base_torque': 0, 'base_load': 600000, 'torque_exponent': 0.0, 'load_exponent': 2.5}})
     gaits = {
         'quad_walk': ([0.5, 0, 0.75, 0.25], 0.75, False, 0, 1.5), 'quad_trot': ([0, 0.5, 0.5, 0], 0.5, True, 1.2, 4),
         'quad_pace': ([0, 0.5, 0, 0.5], 0.5, True, 1.2, 4), 'quad_gallop': ([0, 0.1, 0.6, 0.5], 0.35, True, 3.5, 99),

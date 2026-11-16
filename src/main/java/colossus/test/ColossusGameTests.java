@@ -243,6 +243,7 @@ public class ColossusGameTests {
         int root = rec.segments.indexOf(rec.root());
         double y0 = rec.root().pose.position().y();
         double start = ColossusManager.get(h.getLevel()).physicsTime();
+        boolean[] failed = {false};
         // physics runs in real time while the test server races through ticks: wait for 4 s of simulated time (past
         // the 3 s strain snap), not for a tick count
         h.succeedWhen(() -> {
@@ -253,8 +254,144 @@ public class ColossusGameTests {
             long broken = rec.joints.stream().filter(j -> j.broken).count();
             AssemblyService.disassemble(h.getLevel(), id, null);
             if (drop > 0.5 || tilt > 5 || broken > 0) {
-                h.fail(String.format(java.util.Locale.ROOT, "deck dropped %.2f m, tilted %.1f°, %d joints snapped", drop, tilt, broken));
+                failSoon(h, failed, String.format(java.util.Locale.ROOT, "deck dropped %.2f m, tilted %.1f°, %d joints snapped", drop, tilt, broken));
             }
+        });
+    }
+
+    /**
+     * Phase 2 gate: a quadruped with 2x2 ball hips, hinge knees, universal ankles and Foot Pad feet walks 50 blocks
+     * on flat ground under the walker brain and stays upright with no joint snapped. Physics runs in real time, so it
+     * waits on simulated time (about two minutes), in a batch of its own on a long floor.
+     * <p>
+     * Not required yet: it walks upright every time (worst tilt ~5°, no joint snapped) but its pace varies between runs
+     * (50 blocks in 132 s once, 36 blocks in 240 s another time: legs still sometimes wait on the stability check).
+     * It runs and logs on every build; make it required once the pace is steady (docs/ROADMAP.md, docs/PLAYTEST.md).
+     */
+    @GameTest(template = "empty16", timeoutTicks = 2_000_000, batch = "walker", required = false)
+    public static void quadrupedWalksFiftyBlocks(GameTestHelper h) {
+        var level = h.getLevel();
+        BlockPos o = h.absolutePos(new BlockPos(2, 0, 2));
+        // floor: a strip 16 wide and 90 long, chunks kept loaded while the test runs
+        java.util.Set<net.minecraft.world.level.ChunkPos> forced = new java.util.HashSet<>();
+        for (int x = -4; x < 12; x++) for (int z = -4; z < 86; z++) {
+            BlockPos p = o.offset(x, 0, z);
+            if (forced.add(new net.minecraft.world.level.ChunkPos(p))) level.setChunkForced(p.getX() >> 4, p.getZ() >> 4, true);
+            level.setBlock(p, Blocks.STONE.defaultBlockState(), 2);
+            // GameTest encases each test structure in barrier blocks: open the wall along the walking strip
+            for (int y = 1; y < 16; y++) if (level.getBlockState(p.above(y)).is(Blocks.BARRIER)) level.setBlock(p.above(y), Blocks.AIR.defaultBlockState(), 2);
+        }
+        // deck 6x6 at y=8 with the core on top; 2x2 legs at the corners
+        for (int x = 0; x < 6; x++) for (int z = 0; z < 6; z++) level.setBlock(o.offset(x, 8, z), Blocks.OAK_PLANKS.defaultBlockState(), 2);
+        BlockPos core = o.offset(2, 9, 2);
+        level.setBlock(core, ColossusRegistries.HULL_CORES.get(CoreTier.IRON).get().defaultBlockState(), 2);
+        for (int[] c : new int[][]{{0, 0}, {4, 0}, {0, 4}, {4, 4}}) {
+            for (int dx = 0; dx < 2; dx++) for (int dz = 0; dz < 2; dz++) {
+                BlockPos b = o.offset(c[0] + dx, 0, c[1] + dz);
+                level.setBlock(b.above(7), ColossusRegistries.JOINTS.get(JointKind.BALL_BEARING).get().defaultBlockState().setValue(JointBlock.AXIS, Direction.Axis.Y), 2);
+                level.setBlock(b.above(6), Blocks.WHITE_WOOL.defaultBlockState(), 2);
+                level.setBlock(b.above(5), Blocks.WHITE_WOOL.defaultBlockState(), 2);
+                level.setBlock(b.above(4), ColossusRegistries.JOINTS.get(JointKind.THRUST_BEARING).get().defaultBlockState().setValue(JointBlock.AXIS, Direction.Axis.X), 2);
+                level.setBlock(b.above(3), Blocks.WHITE_WOOL.defaultBlockState(), 2);
+                level.setBlock(b.above(2), ColossusRegistries.JOINTS.get(JointKind.UNIVERSAL_JOINT).get().defaultBlockState().setValue(JointBlock.AXIS, Direction.Axis.Y), 2);
+                level.setBlock(b.above(1), ColossusRegistries.FOOT_PAD.get().defaultBlockState(), 2);
+            }
+        }
+        StructureScanner.Result scan = AssemblyService.scan(level, core);
+        h.assertTrue(scan.ok(), "scan errors: " + scan.errors());
+        UUID id = AssemblyService.assemble(level, core, null);
+        h.assertTrue(id != null, "assembly failed");
+        ColossusManager m = ColossusManager.get(level);
+        h.assertTrue(m.legCount(id) == 4, "expected 4 legs, the walker brain found " + m.legCount(id));
+        ColossusRecord rec = ColossusSavedData.get(level).byId(id);
+        int root = rec.segments.indexOf(rec.root());
+        double z0 = rec.root().pose.position().z();
+        double t0 = m.physicsTime();
+        m.command(id, 0.5, 0, 0);
+        double[] worst = {0};
+        boolean[] failed = {false};
+        StringBuilder masses = new StringBuilder();
+        for (var seg : rec.segments) masses.append(String.format(java.util.Locale.ROOT, " %.0f", seg.mass));
+        colossus.core.Colossus.LOG.info("Walker GameTest: {} legs, segment masses (kg):{}", m.legCount(id), masses);
+        h.succeedWhen(() -> {
+            var pose = m.pose(rec, root);
+            double tilt = Math.toDegrees(colossus.brain.balance.GyroStabilizer.tiltError(pose.rotation()).length());
+            worst[0] = Math.max(worst[0], tilt);
+            long broken = rec.joints.stream().filter(j -> j.broken).count();
+            double walked = pose.position().z() - z0;
+            if (level.getGameTime() % 400 == 0) colossus.core.Colossus.LOG.info("Walker GameTest progress: {} s, {} blocks, tilt {}°",
+                    Math.round(m.physicsTime() - t0), String.format("%.1f", walked), Math.round(tilt));
+            if (failed[0] || tilt > 30 || broken > 0 || m.physicsTime() - t0 > 240) {
+                if (!failed[0]) cleanUp(level, id, forced);
+                failSoon(h, failed, String.format(java.util.Locale.ROOT, "walked %.1f blocks in %.0f s, tilt %.1f° (worst %.1f°), %d joints snapped",
+                        walked, m.physicsTime() - t0, tilt, worst[0], broken));
+            }
+            h.assertTrue(walked >= 50, String.format(java.util.Locale.ROOT, "walked %.1f of 50 blocks", walked));
+            colossus.core.Colossus.LOG.info("Walker GameTest: 50 blocks in {} s of physics, worst tilt {}°", Math.round(m.physicsTime() - t0), Math.round(worst[0]));
+            cleanUp(level, id, forced);
+        });
+    }
+
+    /** A server player for in-world tests (deprecated in NeoForge for removal, with no replacement that can ride). */
+    @SuppressWarnings("removal")
+    private static net.minecraft.server.level.ServerPlayer mockPlayer(GameTestHelper h) { return h.makeMockServerPlayerInLevel(); }
+
+    /**
+     * Fail from inside {@code succeedWhen}: it retries assertion failures until the timeout and lets other exceptions
+     * escape into the server tick, so the failure is scheduled as a tick task, which GameTest reports properly.
+     */
+    private static void failSoon(GameTestHelper h, boolean[] scheduled, String message) {
+        if (!scheduled[0]) {
+            scheduled[0] = true;
+            h.runAfterDelay(1, () -> h.fail(message));
+        }
+        throw new net.minecraft.gametest.framework.GameTestAssertException("failing: " + message);
+    }
+
+    private static void cleanUp(net.minecraft.server.level.ServerLevel level, UUID id, java.util.Set<net.minecraft.world.level.ChunkPos> forced) {
+        ColossusManager.get(level).command(id, 0, 0, 0);
+        ColossusManager.get(level).despawn(id);
+        ColossusSavedData.get(level).remove(id);
+        for (var c : forced) level.setChunkForced(c.x, c.z, false);
+    }
+
+    /**
+     * A Pilot Seat on an assembled Colossus gets a rideable seat entity at the seat's position; its rider's input is
+     * accepted, anyone else's is not; disassembly removes the seat and unseats the rider.
+     */
+    @GameTest(template = "empty16", timeoutTicks = 100)
+    public static void pilotSeatFollowsItsColossusAndTakesInputFromItsRider(GameTestHelper h) {
+        floor(h);
+        for (int x = 6; x <= 8; x++) for (int z = 6; z <= 8; z++) h.setBlock(x, 4, z, Blocks.OAK_PLANKS);
+        h.setBlock(7, 5, 7, ColossusRegistries.HULL_CORES.get(CoreTier.WOODEN).get());
+        h.setBlock(6, 5, 6, ColossusRegistries.PILOT_SEAT.get());
+        UUID id = AssemblyService.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 5, 7)), null);
+        h.assertTrue(id != null, "assembly failed");
+        var seats = h.getLevel().getEntitiesOfClass(colossus.pilot.SeatEntity.class, new net.minecraft.world.phys.AABB(h.absolutePos(new BlockPos(6, 5, 6))).inflate(1));
+        h.assertTrue(seats.size() == 1 && id.equals(seats.get(0).colossus()), "expected one seat linked to the Colossus, found " + seats.size());
+        var seat = seats.get(0);
+        // mock players: NeoForge's FakePlayer refuses to ride anything by design
+        var pilot = mockPlayer(h);
+        var bystander = mockPlayer(h);
+        h.assertTrue(pilot.startRiding(seat), "could not sit down");
+        h.assertTrue(colossus.pilot.PilotInput.apply(pilot, new colossus.pilot.PilotInput(seat.getId(), 1, 0)), "rider's input refused");
+        h.assertTrue(!colossus.pilot.PilotInput.apply(bystander, new colossus.pilot.PilotInput(seat.getId(), 1, 0)), "a bystander steered");
+        h.assertTrue(!colossus.pilot.PilotInput.apply(pilot, new colossus.pilot.PilotInput(seat.getId(), Float.NaN, 0)), "NaN input accepted");
+        h.runAfterDelay(5, () -> {
+            // the seat sits where its block is on the moving body
+            ColossusRecord rec = ColossusSavedData.get(h.getLevel()).byId(id);
+            int si = 0;
+            var s0 = rec.segments.get(si);
+            long cell = new BlockPos(-1, 0, -1).asLong();
+            var at = ColossusManager.get(h.getLevel()).pose(rec, si).toWorld(s0.local(BlockPos.of(cell)));
+            h.assertTrue(seat.position().distanceTo(new net.minecraft.world.phys.Vec3(at.x(), at.y() - 0.25, at.z())) < 0.6,
+                    "seat at " + seat.position() + ", block at " + at);
+            h.assertTrue(AssemblyService.disassemble(h.getLevel(), id, null), "disassembly refused");
+            h.runAfterDelay(2, () -> {
+                h.assertTrue(seat.isRemoved(), "seat outlived its Colossus");
+                h.assertTrue(pilot.getVehicle() == null, "pilot still seated");
+                h.succeed();
+            });
         });
     }
 }

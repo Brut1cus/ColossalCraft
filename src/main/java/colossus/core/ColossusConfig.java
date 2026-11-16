@@ -21,6 +21,12 @@ public final class ColossusConfig {
     public static final ModConfigSpec.BooleanValue JOINT_BREAKING;
     public static final ModConfigSpec.DoubleValue STRAIN_BREAK_SECONDS;
 
+    public static final ModConfigSpec.BooleanValue WALKER_ENABLED;
+    public static final ModConfigSpec.DoubleValue WALKER_MAX_SPEED;
+    public static final ModConfigSpec.DoubleValue WALKER_CROUCH;
+    public static final ModConfigSpec.DoubleValue WALKER_STEP_HEIGHT;
+    public static final ModConfigSpec.DoubleValue WALKER_TURN_RATE;
+
     public static final ModConfigSpec.DoubleValue GYRO_ROTOR_MASS;
     public static final ModConfigSpec.DoubleValue GYRO_MAX_RPM;
     public static final ModConfigSpec.DoubleValue GYRO_MOTOR_TORQUE;
@@ -57,6 +63,17 @@ public final class ColossusConfig {
         STRAIN_BREAK_SECONDS = b.comment("Seconds of sustained overload before a joint snaps.").defineInRange("strainBreakSeconds", 3.0, 0.1, 600.0);
         b.pop();
 
+        b.comment("Walkers: legged Colossi are driven by the walker brain (gait, footholds, IK, joint servos).").push("walker");
+        WALKER_ENABLED = b.comment("Give machines with legs a walker brain. Off: their joints just hold the assembled pose.").define("enabled", true);
+        WALKER_MAX_SPEED = b.comment("Top walking speed, m/s (the statically stable crawl; faster gaits are not tuned yet).")
+                .defineInRange("maxSpeed", 0.5, 0.05, 5.0);
+        WALKER_CROUCH = b.comment("Stand this fraction of the leg length lower than assembled, so the legs have room to step.")
+                .defineInRange("crouch", 0.1, 0.0, 0.4);
+        WALKER_STEP_HEIGHT = b.comment("How high a swinging foot lifts, m.").defineInRange("stepHeight", 0.5, 0.1, 5.0);
+        WALKER_TURN_RATE = b.comment("Turn rate at full A/D from a Pilot Seat, rad/s (the brain slows it if the feet would go too fast).")
+                .defineInRange("turnRate", 0.25, 0.01, 3.0);
+        b.pop();
+
         b.comment("Gyro Stabilizers. Torque capacity = rotor angular momentum (I·ω) × gimbal rate; an N×N rotor has N⁴ the inertia of one block.").push("gyro");
         GYRO_ROTOR_MASS = b.comment("Rotor mass of one Gyro Stabilizer block, kg (an N×N rotor weighs N² times this; radius 0.5·N m).")
                 .defineInRange("rotorMass", 2000.0, 1.0, 1e7);
@@ -71,6 +88,12 @@ public final class ColossusConfig {
         b.pop();
 
         SPEC = b.build();
+    }
+
+    public static colossus.brain.walker.WalkerBrain.Params walkerParams() {
+        var d = colossus.brain.walker.WalkerBrain.Params.DEFAULT;
+        return new colossus.brain.walker.WalkerBrain.Params(WALKER_CROUCH.get(), WALKER_STEP_HEIGHT.get(), d.maxLead(), d.strideScale(),
+                d.minMargin(), d.swayTime(), d.reachUse(), WALKER_MAX_SPEED.get());
     }
 
     public static colossus.brain.balance.GyroStabilizer.Params gyroParams() {

@@ -37,8 +37,9 @@ public class AssembledColossusTest {
     record Sim(XpbdBackend backend, List<BodyHandle> bodies, List<ConstraintHandle> joints, List<BodyPlanner.JointInput> jointInputs, int root, double rootMass,
                List<BodyPlanner.SegmentInput> segments) {}
 
-    static Sim build(FoundationTest.World w, boolean holdPose) {
-        int cx = 2, cy = 6, cz = 2;
+    static Sim build(FoundationTest.World w, boolean holdPose) { return build(w, holdPose, 2, 6, 2); }
+
+    static Sim build(FoundationTest.World w, boolean holdPose, int cx, int cy, int cz) {
         StructureScanner.Result r = StructureScanner.scan(w, cx, cy, cz, CoreTier.STEEL.budget(0, 1_000_000), 100_000);
         assertTrue(r.errors().toString(), r.ok());
         XpbdBackend b = new XpbdBackend();
@@ -79,10 +80,11 @@ public class AssembledColossusTest {
             if (s.jointInputs.get(i).parent() == s.root) hipSum += s.backend.constraintState(s.joints.get(i)).force();
         }
         assertEquals(s.rootMass * 9.81, hipSum, s.rootMass * 9.81 * 0.15);
-        // 30 t on four 1x1 bearings is over their 50 kN rating: the strain meter must say so (bigger joints needed)
+        // the strain meter reports load against the rating: each hip carries about a quarter of the deck's weight
         ComponentScaling scaling = new ComponentScaling();
         double hipStrain = BodyPlanner.strain(s.jointInputs.get(0), s.backend.constraintState(s.joints.get(0)), scaling);
-        assertTrue("strain " + hipStrain, hipStrain > 1 && hipStrain < 2.5);
+        double expected = s.rootMass * 9.81 / 4 / scaling.loadCapacity(ComponentScaling.Component.BEARING, 1);
+        assertEquals("strain " + hipStrain, expected, hipStrain, expected * 0.35);
     }
 
     /** Ball-bearing hips used to be unpowered, so a walker's torso flopped on them; now they servo-hold too. */

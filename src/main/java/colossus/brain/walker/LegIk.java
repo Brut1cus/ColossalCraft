@@ -17,14 +17,22 @@ import colossus.physics.math.Vec3;
 public final class LegIk {
     private LegIk() {}
 
-    public static IkSolver.Result solve(IkChain chain, IkChain.Pose warm, Vec3 target) {
+    public static IkSolver.Result solve(IkChain chain, IkChain.Pose warm, Vec3 target) { return solve(chain, warm, target, Quat.IDENTITY); }
+
+    /**
+     * @param legTurn turn of the leg about the vertical relative to the base frame (the foot's heading): the knee axis
+     *                follows it, so a planted foot that keeps its heading while the body turns needs no ankle twist
+     */
+    public static IkSolver.Result solve(IkChain chain, IkChain.Pose warm, Vec3 target, Quat legTurn) {
         if (chain.size() == 2 && chain.links.get(0).kind() == IkChain.Kind.BALL && chain.links.get(1).kind() == IkChain.Kind.HINGE) {
-            return ballHinge(chain, warm, target);
+            return ballHinge(chain, warm, target, legTurn);
         }
         return IkSolver.defaultFor(chain).solve(chain, warm, target);
     }
 
-    static IkSolver.Result ballHinge(IkChain chain, IkChain.Pose warm, Vec3 target) {
+    static IkSolver.Result ballHinge(IkChain chain, IkChain.Pose warm, Vec3 target) { return ballHinge(chain, warm, target, Quat.IDENTITY); }
+
+    static IkSolver.Result ballHinge(IkChain chain, IkChain.Pose warm, Vec3 target, Quat legTurn) {
         IkChain.Link hip = chain.links.get(0), knee = chain.links.get(1);
         Vec3 b0 = hip.bone(), b1 = knee.bone(), k = knee.axis();
         Vec3 b1par = k.mul(b1.dot(k)), b1perp = b1.sub(b1par);
@@ -50,7 +58,7 @@ public final class LegIk {
             IkChain.Pose p = new IkChain.Pose(2);
             p.value[1] = knee.min() <= knee.max() ? Math.max(knee.min(), Math.min(knee.max(), theta)) : theta;
             Vec3 v = b0.add(Quat.axisAngle(k, p.value[1]).rotate(b1)); // leg vector before the hip turns
-            p.ball[0] = aim(v, k, target.lengthSq() < 1e-12 ? v : target);
+            p.ball[0] = aim(v, k, legTurn.rotate(k), target.lengthSq() < 1e-12 ? v : target);
             chain.clamp(p);
             double score = Math.abs(p.value[1] - warm.value[1]) + Math.abs(theta - p.value[1]) * 10;
             if (chain.pole != null) {
@@ -64,10 +72,13 @@ public final class LegIk {
         return new IkSolver.Result(best, eff, err, err <= IkSolver.TOLERANCE, outOfReach);
     }
 
-    /** Hip rotation that turns leg vector v onto the target direction and keeps the knee axis k as level as it can. */
-    static Quat aim(Vec3 v, Vec3 k, Vec3 target) {
+    /**
+     * Hip rotation that turns leg vector v onto the target direction and brings the knee axis k as close as it can to
+     * {@code kHint} (the rest knee axis turned with the foot), keeping it perpendicular to the leg.
+     */
+    static Quat aim(Vec3 v, Vec3 k, Vec3 kHint, Vec3 target) {
         Vec3 dir = target.normalize();
-        Vec3 kWant = k.rejectFrom(dir);
+        Vec3 kWant = kHint.rejectFrom(dir);
         if (kWant.lengthSq() < 1e-9) kWant = dir.anyPerpendicular();
         kWant = kWant.normalize();
         Quat swing = Quat.fromTo(v.normalize(), dir);
@@ -82,7 +93,7 @@ public final class LegIk {
         return Math.atan2(uu.cross(vv).dot(n), uu.dot(vv));
     }
 
-    static double wrap(double a) {
+    public static double wrap(double a) {
         while (a > Math.PI) a -= 2 * Math.PI;
         while (a < -Math.PI) a += 2 * Math.PI;
         return a;

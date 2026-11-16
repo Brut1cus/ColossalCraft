@@ -25,6 +25,27 @@ public class GaitBalanceTest {
         }
     }
 
+    /** The crawl lifts one leg at a time in the lateral sequence, with all four feet down between swings. */
+    @Test public void crawlHasFourLeggedPhasesBetweenSwings() {
+        GaitPattern crawl = GaitPattern.quadCrawl(0.9);
+        int fourDown = 0;
+        java.util.List<Integer> order = new java.util.ArrayList<>();
+        boolean[] was = {true, true, true, true};
+        for (double t = 0; t < 1; t += 0.001) {
+            int down = 0;
+            for (int leg = 0; leg < 4; leg++) {
+                boolean in = crawl.inStance(leg, t);
+                if (in) down++;
+                if (was[leg] && !in) order.add(leg);
+                was[leg] = in;
+            }
+            assertTrue("at t=" + t + " only " + down + " feet down", down >= 3);
+            if (down == 4) fourDown++;
+        }
+        assertTrue("four-legged phases", fourDown > 400);
+        assertEquals("LH, LF, RH, RF", java.util.List.of(2, 0, 3, 1), order);
+    }
+
     @Test public void trotMovesDiagonalPairsTogether() {
         GaitPattern trot = GaitPattern.quadTrot();
         for (double t = 0; t < 1; t += 0.05) {
@@ -45,13 +66,13 @@ public class GaitBalanceTest {
     @Test public void speedPicksGaitWithHysteresis() {
         GaitPlanner p = new GaitPlanner(GaitPattern.defaultsFor(4), 1.5);
         p.advance(0.05, 0.5, l -> true, l -> true);
-        assertEquals("walk", p.gait().name());
+        assertEquals("crawl", p.gait().name());
         p.advance(0.05, 2.5, l -> true, l -> true);
         assertEquals("trot", p.gait().name());
         p.advance(0.05, 1.1, l -> true, l -> true); // inside the band: stays trotting
         assertEquals("trot", p.gait().name());
         p.advance(0.05, 0.3, l -> true, l -> true);
-        assertEquals("walk", p.gait().name());
+        assertEquals("crawl", p.gait().name());
     }
 
     @Test public void staticGaitNeverLiftsAnUnsafeLeg() {

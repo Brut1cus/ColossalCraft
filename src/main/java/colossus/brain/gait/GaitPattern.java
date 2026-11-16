@@ -32,7 +32,19 @@ public record GaitPattern(String name, double[] phaseOffsets, double dutyFactor,
     // ------------------------------------------------------------------ presets from the blueprint
 
     /** Lateral-sequence walk (blueprint): legs lift LH, LF, RH, RF, a quarter cycle apart, so the body sways mostly fore-aft. */
-    public static GaitPattern quadWalk() { return new GaitPattern("walk", new double[]{0.5, 0, 0.75, 0.25}, 0.75, false, 0, 1.5); }
+    public static GaitPattern quadWalk() { return new GaitPattern("walk", new double[]{0.5, 0, 0.75, 0.25}, 0.75, false, 0.6, 1.5); }
+
+    /**
+     * Statically stable crawl: the walk's lateral sequence (LH, LF, RH, RF a quarter cycle apart) with a higher duty
+     * factor, so a four-legged phase separates every swing and the body can sway over the next support triangle with
+     * all feet down. At duty 0.75 exactly three feet are always down and every sway happens on a triangle.
+     */
+    public static GaitPattern quadCrawl(double duty) {
+        double[] lift = {0.25, 0.75, 0, 0.5}; // LF, RF, LH, RH lift-off times
+        double[] o = new double[4];
+        for (int i = 0; i < 4; i++) o[i] = ((duty - lift[i]) % 1.0 + 1.0) % 1.0;
+        return new GaitPattern("crawl", o, duty, false, 0, 0.6);
+    }
     public static GaitPattern quadTrot() { return new GaitPattern("trot", new double[]{0, 0.5, 0.5, 0}, 0.5, true, 1.2, 4); }
     public static GaitPattern quadPace() { return new GaitPattern("pace", new double[]{0, 0.5, 0, 0.5}, 0.5, true, 1.2, 4); }
     public static GaitPattern quadGallop() { return new GaitPattern("gallop", new double[]{0, 0.1, 0.6, 0.5}, 0.35, true, 3.5, 99); }
@@ -71,7 +83,7 @@ public record GaitPattern(String name, double[] phaseOffsets, double dutyFactor,
             case 1 -> new GaitPattern[]{new GaitPattern("hop", new double[]{0}, 0.5, true, 0, 99)};
             case 2 -> new GaitPattern[]{bipedWalk(), bipedRun()};
             case 3 -> new GaitPattern[]{tripodStep()};
-            case 4 -> new GaitPattern[]{quadWalk(), quadTrot(), quadGallop()};
+            case 4 -> new GaitPattern[]{quadCrawl(0.9), quadWalk(), quadTrot(), quadGallop()};
             case 6 -> new GaitPattern[]{wave(6), ripple(6), alternatingTripod()};
             default -> new GaitPattern[]{wave(legs), ripple(legs)};
         };
