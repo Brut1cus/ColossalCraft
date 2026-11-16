@@ -65,7 +65,7 @@ public final class LevelVoxelSource implements VoxelSource {
         return new BlockPhysicsTable.BlockKey() {
             @Override public String id() { return BuiltInRegistries.BLOCK.getKey(s.getBlock()).toString(); }
             @Override public Collection<String> tags() { return s.getTags().map(t -> t.location().toString()).toList(); }
-            @Override public String soundType() { return SoundTypeNames.name(s.getSoundType()); }
+            @Override public String soundType() { return SoundTypeNames.name(s.getSoundType(level, pos, null)); }
             @Override public double shapeVolume() { return volume(level, pos, s); }
         };
     }

@@ -31,7 +31,11 @@ neoForge {
     mods { colossus { sourceSet sourceSets.main } }
 }
 
-tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release = 21 }
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+    options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked']
+}
 
 test {
     useJUnit()
