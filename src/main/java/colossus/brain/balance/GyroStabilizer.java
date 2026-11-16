@@ -26,9 +26,9 @@ import java.util.List;
  * it into the ground.
  * <p>
  * <b>Control.</b> A PD law toward upright: {@code τ = I_eff·(ωn²·e − 2ζωn·ω)}, where {@code e} is the rotation that
- * takes the Segment's up axis back to world up and {@code I_eff} is the inertia the gyro has to move (the whole
- * machine's, about this Segment's centre of mass). Yaw is damped but not steered. Bodies are assembled upright, so
- * body +Y is "up".
+ * takes the Segment's up axis back to world up and {@code I_eff} is the inertia the gyro has to move: the whole
+ * machine's about this Segment's centre of mass, capped at what stays stable if the Segment turns on its own (see
+ * {@link #stiffnessRatio} and {@link #dampingRatio}). Yaw is damped but not steered. Bodies are assembled upright, so body +Y is "up".
  */
 public final class GyroStabilizer {
 
@@ -90,17 +90,56 @@ public final class GyroStabilizer {
         }
     }
 
+    /**
+     * Stability limits for explicit PD on the body the torque acts on, in units of that body's own inertia: damping step
+     * {@code r_D·2ζωn·dt} (stable below 2) and stiffness step {@code r_K·ωn²·dt²} (stable below about 1). Both leave
+     * margin for joint compliance.
+     */
+    static final double MAX_DAMPING_STEP = 0.5, MAX_STIFFNESS_STEP = 0.25;
+
     private final List<Rotor> rotors;
     private final Params params;
-    /** Inertia the gyro has to move, in this body's frame (kg·m²). */
-    private final Mat3 effectiveInertia;
+    /** This Segment's own inertia, body frame (kg·m²): what the torque moves if nothing else follows. */
+    private final Mat3 segmentInertia;
+    /** Whole-machine inertia about this Segment, body frame: what it moves when the machine is rigid. */
+    private final double machineRatio;
     private volatile Vec3 stored = Vec3.ZERO;
     private volatile Vec3 lastTorque = Vec3.ZERO;
 
-    public GyroStabilizer(List<Rotor> rotors, Mat3 effectiveInertiaLocal, Params params) {
+    /** Single rigid body: the Segment is the whole machine. */
+    public GyroStabilizer(List<Rotor> rotors, Mat3 inertiaLocal, Params params) { this(rotors, inertiaLocal, inertiaLocal, params); }
+
+    /**
+     * @param segmentInertia  the Segment's own inertia about its centre of mass, body frame
+     * @param machineInertia  the whole machine's inertia about the same point, body frame
+     */
+    public GyroStabilizer(List<Rotor> rotors, Mat3 segmentInertia, Mat3 machineInertia, Params params) {
         this.rotors = List.copyOf(rotors);
-        this.effectiveInertia = effectiveInertiaLocal;
+        this.segmentInertia = segmentInertia;
+        double seg = trace(segmentInertia);
+        this.machineRatio = seg <= 0 ? 1 : Math.max(1, trace(machineInertia) / seg);
         this.params = params;
+    }
+
+    private static double trace(Mat3 m) { return m.get(0, 0) + m.get(1, 1) + m.get(2, 2); }
+
+    /**
+     * How many times the Segment's own inertia the stiffness (P) gain assumes. Ideally the whole machine's (a rigid
+     * machine has to be turned as one), but the torque acts only on this Segment, so the ratio is capped where the
+     * Segment would still be stable turning alone.
+     */
+    public double stiffnessRatio(double dt) {
+        double step = params.naturalFrequency() * params.naturalFrequency() * dt * dt;
+        return Math.max(1, Math.min(machineRatio, step <= 0 ? machineRatio : MAX_STIFFNESS_STEP / step));
+    }
+
+    /**
+     * Same for the damping (D) gain, which hits its limit far sooner: a torso on free ball hips with damping sized for
+     * the whole machine overshoots every physics step and shakes itself apart.
+     */
+    public double dampingRatio(double dt) {
+        double step = 2 * params.dampingRatio() * params.naturalFrequency() * dt;
+        return Math.max(1, Math.min(machineRatio, step <= 0 ? machineRatio : MAX_DAMPING_STEP / step));
     }
 
     public List<Rotor> rotors() { return rotors; }
@@ -154,10 +193,11 @@ public final class GyroStabilizer {
         if (h.length() > hMax) h = h.normalize().mul(hMax); // a slowing rotor cannot hold what it had
 
         Quat q = body.pose().rotation();
-        Mat3 iw = effectiveInertia.rotated(q);
+        Mat3 iw = segmentInertia.rotated(q);
         double wn = params.naturalFrequency();
-        Vec3 want = tiltError(q).mul(wn * wn).sub(body.angularVelocity().mul(2 * params.dampingRatio() * wn));
-        Vec3 tau = iw.transform(want);
+        Vec3 stiff = tiltError(q).mul(wn * wn * stiffnessRatio(dt));
+        Vec3 damp = body.angularVelocity().mul(2 * params.dampingRatio() * wn * dampingRatio(dt));
+        Vec3 tau = iw.transform(stiff.sub(damp));
         // re-centring bleeds h exponentially: desaturation × capacity when full, fading smoothly to zero
         tau = tau.add(h.mul(params.desaturation() * params.gimbalRate()));
         double tl = tau.length();

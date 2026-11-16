@@ -154,7 +154,7 @@ public final class ColossusManager {
                 rotors.add(rotor);
                 l.gyroUnits.add(new GyroBinding(si, rotor, blocks));
             }
-            stabilizers.put(l.bodies.get(si), new GyroStabilizer(rotors, machineInertia(r, si), params));
+            stabilizers.put(l.bodies.get(si), new GyroStabilizer(rotors, s.inertia, machineInertia(r, si), params));
         }
         if (stabilizers.isEmpty()) return;
         l.gyros = new GyroController(stabilizers);

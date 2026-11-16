@@ -158,6 +158,34 @@ public class GyroTest {
         assertEquals(4, i.get(2, 2), 1e-12);
     }
 
+    /**
+     * Regression: a light torso on a free ball joint, while the gyro believes the machine is 60× its inertia. Gains
+     * sized for the whole machine overshoot every physics step and spin it wildly; capped gains hold it upright.
+     */
+    @Test public void looselyCoupledSegmentStaysStable() {
+        XpbdBackend b = new XpbdBackend();
+        BodyHandle base = b.createBody(BodyDesc.fixed(Pose.IDENTITY, List.of()));
+        Vec3 size = new Vec3(3, 2, 1);
+        double mass = 6 * 7800;
+        MassProperties mp = MassProperties.solidBox(mass, size);
+        Quat tilt = Quat.axisAngle(Vec3.X, Math.toRadians(5));
+        BodyHandle torso = b.createBody(BodyDesc.dynamic(mp, new Pose(tilt.rotate(new Vec3(0, 1, 0)), tilt), List.of(new Box(size.mul(-0.5), size.mul(0.5)))));
+        b.addConstraint(ConstraintDesc.of(JointType.BALL, base, torso, Vec3.ZERO, new Vec3(0, -1, 0), Vec3.Y, Vec3.Y).withCone(Math.PI, Math.PI));
+        GyroStabilizer g = new GyroStabilizer(List.of(spunUp(3)), mp.inertia(), mp.inertia().scale(60), P);
+        assertEquals("stiffness uses the whole machine", 60, g.stiffnessRatio(DT), 1e-9);
+        assertTrue("damping capped: " + g.dampingRatio(DT), g.dampingRatio(DT) < 10);
+        PhysicsWorld w = new PhysicsWorld(b, 60, false, "test");
+        w.addController(new GyroController(Map.of(torso, g)));
+        double worst = 0;
+        for (int i = 0; i < 60 * 6; i++) {
+            w.stepNow(1);
+            worst = Math.max(worst, b.bodyState(torso).angularVelocity().length());
+        }
+        double tiltDeg = Math.toDegrees(GyroStabilizer.tiltError(b.bodyState(torso).pose().rotation()).length());
+        assertTrue("upright: " + tiltDeg + "°", tiltDeg < 1);
+        assertTrue("no thrashing: peak " + worst + " rad/s", worst < 0.5);
+    }
+
     /** A tall tower tipped 8° on flat ground: it falls over on its own, and a spun-up gyro stands it back up. */
     @Test public void gyroKeepsATippedTowerStanding() {
         double[] finalTilt = new double[2];
@@ -175,7 +203,7 @@ public class GyroTest {
             if (k == 1) {
                 // effective inertia about the CoM; the pivot is the foot, so add m·d² like the game does for a whole machine
                 Mat3 about = GyroStabilizer.combinedInertia(List.of(mp.inertia()), List.of(mass), List.of(new Vec3(0, 4, 0)), Vec3.ZERO);
-                w.addController(new GyroController(Map.of(h, new GyroStabilizer(List.of(spunUp(3)), about, P))));
+                w.addController(new GyroController(Map.of(h, new GyroStabilizer(List.of(spunUp(3)), mp.inertia(), about, P))));
             }
             w.stepNow(60 * 6);
             finalTilt[k] = Math.toDegrees(GyroStabilizer.tiltError(b.bodyState(h).pose().rotation()).length());
