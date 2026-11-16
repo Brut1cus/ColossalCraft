@@ -1,8 +1,0 @@
-{
-  "parent": "minecraft:block/orientable",
-  "textures": {
-    "front": "colossalcraft:block/gyro_array_front_on",
-    "side": "colossalcraft:block/gyro_casing",
-    "top": "colossalcraft:block/gyro_casing"
-  }
-}

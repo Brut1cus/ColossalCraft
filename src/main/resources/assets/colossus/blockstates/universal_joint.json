@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "colossus:block/universal_joint"
+    },
+    "axis=z": {
+      "model": "colossus:block/universal_joint",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "colossus:block/universal_joint",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

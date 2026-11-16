@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "colossus:slider_joint"
+    },
+    {
+      "tag": "c:slime_balls"
+    },
+    {
+      "tag": "c:ingots/iron"
+    }
+  ],
+  "result": {
+    "id": "colossus:spring_damper",
+    "count": 1
+  }
+}

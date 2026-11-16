@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "colossus:block/slider_joint_end",
+    "side": "colossus:block/slider_joint_side"
+  }
+}

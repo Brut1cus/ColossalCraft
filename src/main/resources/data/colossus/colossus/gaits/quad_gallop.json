@@ -1,0 +1,12 @@
+{
+  "phase_offsets": [
+    0,
+    0.1,
+    0.6,
+    0.5
+  ],
+  "duty_factor": 0.35,
+  "dynamic": true,
+  "min_speed": 3.5,
+  "max_speed": 99
+}

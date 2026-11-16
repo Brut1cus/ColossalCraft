@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/cube_column",
-  "textures": {
-    "end": "colossalcraft:block/jump_drive_top",
-    "side": "colossalcraft:block/jump_drive_side"
-  }
-}

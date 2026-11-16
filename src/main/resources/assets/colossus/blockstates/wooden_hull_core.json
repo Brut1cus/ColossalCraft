@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "colossus:block/wooden_hull_core"
+    }
+  }
+}

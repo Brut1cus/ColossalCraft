@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "colossus:thrust_bearing"
+    },
+    {
+      "item": "colossus:thrust_bearing"
+    }
+  ],
+  "result": {
+    "id": "colossus:universal_joint",
+    "count": 1
+  }
+}

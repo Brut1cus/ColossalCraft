@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "colossus:block/spring_damper"
+    },
+    "axis=z": {
+      "model": "colossus:block/spring_damper",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "colossus:block/spring_damper",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

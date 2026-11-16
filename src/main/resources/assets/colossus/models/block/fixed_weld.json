@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "colossus:block/fixed_weld_end",
+    "side": "colossus:block/fixed_weld_side"
+  }
+}

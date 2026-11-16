@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "NIN",
+    "IBI",
+    "NIN"
+  ],
+  "key": {
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "N": {
+      "tag": "c:nuggets/iron"
+    },
+    "B": {
+      "tag": "c:slime_balls"
+    }
+  },
+  "result": {
+    "id": "colossus:ball_bearing",
+    "count": 2
+  }
+}

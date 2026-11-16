@@ -2,26 +2,42 @@ plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.148'
 }
-version = '0.1.0'
-group = 'com.colossalcraft'
+
+version = '0.2.0-alpha'
+group = 'dev.colossalcraft'
 base { archivesName = 'colossalcraft-1.21.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
 repositories { mavenCentral() }
-// Create (optional dependency): compile against it, only load it at runtime with -PwithCreate
+
 dependencies {
-    compileOnly files('libs/create-1.21.1-6.0.0.jar', 'libs/flywheel-neoforge-1.21.1-1.0.0-9.jar', 'libs/Ponder-NeoForge-1.21.1-1.0.39.jar', 'libs/Registrate-MC1.21-1.3.0+62.jar')
-    if (project.hasProperty('withCreate')) {
-        runtimeOnly files('libs/create-1.21.1-6.0.0.jar', 'libs/flywheel-neoforge-1.21.1-1.0.0-9.jar', 'libs/Ponder-NeoForge-1.21.1-1.0.39.jar', 'libs/Registrate-MC1.21-1.3.0+62.jar')
-    }
+    // Optional compat targets (Create, Sodium, Iris, ...) are added as compileOnly from their mavens when their
+    // colossus.compat.* modules are written. Nothing but NeoForge is ever required at runtime.
+
+    // Phase 2: bundle Jolt Physics (jolt-jni) with jar-in-jar so players still install a single file.
+    // Until then colossus.physics.BackendFactory falls back to the built-in XPBD solver.
+
+    // Pure-Java unit tests (physics, IK, gaits, balance, scanner, kinetics). No Minecraft needed.
+    testImplementation 'junit:junit:4.13.2'
 }
+
 neoForge {
     version = '21.1.266'
     runs {
         client { client() }
-        devShots { client(); gameDirectory = project.file('run-devshots'); systemProperty 'colossalcraft.devshots', 'true'; programArguments.addAll('--width', '1280', '--height', '720') }
         server { server(); programArgument '--nogui' }
-        gameTestServer { type = 'gameTestServer'; systemProperty 'neoforge.enabledGameTestNamespaces', 'colossalcraft' }
+        gameTestServer { type = 'gameTestServer'; systemProperty 'neoforge.enabledGameTestNamespaces', 'colossus' }
     }
-    mods { colossalcraft { sourceSet sourceSets.main } }
+    mods { colossus { sourceSet sourceSets.main } }
 }
-tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release = 21 }
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+    options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked']
+}
+
+test {
+    useJUnit()
+    testLogging { events 'failed'; exceptionFormat 'full' }
+}

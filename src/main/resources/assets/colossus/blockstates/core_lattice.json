@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "colossus:block/core_lattice"
+    }
+  }
+}

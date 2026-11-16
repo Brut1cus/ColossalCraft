@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "colossus:block/spring_damper_end",
+    "side": "colossus:block/spring_damper_side"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "colossus:block/netherite_hull_core"
+    }
+  }
+}
