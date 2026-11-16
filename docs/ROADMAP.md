@@ -20,10 +20,8 @@ Build the hardest shared foundation first (ship space, interaction and the physi
 | Brain maths: IK solvers, gait patterns and planner (hysteresis, stability rule), Raibert foot targeting with spiral search, Bézier swing, support polygon, capture point, wrench distribution with friction cones, τ = JᵀF | done (not yet driving Colossi) |
 | Kinetics: size scaling, rotational network with sag, gear ratios, jams, overload | done (no blocks yet) |
 | Pose sync payload (smallest-three quaternions) and client pose buffer | done |
-| Unit tests (55, passing) | done |
-| GameTests: scan, terrain exclusion, assemble/disassemble keeping a chest's contents | written; first run pending (see note) |
-
-> **Note:** the Minecraft-facing classes in this phase were written without access to the NeoForge toolchain (offline authoring environment). The pure-Java core compiles and its tests pass; run `./gradlew build runGameTestServer` once and fix any API slips before merging further work on top.
+| Unit tests (55) and GameTests (scan, terrain exclusion, assemble/disassemble keeping a chest's contents), all passing | done |
+| CI: GitHub Actions builds, runs unit tests and GameTests on every PR and on `main`, and uploads the jar | done |
 
 ## Phase 2: see it and touch it
 

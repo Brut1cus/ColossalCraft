@@ -209,7 +209,7 @@ public final class AssemblyService {
         }
         for (Map.Entry<BlockPos, BlockPos> m : moves.entrySet()) {
             BlockPos from = m.getKey(), to = m.getValue();
-            BlockState st = states.get(from).rotate(rotations.get(from));
+            BlockState st = states.get(from).rotate(level, to, rotations.get(from));
             level.setBlock(to, st, MOVE_FLAGS);
             CompoundTag tag = tags.get(from);
             if (tag != null) {

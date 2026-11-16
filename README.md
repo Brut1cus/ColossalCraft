@@ -5,6 +5,7 @@ Build a machine block by block, place a **Hull Core**, and the Core turns those 
 - Mod id: `colossus` · Minecraft 1.21.1 · NeoForge 21.1.x · Java 21
 - One self-contained jar. NeoForge is the only requirement; every other mod is an optional extra.
 - Design: [`docs/BLUEPRINT.md`](docs/BLUEPRINT.md) · Progress and next steps: [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- [![Build](https://github.com/Brut1cus/ColossalCraft/actions/workflows/build.yml/badge.svg)](https://github.com/Brut1cus/ColossalCraft/actions/workflows/build.yml) Every push to `main` and every PR is built and tested; the jar is attached to each run.
 
 > **Status: Phase 1 (foundation), pre-alpha.** This branch is a ground-up rewrite of the earlier entity-based prototype. Scanning, Segment splitting, ship-space assembly/disassembly, the physics engine and the walker maths are in place. **Assembled Colossi are not drawn yet** (the Segment renderer and the click/collision redirect are Phase 2), so treat assembly as a developer preview.
 
