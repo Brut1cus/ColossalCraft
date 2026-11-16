@@ -84,7 +84,7 @@ A walker stands on its feet and is placed from the lowest point up. Nothing "hol
 2. **Gait clock:** each leg group lifts when its turn in the step cycle comes (set by the gait in the Locomotion Controller). A group only lifts once the weight is over the other feet; until then the clock waits and the body leans over.
 3. **Body:** moves forward at the gait's own speed (stride ÷ stance time), leans sideways just far enough over the feet carrying the weight (a gyro lets it lean less), and speeds up or slows down only as fast as grip and hip motors allow. Its **height comes from the planted feet**: up a step, down a slope. Knee legs crouch with raise/lower; weak knees sag.
 4. **Grip:** about 1.0 on normal ground, 0.03-0.05 on ice. On ice the walker can't speed up quickly and the HUD shows SLIP. A stiff (knee-less) leg slides if it leans past its grip.
-5. **IK** bends each leg to its foot. If any leg block would end up inside the ground, that foot is raised.
+5. **IK** bends each leg to its foot. Knees always bend to the same side (forward, or back for digitigrade), so they can't flip over, and joints turn smoothly: a leg in the air at most about 460°/s. If any leg block would end up inside the ground, that foot is raised.
 6. **Steps** land on the real ground (up a step, down a slope) and lift high enough to clear what's in between. A wall or a drop of more than 1.5 blocks makes the foot step in place.
 7. **Tipping:** if the weight stays outside the feet, it falls over.
 
@@ -111,7 +111,7 @@ Joint setup moved here from the Hull Core. One per walker.
 - **Gait modes:** Biped, Digitigrade (knees bend backward), Quadruped (diagonal pairs step together), Spider (alternating legs around the body), Custom (pick each joint's step group in the Joints tab).
 - **Keys:** click a key button, press the new key. Esc sets it back to default. Defaults follow your movement keys (WASD, Space, Shift, Ctrl) and R for the Jump Drive.
 - Raise / lower bends the knees (legs with a knee only).
-- **Gait tab:** step speed, **stride** (how far each foot travels, as a share of the leg's reach), **lift** (step height) and **stance** (share of each step a foot stays down; "auto" uses the gait type's default). A blueprint preview shows the legs walking from the side and a step chart (bars = foot down). The speed shown is the speed the walker really walks at.
+- **Gait tab:** step speed, **stride** (how far each foot travels, as a share of the leg's reach), **lift** (step height) and **stance** (share of each step a foot stays down; "auto" uses the gait type's default). A blueprint preview shows the **hull from above** (with hips and feet), a **step chart** (bars = foot down), and **each leg from the side** (up to 6), walking with its real blocks: every part turns with its joint, and a foot under a Ball Joint stays level. The speed shown is the speed the walker really walks at.
 - The Locomotion Controller only sets up legs. Hover and Build/Park are on the Hull Core.
 
 ## Using a built Colossus

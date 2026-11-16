@@ -715,7 +715,7 @@ public class ColossusTests {
         h.assertTrue(r.model.legChains.size() == 2, "expected 2 legs, got " + r.model.legChains.size());
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7)), null), "assemble failed");
         double[] start = new double[3]; double[] jitter = {0}; net.minecraft.world.phys.Vec3[] lastV = {null};
-        double[] slide = {0}; int[] bothUp = {0}; net.minecraft.world.phys.Vec3[][] lastF = {null}; WalkerController.State[][] lastS = {null};
+        double[] slide = {0}; int[] bothUp = {0}; double[] maxTurn = {0}; int[] flips = {0}; double[][] lastA = {null}; net.minecraft.world.phys.Vec3[][] lastF = {null}; WalkerController.State[][] lastS = {null};
         h.runAfterDelay(30, () -> { ColossusEntity c = find(h); start[0] = c.getZ(); start[1] = c.getY(); c.autopilot = true; c.setInput(1, 0, false, false); lastV[0] = c.vel; });
         for (int t = 31; t <= 200; t++) { int tt = t; h.runAfterDelay(t, () -> {
             ColossusEntity c = find(h);
@@ -728,12 +728,23 @@ public class ColossusTests {
             int up = 0; for (var st : w.state) if (st != WalkerController.State.STANCE) up++;
             if (up == w.state.length) bothUp[0]++;
             lastF[0] = w.foot.clone(); lastS[0] = w.state.clone();
+            double[] A = c.model.ikAngles.clone();
+            if (lastA[0] != null) for (StructureModel.LegChain L : c.model.legChains) for (int k = 0; k < L.joints().size(); k++) {
+                int j = L.joints().get(k); double a0 = lastA[0][j], a1 = A[j];
+                if (Double.isNaN(a0) || Double.isNaN(a1)) continue;
+                maxTurn[0] = Math.max(maxTurn[0], Math.abs(a1 - a0));
+                if (k > 0 && Math.abs(a0) > 0.3 && Math.abs(a1) > 0.3 && Math.signum(a0) != Math.signum(a1)) flips[0]++; // knee crossed over
+            }
+            lastA[0] = A;
             if (tt % 10 == 0) ColossalCraft.LOG.info("[test] big mech t={} pos={} vel={} tilt={} feet={}", tt, c.position(), c.vel, c.tilt, c.walker.status);
         }); }
         h.runAfterDelay(202, () -> {
             ColossusEntity c = find(h);
             ColossalCraft.LOG.info("[test] big mech dz={} dy={} jitter(sum |dv|)={} tilt={} maxStanceSlide={} bothUpTicks={}", c.getZ() - start[0], c.getY() - start[1], jitter[0], c.tilt, slide[0], bothUp[0]);
             h.assertTrue(slide[0] < 0.02, "a planted foot slid " + slide[0]);
+            ColossalCraft.LOG.info("[test] big mech IK maxTurn/tick={} kneeFlips={}", maxTurn[0], flips[0]);
+            h.assertTrue(maxTurn[0] <= 0.6001, "a joint jumped " + maxTurn[0] + " rad in one tick");
+            h.assertTrue(flips[0] == 0, "a knee snapped to the other side " + flips[0] + " times");
             h.assertTrue(bothUp[0] == 0, "both feet were off the ground for " + bothUp[0] + " ticks");
             h.assertTrue(c.getZ() - start[0] < -2.0, "big mech should walk forward, dz=" + (c.getZ() - start[0]));
             h.assertTrue(c.tilt == 0, "big mech fell over");

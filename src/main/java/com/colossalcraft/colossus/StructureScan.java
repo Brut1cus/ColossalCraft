@@ -156,6 +156,11 @@ public final class StructureScan {
     }
 
     /** Blocks for the 3D joints view: visible blocks (max ~6000), packed as {x|y|z, id}. id = part + 1, or 1000 + joint id. */
+    /** Two coordinates in half blocks (-256..255) and a small tag in one int, for the gait preview. */
+    private static int pack(double a, double b, int tag) {
+        int ia = (int) Math.max(-256, Math.min(255, Math.round(a * 2))) + 256, ib = (int) Math.max(-256, Math.min(255, Math.round(b * 2))) + 256;
+        return ia | (ib << 9) | ((tag + 2) << 18);
+    }
     /** Leg shapes for the gait preview, in the body's frame: forward, side (right +), up, measured from the centre of mass. */
     private static CompoundTag legGeo(StructureModel m) {
         CompoundTag out = new CompoundTag();
@@ -170,9 +175,44 @@ public final class StructureScan {
             for (Vec3 p : pts) { Vec3 d = p.subtract(m.com); CompoundTag pt = new CompoundTag(); pt.putFloat("F", (float) d.dot(f)); pt.putFloat("S", (float) d.dot(rt)); pt.putFloat("U", (float) d.y); pl.add(pt); }
             lt.put("P", pl); lt.putInt("Group", L.group()); lt.putFloat("Len", (float) L.length()); lt.putBoolean("Ankle", L.ankle() != null);
             lt.putFloat("Lim", (float) L.limits()[0]);
+            // the leg's blocks in side view, each tagged with the leg joint that moves it (-1 = below the ball ankle: stays level)
+            List<Integer> cells = new ArrayList<>();
+            int cur = L.footSeg(), guard = 0;
+            while (cur > 0 && guard++ < 1000 && cells.size() < 80) {
+                StructureModel.Seg sg = m.segs.get(cur);
+                int k = -2, walk = cur, g2 = 0; // which chain joint is the nearest above this part
+                while (walk > 0 && g2++ < 1000) {
+                    StructureModel.Seg ws = m.segs.get(walk); if (ws.parentJoint < 0) break;
+                    StructureModel.Joint pj = m.joints.get(ws.parentJoint);
+                    if (pj.ball && k == -2) { k = -1; break; }
+                    int idx = L.joints().indexOf(pj.id); if (idx >= 0) { k = idx; break; }
+                    walk = Math.max(0, pj.parentSeg);
+                }
+                if (k == -2) k = 0;
+                for (BlockPos b : sg.blocks) {
+                    if (cells.size() >= 80) break;
+                    Vec3 d = Vec3.atCenterOf(b).subtract(m.com);
+                    cells.add(pack(d.dot(f), d.y, k));
+                }
+                if (sg.parentJoint < 0 || sg.parentJoint == L.joints().get(0)) break;
+                cur = Math.max(0, m.joints.get(sg.parentJoint).parentSeg);
+            }
+            lt.putIntArray("B", cells.stream().mapToInt(Integer::intValue).toArray());
             legs.add(lt);
         }
         out.put("Legs", legs);
+        // the hull (everything but the legs) seen from above and from the side, one cell per block column
+        Set<Integer> top = new LinkedHashSet<>(), side = new LinkedHashSet<>();
+        for (StructureModel.Seg sg : m.segs) {
+            if (m.legSegs.contains(sg.id)) continue;
+            for (BlockPos b : sg.blocks) {
+                Vec3 d = Vec3.atCenterOf(b).subtract(m.com);
+                if (top.size() < 900) top.add(pack(d.dot(f), d.dot(rt), 0));
+                if (side.size() < 900) side.add(pack(d.dot(f), d.y, 0));
+            }
+        }
+        out.putIntArray("Top", top.stream().mapToInt(Integer::intValue).toArray());
+        out.putIntArray("Side", side.stream().mapToInt(Integer::intValue).toArray());
         double f0 = 1e9, f1 = -1e9, s0 = 1e9, s1 = -1e9, u0 = 1e9, u1 = -1e9;
         for (StructureModel.Seg sg : m.segs) {
             if (m.legSegs.contains(sg.id)) continue;

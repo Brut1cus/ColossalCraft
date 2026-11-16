@@ -514,7 +514,7 @@ public class WalkerController {
                 double[] ang = new double[L.joints().size()];
                 for (int k = 0; k < ang.length; k++) { double a = m.ikAngles[L.joints().get(k)]; ang[k] = Double.isNaN(a) ? 0 : a; }
                 solve(m, L, new Vec3(t.x, t.y, t.z), ang, digi);
-                for (int k = 0; k < ang.length; k++) m.ikAngles[L.joints().get(k)] = ang[k];
+                for (int k = 0; k < ang.length; k++) { double prev = m.ikPrev[L.joints().get(k)]; m.ikAngles[L.joints().get(k)] = Double.isNaN(prev) ? ang[k] : smooth(prev, ang[k], state[i] == State.STANCE ? MAX_TURN_PLANTED : MAX_TURN); }
             }
             if (!any) break;
         }
@@ -538,9 +538,17 @@ public class WalkerController {
             Vector3d t = inv.transformPosition(new Vector3d(tw.x, tw.y, tw.z));
             double[] ang = new double[L.joints().size()];
             for (int k = 0; k < ang.length; k++) { double a = m.ikAngles[L.joints().get(k)]; ang[k] = Double.isNaN(a) ? 0 : a; }
+            double[] before = ang.clone();
             solve(m, L, new Vec3(t.x, t.y, t.z), ang, digi);
-            for (int k = 0; k < ang.length; k++) m.ikAngles[L.joints().get(k)] = ang[k];
+            boolean free = i >= state.length || state[i] != State.STANCE; // a planted leg must follow its foot exactly
+            for (int k = 0; k < ang.length; k++) m.ikAngles[L.joints().get(k)] = smooth(before[k], ang[k], free ? MAX_TURN : MAX_TURN_PLANTED);
         }
+    }
+    /** A leg in the air turns continuously: at most this far per tick (about 460 degrees a second), never a jump. */
+    private static final double MAX_TURN = 0.4, MAX_TURN_PLANTED = 0.6; // a planted leg follows its foot almost exactly
+    private static double smooth(double from, double to, double max) {
+        double d = wrap(to - from);
+        return from + Math.max(-max, Math.min(max, d));
     }
 
     /** Pick the solver from the Locomotion Controller: Analytic 2-link and FABRIK work in the leg's plane; anything else uses CCD. */
@@ -582,6 +590,15 @@ public class WalkerController {
     }
     private static double wrap(double a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
 
+    /** Which side of the hip-foot line the knee goes (+1/-1 in the leg's 2D frame): the side facing forward when the leg hangs down. */
+    private static int bendSide(StructureModel m, Vec3[] B, boolean kneeBack) {
+        Vec3 f = Vec3.atLowerCornerOf(m.forward.getNormal());
+        double fx = f.dot(B[0]), fy = f.dot(B[1]), dx = -B[0].y, dy = -B[1].y; // forward and down in the plane
+        double cr = dx * fy - dy * fx;
+        int s = cr >= 0 ? 1 : -1;
+        if (Math.abs(cr) < 1e-6) s = 1; // leg plane doesn't contain "forward" (side-swinging leg): any fixed side
+        return kneeBack ? -s : s;
+    }
     private static boolean kneeForwardSign(StructureModel m, Vec3[] B, boolean kneeBack, double[] hip, double[] tgt, double[] knee) {
         Vec3 f = Vec3.atLowerCornerOf(m.forward.getNormal());
         double fx = f.dot(B[0]), fy = f.dot(B[1]);
@@ -601,15 +618,14 @@ public class WalkerController {
         double base = Math.atan2(t[1], t[0]);
         double cosA = Math.max(-1, Math.min(1, (l0 * l0 + d * d - l1 * l1) / (2 * l0 * d)));
         double A = Math.acos(cosA);
-        double[] best = null;
-        for (int s = -1; s <= 1; s += 2) {
-            double a0 = base + s * A;
-            double[] knee = {l0 * Math.cos(a0), l0 * Math.sin(a0)};
-            double tx = d * Math.cos(base), ty = d * Math.sin(base);
-            double a1 = Math.atan2(ty - knee[1], tx - knee[0]);
-            if (best == null || kneeForwardSign(m, B, kneeBack, p0, new double[]{tx, ty}, knee)) best = new double[]{a0, a1};
-        }
-        anglesFromSegments(L, restAbs, best, ang);
+        // The knee always bends to the same side of the hip-foot line (forward, or back for digitigrade). The side is fixed
+        // from the leg's plane, never re-picked from the pose, so the knee can't flip over when the leg swings far.
+        int sgn = bendSide(m, B, kneeBack);
+        double a0 = base + sgn * A;
+        double[] knee = {l0 * Math.cos(a0), l0 * Math.sin(a0)};
+        double tx = d * Math.cos(base), ty = d * Math.sin(base);
+        double a1 = Math.atan2(ty - knee[1], tx - knee[0]);
+        anglesFromSegments(L, restAbs, new double[]{a0, a1}, ang);
     }
 
     /** FABRIK in the leg's plane, starting from the current pose, with a pole that pushes the knee forward (or back). */

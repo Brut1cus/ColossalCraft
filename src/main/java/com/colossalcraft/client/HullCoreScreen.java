@@ -177,7 +177,7 @@ public class HullCoreScreen extends Screen {
     // blueprint colours
     private static final int BP_BG = 0xFF0D2F57, BP_GRID = 0xFF1A4677, BP_LINE = 0xFFE8F2FF, BP_DIM = 0xFF7FA6D6, BP_ACC = 0xFFFFD45C;
 
-    /** Gait tab: settings, plus a blueprint-style walking preview (side view and step diagram) drawn with lines only. */
+    /** Gait tab: settings, the hull's shape from above with a step chart, and a side view of every leg walking (blueprint style). */
     private void gait(GuiGraphics g, int x, int y) {
         g.drawString(font, "GAIT", x, y, DIM, false);
         double speed = data.getDouble("GaitSpeed"), strideF = data.getDouble("GaitStride"), liftF = data.getDouble("GaitLift"), duty = data.getDouble("GaitDuty");
@@ -193,68 +193,137 @@ public class HullCoreScreen extends Screen {
         g.drawString(font, String.format("Lift %.0f%% (%.1f b)", liftF * 100, liftF * legLen), x, y + 49, TXT, false);
         g.drawString(font, String.format("Stance %.0f%%%s", duty * 100, data.getBoolean("GaitDutyAuto") ? " auto" : ""), x + 160, y + 49, TXT, false);
 
-        int px = x, py = y + 64, pw = 200, ph = top() + H - 40 - py;
-        int dx = px + pw + 4, dw = W - NAV - 16 - pw - 4;
-        g.fill(px, py, px + pw, py + ph, BP_BG); g.fill(dx, py, dx + dw, py + ph, BP_BG);
-        for (int gx = px + 10; gx < px + pw; gx += 10) g.fill(gx, py, gx + 1, py + ph, BP_GRID);
-        for (int gy = py + 10; gy < py + ph; gy += 10) g.fill(px, gy, px + pw, gy + 1, BP_GRID);
-        if (legs.isEmpty()) { g.drawString(font, "No legs: set hips/knees to Leg.", px + 6, py + 6, BP_LINE, false); return; }
+        int py = y + 64, ph = top() + H - 40 - py, fullW = W - NAV - 16;
+        int lw = 104, rx = x + lw + 4, rw = fullW - lw - 4;
+        if (legs.isEmpty()) { bp(g, x, py, fullW, ph); g.drawString(font, "No legs: set hips/knees to Leg.", x + 6, py + 6, BP_LINE, false); return; }
         int groups = 1; for (Tag tg : legs) groups = Math.max(groups, ((CompoundTag) tg).getInt("Group") + 1);
         double phase = (System.currentTimeMillis() / 1000.0 * speed) % 1.0;
-        // side view: forward to the right, up is up. Fit body + legs + a stride of travel.
-        float f0 = geo.contains("F0") ? geo.getFloat("F0") : -1, f1 = geo.contains("F1") ? geo.getFloat("F1") : 1, u0 = geo.contains("U0") ? geo.getFloat("U0") : 0, u1 = geo.contains("U1") ? geo.getFloat("U1") : 1;
-        double minF = f0 - stride, maxF = f1 + stride, minU = 0, maxU = u1;
-        for (Tag tg : legs) for (Tag pt : ((CompoundTag) tg).getList("P", Tag.TAG_COMPOUND)) { minU = Math.min(minU, ((CompoundTag) pt).getFloat("U")); }
-        double sc = Math.min((pw - 16) / Math.max(1e-3, maxF - minF), (ph - 18) / Math.max(1e-3, maxU - minU + liftF * legLen));
-        double ox = px + 8 - minF * sc, oy = py + ph - 8 + minU * sc; // screen = (ox + f*sc, oy - u*sc)
-        int groundY = (int) Math.round(oy - minU * sc);
-        // ground line with moving ticks (the world slides back under the walker)
-        g.fill(px + 2, groundY, px + pw - 2, groundY + 1, BP_LINE);
-        double travel = (System.currentTimeMillis() / 1000.0 * v) % 1.0;
-        for (double tx = -travel; tx * sc < pw; tx += 1) { int sx = (int) Math.round(px + 8 + tx * sc); if (sx > px + 2 && sx < px + pw - 2) g.fill(sx, groundY + 1, sx + 1, groundY + 4, BP_DIM); }
-        // body outline
-        rect(g, (int) Math.round(ox + f0 * sc), (int) Math.round(oy - u1 * sc), (int) Math.round(ox + f1 * sc), (int) Math.round(oy - u0 * sc), BP_LINE);
-        // legs: far side first and dimmer
         List<CompoundTag> order = new ArrayList<>(); for (Tag tg : legs) order.add((CompoundTag) tg);
-        order.sort(Comparator.comparingDouble(lt -> lt.getList("P", Tag.TAG_COMPOUND).getCompound(0).getFloat("S")));
-        for (CompoundTag lt : order) {
-            ListTag pl = lt.getList("P", Tag.TAG_COMPOUND);
-            int k = pl.size(); if (k < 3) continue;
-            double[][] p = new double[k][2];
-            for (int i = 0; i < k; i++) { CompoundTag pt = pl.getCompound(i); p[i][0] = pt.getFloat("F"); p[i][1] = pt.getFloat("U"); }
-            double ph2 = (phase + (double) lt.getInt("Group") / groups) % 1.0, df, du2 = 0;
-            if (ph2 < duty) df = stride / 2 - stride * (ph2 / duty);
-            else { double u = (ph2 - duty) / (1 - duty); df = -stride / 2 + stride * u; du2 = liftF * legLen * Math.sin(Math.PI * u); }
-            // effector target (ankle or foot) moves with the foot; the foot stays level
-            double[] tgt = {p[k - 2][0] + df, p[k - 2][1] + du2};
-            double[][] chain = new double[k - 1][]; for (int i = 0; i < k - 1; i++) chain[i] = p[i].clone();
-            fabrik2(chain, tgt, data.getInt("GaitMode") == com.colossalcraft.colossus.StructureModel.GAIT_DIGI ? -1 : 1);
-            boolean near = pl.getCompound(0).getFloat("S") >= 0;
-            int col = near ? BP_LINE : BP_DIM;
-            for (int i = 0; i + 1 < chain.length; i++) line(g, ox + chain[i][0] * sc, oy - chain[i][1] * sc, ox + chain[i + 1][0] * sc, oy - chain[i + 1][1] * sc, col);
-            double fx = ox + (p[k - 1][0] + df) * sc, fy = oy - (p[k - 1][1] + du2) * sc;
-            line(g, ox + chain[k - 2][0] * sc, oy - chain[k - 2][1] * sc, fx, fy, col);
-            line(g, fx - 0.6 * sc, fy, fx + 0.6 * sc, fy, ph2 < duty ? BP_ACC : col); // sole: yellow while planted
-            for (int i = 0; i < chain.length - 1; i++) { int cx = (int) Math.round(ox + chain[i][0] * sc), cy = (int) Math.round(oy - chain[i][1] * sc); rect(g, cx - 1, cy - 1, cx + 2, cy + 2, col); }
-        }
-        g.drawString(font, String.format("%.1f m/s", v), px + 4, py + 3, BP_ACC, false);
-        // step diagram: one row per leg, bar = foot down, cursor = now
-        g.drawString(font, "STEPS", dx + 4, py + 3, BP_DIM, false);
-        int rowH = Math.max(6, Math.min(12, (ph - 18) / Math.max(1, legs.size()))), bx0 = dx + 22, bw = dw - 26;
+        // where each foot is in its step right now (forward offset, lift) — the same motion the walker makes
+        double[][] fm = new double[order.size()][];
         for (int i = 0; i < order.size(); i++) {
-            CompoundTag lt = order.get(order.size() - 1 - i);
-            int ry = py + 14 + i * rowH;
-            float side = lt.getList("P", Tag.TAG_COMPOUND).getCompound(0).getFloat("S"), fwd = lt.getList("P", Tag.TAG_COMPOUND).getCompound(0).getFloat("F");
-            g.drawString(font, (side < 0 ? "L" : "R") + (fwd >= 0 ? "f" : "b"), dx + 4, ry, BP_LINE, false);
+            double p2 = (phase + (double) order.get(i).getInt("Group") / groups) % 1.0;
+            if (p2 < duty) fm[i] = new double[]{stride / 2 - stride * (p2 / duty), 0, 1};
+            else { double u = (p2 - duty) / (1 - duty); fm[i] = new double[]{-stride / 2 + stride * u, liftF * legLen * Math.sin(Math.PI * u), 0}; }
+        }
+
+        // ---- left: the hull from above (forward is up), hips and feet; step chart below
+        int th = Math.max(40, ph * 3 / 5);
+        bp(g, x, py, lw, th);
+        g.drawString(font, "HULL", x + 3, py + 2, BP_DIM, false);
+        int[] topC = geo.getIntArray("Top");
+        double f0 = 1e9, f1 = -1e9, s0 = 1e9, s1 = -1e9;
+        for (int c : topC) { double a = ua(c), b = ub(c); f0 = Math.min(f0, a); f1 = Math.max(f1, a); s0 = Math.min(s0, b); s1 = Math.max(s1, b); }
+        for (CompoundTag lt : order) { CompoundTag foot = lt.getList("P", Tag.TAG_COMPOUND).getCompound(lt.getList("P", Tag.TAG_COMPOUND).size() - 1);
+            f0 = Math.min(f0, foot.getFloat("F") - stride / 2); f1 = Math.max(f1, foot.getFloat("F") + stride / 2); s0 = Math.min(s0, foot.getFloat("S")); s1 = Math.max(s1, foot.getFloat("S")); }
+        double tsc = Math.min((lw - 10) / Math.max(1, s1 - s0 + 1), (th - 16) / Math.max(1, f1 - f0 + 1));
+        int tcx = x + lw / 2, tcy = py + 10 + (th - 10) / 2;
+        double midF = (f0 + f1) / 2, midS = (s0 + s1) / 2;
+        int cell = Math.max(1, (int) Math.floor(tsc * 0.5));
+        g.enableScissor(x, py, x + lw, py + th);
+        for (int c : topC) { int sx = tcx + (int) Math.round((ub(c) - midS) * tsc), sy = tcy - (int) Math.round((ua(c) - midF) * tsc); g.fill(sx - cell, sy - cell, sx + cell, sy + cell, BP_GRID2); }
+        for (int i = 0; i < order.size(); i++) {
+            ListTag pl = order.get(i).getList("P", Tag.TAG_COMPOUND);
+            CompoundTag hip = pl.getCompound(0), foot = pl.getCompound(pl.size() - 1);
+            int hx = tcx + (int) Math.round((hip.getFloat("S") - midS) * tsc), hy = tcy - (int) Math.round((hip.getFloat("F") - midF) * tsc);
+            int fx = tcx + (int) Math.round((foot.getFloat("S") - midS) * tsc), fy = tcy - (int) Math.round((foot.getFloat("F") + fm[i][0] - midF) * tsc);
+            line(g, hx, hy, fx, fy, BP_DIM);
+            rect(g, hx - 1, hy - 1, hx + 2, hy + 2, BP_LINE);
+            if (fm[i][2] > 0) g.fill(fx - 2, fy - 2, fx + 2, fy + 2, BP_ACC); else rect(g, fx - 2, fy - 2, fx + 2, fy + 2, BP_LINE);
+        }
+        g.disableScissor();
+        // step chart: one row per leg, bar = foot down, cursor = now
+        int cy0 = py + th + 3, chH = ph - th - 3;
+        bp(g, x, cy0, lw, chH);
+        int rowH = Math.max(4, Math.min(10, (chH - 4) / Math.max(1, order.size()))), bx0 = x + 18, bw = lw - 22;
+        for (int i = 0; i < order.size() && 2 + (i + 1) * rowH <= chH; i++) {
+            CompoundTag lt = order.get(i);
+            int ry = cy0 + 2 + i * rowH;
+            g.drawString(font, legName(lt), x + 2, ry + rowH / 2 - 4, BP_LINE, false);
             double off = (double) lt.getInt("Group") / groups;
-            for (int sx = 0; sx < bw; sx++) {
-                double p2 = ((double) sx / bw + off) % 1.0;
-                if (p2 < duty) g.fill(bx0 + sx, ry + 1, bx0 + sx + 1, ry + rowH - 2, BP_LINE);
+            int runStart = -1;
+            for (int sx = 0; sx <= bw; sx++) { // draw each "foot down" run as one bar
+                boolean down = sx < bw && ((double) sx / bw + off) % 1.0 < duty;
+                if (down && runStart < 0) runStart = sx;
+                if (!down && runStart >= 0) { g.fill(bx0 + runStart, ry + 1, bx0 + sx, ry + rowH - 1, BP_LINE); runStart = -1; }
             }
         }
         int cx = bx0 + (int) Math.round(phase * bw);
-        g.fill(cx, py + 12, cx + 1, py + 14 + order.size() * rowH, BP_ACC);
+        g.fill(cx, cy0 + 1, cx + 1, cy0 + chH - 1, BP_ACC);
+
+        // ---- right: every leg from the side, walking (up to 6)
+        int n = Math.min(6, order.size()), cols = n <= 2 ? n : n <= 4 ? 2 : 3, rows = (n + cols - 1) / cols;
+        int pw = (rw - (cols - 1) * 3) / cols, phh = (ph - (rows - 1) * 3) / rows;
+        // one scale for all panels: a leg plus a stride of travel either side
+        double maxSpan = 1;
+        for (CompoundTag lt : order) { ListTag pl = lt.getList("P", Tag.TAG_COMPOUND); double hu = pl.getCompound(0).getFloat("U"), fu = pl.getCompound(pl.size() - 1).getFloat("U"); maxSpan = Math.max(maxSpan, hu - fu + 2.5); }
+        double sc = Math.min(phh / (maxSpan + liftF * legLen), pw / (stride + legLen + 3));
+        int[] sideC = geo.getIntArray("Side");
+        for (int i = 0; i < n; i++) {
+            CompoundTag lt = order.get(i);
+            int qx = rx + (i % cols) * (pw + 3), qy = py + (i / cols) * (phh + 3);
+            bp(g, qx, qy, pw, phh);
+            ListTag pl = lt.getList("P", Tag.TAG_COMPOUND);
+            int k = pl.size(); if (k < 3) continue;
+            double[][] p = new double[k][2];
+            for (int j = 0; j < k; j++) { CompoundTag pt = pl.getCompound(j); p[j][0] = pt.getFloat("F"); p[j][1] = pt.getFloat("U"); }
+            // panel frame: the hip near the top middle, the ground line at the bottom
+            double ox = qx + pw / 2.0 - p[0][0] * sc, groundU = p[k - 1][1], oy = qy + phh - 6 + groundU * sc;
+            g.enableScissor(qx, qy, qx + pw, qy + phh);
+            int gy = (int) Math.round(oy - groundU * sc);
+            g.fill(qx + 1, gy, qx + pw - 1, gy + 1, BP_LINE);
+            double travel = (System.currentTimeMillis() / 1000.0 * v) % 1.0;
+            for (double tx = -travel - 20; tx < 20; tx += 1) { int sx = (int) Math.round(qx + pw / 2.0 + tx * sc); if (sx > qx && sx < qx + pw) g.fill(sx, gy + 1, sx + 1, gy + 3, BP_DIM); }
+            int hc = Math.max(1, (int) Math.floor(sc * 0.5));
+            for (int c : sideC) { int sx = (int) Math.round(ox + ua(c) * sc), sy = (int) Math.round(oy - ub(c) * sc); if (sx > qx - hc && sx < qx + pw + hc && sy > qy - hc && sy < qy + phh + hc) g.fill(sx - hc, sy - hc, sx + hc, sy + hc, BP_GRID2); }
+            // solve the leg in 2D for this moment of its step
+            double[] tgt = {p[k - 2][0] + fm[i][0], p[k - 2][1] + fm[i][1]};
+            double[][] chain = new double[k - 1][]; for (int j = 0; j < k - 1; j++) chain[j] = p[j].clone();
+            fabrik2(chain, tgt, data.getInt("GaitMode") == com.colossalcraft.colossus.StructureModel.GAIT_DIGI ? -1 : 1);
+            int links = k - 2; // joints in the chain; chain[links] is the ankle/foot point
+            double[] delta = new double[links];
+            for (int j = 0; j < links; j++) delta[j] = Math.atan2(chain[j + 1][1] - chain[j][1], chain[j + 1][0] - chain[j][0]) - Math.atan2(p[j + 1][1] - p[j][1], p[j + 1][0] - p[j][0]);
+            boolean near = pl.getCompound(0).getFloat("S") >= 0;
+            // the leg's blocks: each turns with its joint; under a ball ankle the foot only moves (stays level)
+            for (int c : lt.getIntArray("B")) {
+                int tag = ut(c); double bf = ua(c), bu = ub(c), nf, nu, rot;
+                if (tag < 0 || links == 0) { nf = bf + chain[links][0] - p[links][0]; nu = bu + chain[links][1] - p[links][1]; rot = 0; }
+                else { int j = Math.min(tag, links - 1); double cs = Math.cos(delta[j]), sn = Math.sin(delta[j]), rf = bf - p[j][0], ru = bu - p[j][1];
+                       nf = chain[j][0] + rf * cs - ru * sn; nu = chain[j][1] + rf * sn + ru * cs; rot = delta[j]; }
+                square(g, ox + nf * sc, oy - nu * sc, sc * 0.5, -rot, BP_LINE);
+            }
+            for (int j = 0; j < links; j++) { int jx = (int) Math.round(ox + chain[j][0] * sc), jy = (int) Math.round(oy - chain[j][1] * sc); g.fill(jx - 2, jy - 2, jx + 2, jy + 2, BP_ACC); }
+            if (lt.getBoolean("Ankle")) { int jx = (int) Math.round(ox + chain[links][0] * sc), jy = (int) Math.round(oy - chain[links][1] * sc); rect(g, jx - 2, jy - 2, jx + 3, jy + 3, BP_ACC); }
+            g.disableScissor();
+            g.drawString(font, legName(lt) + (near ? "" : " (far)"), qx + 3, qy + 2, fm[i][2] > 0 ? BP_ACC : BP_DIM, false);
+        }
+        if (order.size() > n) g.drawString(font, "+" + (order.size() - n) + " more legs", rx + 2, py + ph - 9, BP_DIM, false);
+        g.drawString(font, String.format("%.1f m/s", v), x + lw - font.width(String.format("%.1f m/s", v)) - 3, py + 2, BP_ACC, false);
     }
+    private static final int BP_GRID2 = 0xFF24578F;
+    private static double ua(int c) { return ((c & 511) - 256) / 2.0; }
+    private static double ub(int c) { return (((c >> 9) & 511) - 256) / 2.0; }
+    private static int ut(int c) { return (c >> 18) - 2; }
+    private static String legName(CompoundTag lt) {
+        CompoundTag h = lt.getList("P", Tag.TAG_COMPOUND).getCompound(0);
+        return (h.getFloat("S") < 0 ? "L" : "R") + (h.getFloat("F") >= 0 ? "f" : "b");
+    }
+    /** Blueprint panel: dark blue with a faint grid. */
+    private static void bp(GuiGraphics g, int x, int y, int w, int h) {
+        g.fill(x, y, x + w, y + h, BP_BG);
+        for (int gx = x + 10; gx < x + w; gx += 10) g.fill(gx, y, gx + 1, y + h, BP_GRID);
+        for (int gy = y + 10; gy < y + h; gy += 10) g.fill(x, gy, x + w, gy + 1, BP_GRID);
+    }
+    /** An outlined square turned by an angle: drawn with the pose stack, so it's 4 quads no matter how it's turned. */
+    private static void square(GuiGraphics g, double cx, double cy, double half, double angle, int col) {
+        var ps = g.pose(); ps.pushPose();
+        ps.translate(cx, cy, 0);
+        ps.mulPose(com.mojang.math.Axis.ZP.rotation((float) angle));
+        float hw = (float) half; int hi = Math.max(1, Math.round(hw));
+        g.fill(-hi, -hi, hi, -hi + 1, col); g.fill(-hi, hi - 1, hi, hi, col); g.fill(-hi, -hi, -hi + 1, hi, col); g.fill(hi - 1, -hi, hi, hi, col);
+        ps.popPose();
+    }
+
     private static void rect(GuiGraphics g, int x0, int y0, int x1, int y1, int col) {
         if (x1 < x0) { int t = x0; x0 = x1; x1 = t; } if (y1 < y0) { int t = y0; y0 = y1; y1 = t; }
         g.fill(x0, y0, x1, y0 + 1, col); g.fill(x0, y1 - 1, x1, y1, col); g.fill(x0, y0, x0 + 1, y1, col); g.fill(x1 - 1, y0, x1, y1, col);
