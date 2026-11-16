@@ -348,6 +348,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         draw += Math.abs(inTurn) * model.gyroPower;
         if (model.joints.stream().anyMatch(j -> j.mode == StructureModel.SPIN && j.active())) draw += model.walkPower() * 0.2;
         if (model.legged) draw += model.gyroPower; // gyros hold a walker up all the time
+        if (model.legged && model.stepControllers > 0) draw += model.stepControllers * com.colossalcraft.block.SimpleParts.StepControllerBlock.POWER;
 
         double avail = model.infinite ? model.output : (energy > 0 ? model.output : 0);
         double ratio = draw <= 0 ? 1 : Math.min(1, avail / draw);
@@ -391,6 +392,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         // ---- walking: the physics walker moves the Hull only through what its planted feet push against the ground
         if (useWalker) {
             Vec3 ext = thrust.scale(ratio).add(0, buoy + lift, 0);
+            walker.planner = model.stepControllers > 0 && ratio > 0.2;
             walker.step(this, ext, ratio, inFwd, inSprint, inUp ? 1 : inDown ? -1 : 0);
             if (walker.unbalanced) stable = false; // weight left the feet: it tips
             walkBlend = 0;

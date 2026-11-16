@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SOS",
+    "CEC",
+    "SRS"
+  ],
+  "key": {
+    "S": {
+      "item": "colossalcraft:colossteel_ingot"
+    },
+    "O": {
+      "item": "minecraft:observer"
+    },
+    "C": {
+      "item": "minecraft:compass"
+    },
+    "E": {
+      "item": "minecraft:ender_eye"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:step_controller",
+    "count": 1
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "colossalcraft:netherite_joint"
+    }
+  ],
+  "result": {
+    "id": "colossalcraft:netherite_joint_pin",
+    "count": 4
+  }
+}

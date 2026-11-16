@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "J",
+    "J",
+    "J"
+  ],
+  "key": {
+    "J": {
+      "item": "colossalcraft:netherite_joint"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:netherite_joint_panel",
+    "count": 6
+  }
+}

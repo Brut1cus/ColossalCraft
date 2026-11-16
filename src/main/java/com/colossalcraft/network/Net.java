@@ -91,6 +91,19 @@ public final class Net {
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
+    /** Step Controller map (server -> client). */
+    public record StepData(CompoundTag data) implements CustomPacketPayload {
+        public static final Type<StepData> TYPE = new Type<>(id("step_data"));
+        public static final StreamCodec<ByteBuf, StepData> CODEC = StreamCodec.composite(ByteBufCodecs.COMPOUND_TAG, StepData::data, StepData::new);
+        public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+    /** Ask for a fresh Step Controller map: a built Colossus (entity >= 0) or a parked controller block (pos). */
+    public record StepRequest(int entity, long pos) implements CustomPacketPayload {
+        public static final Type<StepRequest> TYPE = new Type<>(id("step_request"));
+        public static final StreamCodec<ByteBuf, StepRequest> CODEC = StreamCodec.composite(ByteBufCodecs.VAR_INT, StepRequest::entity, ByteBufCodecs.VAR_LONG, StepRequest::pos, StepRequest::new);
+        public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+
     public static void register(RegisterPayloadHandlersEvent e) {
         PayloadRegistrar r = e.registrar("1");
         r.playToServer(PilotInput.TYPE, PilotInput.CODEC, Net::onInput);
@@ -101,6 +114,8 @@ public final class Net {
         r.playToClient(HullData.TYPE, HullData.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.hullData(p.pos(), p.data())));
         r.playToClient(ColossusBlocks.TYPE, ColossusBlocks.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.colossusBlocks(p.entity(), p.data())));
         r.playToServer(ColossusBlock.TYPE, ColossusBlock.CODEC, (p, ctx) -> ctx.enqueueWork(() -> { if (ctx.player() instanceof ServerPlayer sp) com.colossalcraft.colossus.ColossusInteract.handle(sp, p); }));
+        r.playToClient(StepData.TYPE, StepData.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.stepData(p.data())));
+        r.playToServer(StepRequest.TYPE, StepRequest.CODEC, (p, ctx) -> ctx.enqueueWork(() -> { if (ctx.player() instanceof ServerPlayer sp) com.colossalcraft.colossus.StepPlanner.handle(sp, p); }));
         r.playToClient(StructureRemoved.TYPE, StructureRemoved.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.structureRemoved(p.entity(), p.data())));
     }
 

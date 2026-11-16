@@ -150,7 +150,7 @@ public class StructureModel {
     public long energy; public boolean infinite; public double output;
     public final double[] thrustCap = new double[6], thrustPow = new double[6];
     public double driveForce, drivePower, gyroCap, gyroPower;
-    public int sails, hearts, thrusters, driveMotors;
+    public int sails, hearts, thrusters, driveMotors, stepControllers;
     public BlockPos seat; public Direction forward = Direction.NORTH;
     public double radius = 1; public AABB localBounds = new AABB(0, 0, 0, 1, 1, 1);
 
@@ -344,6 +344,7 @@ public class StructureModel {
             } else if (b instanceof GyroBlock gb) { gyroCap += gb.capacity; gyroPower += gb.capacity / 3000.0; segGyro.merge(segOf.getOrDefault(p, 0), gb.capacity, Double::sum); }
             else if (b instanceof SailBlock && !(b instanceof RotorBladeBlock)) sails++;
             else if (b instanceof LocomotionControllerBlock) locoControllers++;
+            else if (b instanceof StepControllerBlock) stepControllers++;
             else if (b instanceof JumpDriveBlock) jumpDrives++;
             else if (b instanceof PilotSeatBlock && seat == null) { seat = p; forward = s.getValue(PilotSeatBlock.FACING); }
         }
@@ -631,7 +632,7 @@ public class StructureModel {
     /** Fraction of the asked gait speed the gears allow (1 = full speed). */
     public double gaitScale() {
         double sc = 1;
-        for (Joint j : joints) if ((j.mode == WALK_A || j.mode == WALK_B || j.mode == PROGRAM) && j.active()) { double need = neededSpeed(j); if (need > 0) sc = Math.min(sc, j.maxSpeed / need); }
+        for (Joint j : joints) if (!j.ball && (j.mode == WALK_A || j.mode == WALK_B || j.mode == PROGRAM) && j.active()) { double need = neededSpeed(j); if (need > 0) sc = Math.min(sc, j.maxSpeed / need); }
         return sc;
     }
 

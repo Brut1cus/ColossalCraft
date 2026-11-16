@@ -7,7 +7,7 @@ def w(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as f: json.dump(obj, f, indent=2)
 def tex(n): return f'{NS}:block/{n}'
-MATS = ['wood', 'stone', 'copper', 'iron', 'gold', 'diamond']
+MATS = ['wood', 'stone', 'copper', 'iron', 'gold', 'diamond', 'netherite']
 NAMES = {}
 blocks = []
 
@@ -57,7 +57,7 @@ w(f'{A}/models/block/gantry_scaffold.json', {'parent': 'minecraft:block/block', 
 w(f'{A}/blockstates/gantry_scaffold.json', {'variants': {'': {'model': f'{NS}:block/gantry_scaffold'}}})
 blocks.append('gantry_scaffold'); NAMES['gantry_scaffold'] = 'Gantry Scaffold'
 # --- joints & motors ---
-JN = {'wood': 'Timber', 'stone': 'Cobble', 'copper': 'Copper', 'iron': 'Iron', 'gold': 'Gilded', 'diamond': 'Diamond'}
+JN = {'wood': 'Timber', 'stone': 'Cobble', 'copper': 'Copper', 'iron': 'Iron', 'gold': 'Gilded', 'diamond': 'Diamond', 'netherite': 'Netherite'}
 AX = {'x': (0, 1, 2), 'y': (1, 0, 2), 'z': (2, 0, 1)}  # axis index, u index, v index
 def box(lo, hi, axis_i, spin=False):
     faces = {}
@@ -79,26 +79,27 @@ def joint_elements(shape, axis, xyz=None):
     (a0, a1), (u0, u1), (v0, v1) = xyz[a], xyz[u], xyz[v]
     els = []
     if shape == 'joint_pin':
-        els.append(box(*make(a, u, v, (a0, a1), (u0, u1), (v0, v1)), a, spin=True))
-        for c0, c1 in ((1, 3), (13, 15)): els.append(box(*make(a, u, v, (c0, c1), (u0 - 1, u1 + 1), (v0 - 1, v1 + 1)), a))
+        els.append(box(*make(a, u, v, (a0, a1), (u0, u1), (v0, v1)), a))
+        for c0, c1 in ((1, 3), (13, 15)): els.append(box(*make(a, u, v, (c0, c1), (u0 - 1, u1 + 1), (v0 - 1, v1 + 1)), a, spin=True))
         return els
     t = 2 if min(u1 - u0, v1 - v0, a1 - a0) <= 8 else 3
     for ru, rv in (((u0, u1), (v0, v0 + t)), ((u0, u1), (v1 - t, v1)), ((u0, u0 + t), (v0 + t, v1 - t)), ((u1 - t, u1), (v0 + t, v1 - t))):
-        els.append(box(*make(a, u, v, (a0, a1), ru, rv), a))
+        els.append(box(*make(a, u, v, (a0, a1), ru, rv), a, spin=True))   # outer housing: turns with the joint
     cu, cv = (u0 + u1) / 2, (v0 + v1) / 2
     hs = max(0.5, min(2, (u1 - u0 - 2 * t) / 2 - 1, (v1 - v0 - 2 * t) / 2 - 1))
     ext = 0 if shape == 'joint' else 0.5
-    els.append(box(*make(a, u, v, (max(0, a0 - ext), min(16, a1 + ext)), (cu - hs, cu + hs), (cv - hs, cv + hs)), a, spin=True))
+    els.append(box(*make(a, u, v, (max(0, a0 - ext), min(16, a1 + ext)), (cu - hs, cu + hs), (cv - hs, cv + hs)), a))  # inner shaft: fixed to the parent
     return els
 PANEL_BOX = {'north': [(0, 16), (0, 16), (0, 8)], 'south': [(0, 16), (0, 16), (8, 16)], 'west': [(0, 8), (0, 16), (0, 16)], 'east': [(8, 16), (0, 16), (0, 16)]}
 SHAPES = [('joint', 'Bearing Joint'), ('joint_slab', 'Slab Joint'), ('joint_panel', 'Panel Joint'), ('joint_pin', 'Pin Joint'), ('ball_joint', 'Ball Joint')]
 def ball_els():
-    def b(lo, hi, ax=None, ang=0, t='#side'):
-        el = {'from': lo, 'to': hi, 'faces': {f: {'texture': t, 'uv': fit_uv(f, lo, hi)} for f in ('north', 'south', 'east', 'west', 'up', 'down')}}
+    def b(lo, hi, ax=None, ang=0, t='#side', tint=11):
+        el = {'from': lo, 'to': hi, 'faces': {f: {'texture': t, 'uv': fit_uv(f, lo, hi), 'tintindex': tint} for f in ('north', 'south', 'east', 'west', 'up', 'down')}}
         if ang: el['rotation'] = {'origin': [8, 8, 8], 'axis': ax, 'angle': ang}
         return el
     return [b([4, 4, 4], [12, 12, 12], t='#end'), b([3.5, 4.5, 4.5], [12.5, 11.5, 11.5], 'y', 45, '#end'), b([4.5, 3.5, 4.5], [11.5, 12.5, 11.5], 'x', 45, '#end'),
-            b([2, 0, 2], [14, 3, 14]), b([2, 13, 2], [14, 16, 14]), b([6, 3, 6], [10, 4, 10]), b([6, 12, 6], [10, 13, 10])]
+            b([2, 0, 2], [14, 3, 14], tint=9), b([2, 13, 2], [14, 16, 14], tint=10), b([6, 3, 6], [10, 4, 10], tint=9), b([6, 12, 6], [10, 13, 10], tint=10)]
+    # tint 9 = bottom base, 10 = top base (each stays flat on the part it touches), 11 = the ball (turns halfway)
 for m in MATS:
     for sh, title in SHAPES:
         n = f'{m}_{sh}'
@@ -235,7 +236,7 @@ shaped('enriched_fuel_cell', ['GRG', 'AFA', 'GRG'], {'G': 'minecraft:glowstone_d
 shaped('deuterium_cell', ['PAP', 'AWA', 'PAP'], {'P': 'minecraft:prismarine_crystals', 'A': AL, 'W': 'minecraft:water_bucket'}, 2)
 shaped('hull_core', ['CRC', 'RBR', 'CRC'], {'C': S, 'R': 'minecraft:redstone', 'B': 'minecraft:redstone_block'})
 shaped('pilot_seat', ['W  ', 'WWW', 'CLC'], {'W': '#minecraft:wool', 'C': S, 'L': 'minecraft:lever'})
-MM = {'wood': '#minecraft:planks', 'stone': '#minecraft:stone_crafting_materials', 'copper': 'minecraft:copper_ingot', 'iron': 'minecraft:iron_ingot', 'gold': 'minecraft:gold_ingot', 'diamond': 'minecraft:diamond'}
+MM = {'wood': '#minecraft:planks', 'stone': '#minecraft:stone_crafting_materials', 'copper': 'minecraft:copper_ingot', 'iron': 'minecraft:iron_ingot', 'gold': 'minecraft:gold_ingot', 'diamond': 'minecraft:diamond', 'netherite': 'minecraft:netherite_ingot'}
 for m, mat in MM.items():
     shaped(f'{m}_joint', ['MCM', 'C C', 'MCM'], {'M': mat, 'C': S}, 4)
     shaped(f'{m}_motor', ['CMC', 'MRM', 'CPC'], {'M': mat, 'C': S, 'R': 'minecraft:redstone', 'P': 'minecraft:copper_ingot'})
@@ -404,7 +405,9 @@ item_from_block('locomotion_controller')
 w(f'{A}/models/block/jump_drive.json', {'parent': 'minecraft:block/cube_column', 'textures': {'end': tex('jump_drive_top'), 'side': tex('jump_drive_side')}})
 w(f'{A}/blockstates/jump_drive.json', {'variants': {'': {'model': f'{NS}:block/jump_drive'}}})
 item_from_block('jump_drive'); blocks.append('jump_drive'); NAMES['jump_drive'] = 'Jump Drive'
-for b in ('locomotion_controller', 'jump_drive') + tuple(f'{m}_ball_joint' for m in MATS):
+orientable('step_controller', 'step_controller_front', 'locomotion_controller_side', 'locomotion_controller_side', 'Step Controller')
+item_from_block('step_controller')
+for b in ('locomotion_controller', 'jump_drive', 'step_controller') + tuple(f'{m}_ball_joint' for m in MATS):
     w(f'{D}/loot_table/blocks/{b}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{b}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
 lang = json.load(open(f'{A}/lang/en_us.json'))
 for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]
@@ -412,6 +415,7 @@ lang['key.colossalcraft.loco'] = 'Colossus: Open Locomotion Controller'; lang['k
 w(f'{A}/lang/en_us.json', lang)
 w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in blocks if b not in ('sky_sail', 'kinetic_dynamo', 'gantry_scaffold')] + [{'id': f'{NS}:kinetic_dynamo', 'required': False}]})
 shaped('locomotion_controller', ['SCS', 'RMR', 'SRS'], {'S': S, 'C': 'minecraft:comparator', 'R': 'minecraft:redstone', 'M': 'iron_motor'})
+shaped('step_controller', ['SOS', 'CEC', 'SRS'], {'S': S, 'O': 'minecraft:observer', 'C': 'minecraft:compass', 'E': 'minecraft:ender_eye', 'R': 'minecraft:redstone'})
 shaped('jump_drive', ['SPS', 'RBR', 'SPS'], {'S': S, 'P': 'minecraft:piston', 'R': 'minecraft:redstone_block', 'B': 'minecraft:slime_block'})
 for m in MATS: shapeless(f'{m}_ball_joint', [f'{m}_joint', 'minecraft:slime_ball'])
 w(f'{D}/tags/block/natural_ground.json', {'values': ['#minecraft:dirt', '#minecraft:sand', '#minecraft:base_stone_overworld', '#minecraft:base_stone_nether',

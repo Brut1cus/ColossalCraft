@@ -12,7 +12,8 @@ public enum MaterialTier {
     COPPER ("copper",    85_000,      120_000,         100_000,          15,              60_000,       50),
     IRON   ("iron",     120_000,      200_000,         150_000,          20,              90_000,       60),
     GOLD   ("gold",     200_000,      350_000,         300_000,          40,             180_000,      120),
-    DIAMOND("diamond",  500_000,    1_000_000,       1_000_000,         100,             500_000,      120);
+    DIAMOND("diamond",  500_000,    1_000_000,       1_000_000,         100,             500_000,      120),
+    NETHERITE("netherite", 1_200_000, 3_000_000,     2_500_000,         200,           1_200_000,      150);
 
     public final String id;
     public final double jointForce, jointMoment, motorTorque, motorPower, driveForce;

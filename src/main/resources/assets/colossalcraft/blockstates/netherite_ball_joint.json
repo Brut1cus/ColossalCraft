@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "colossalcraft:block/netherite_ball_joint_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/netherite_ball_joint_x"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/netherite_ball_joint_x"
+    }
+  }
+}

@@ -44,7 +44,7 @@ def grill(im, col, x0=3, x1=12, y0=3, y1=12, vertical=False):
 def save(im, folder, name): im.save(os.path.join(folder, name + '.png'))
 
 STEEL = hx(0x6f7a84)
-MATS = {'wood': hx(0xa07a45), 'stone': hx(0x8d8d8d), 'copper': hx(0xd8763f), 'iron': hx(0xe2e2e2), 'gold': hx(0xf5c842), 'diamond': hx(0x4fe3dc)}
+MATS = {'wood': hx(0xa07a45), 'stone': hx(0x8d8d8d), 'copper': hx(0xd8763f), 'iron': hx(0xe2e2e2), 'gold': hx(0xf5c842), 'diamond': hx(0x4fe3dc), 'netherite': hx(0x7d6a74)}
 
 # --- Joints (log-like column: side + end) ---
 for i, (m, a) in enumerate(MATS.items()):
@@ -257,4 +257,12 @@ save(js, B, 'jump_drive_side')
 jt = base(hx(0x3a2f52), 734); bevel(jt, hx(0x3a2f52)); circle(jt, 8, 8, 5, hx(0x1a1426))
 for (x, y) in ((9, 3), (8, 4), (7, 5), (6, 6), (7, 7), (8, 7), (9, 7), (8, 8), (7, 9), (6, 10), (5, 11)): px(jt, x, y, hx(0xffe14a))
 save(jt, B, 'jump_drive_top')
+sf = base(hx(0x2e3640), 735); bevel(sf, hx(0x2e3640)); rect(sf, 2, 2, 13, 13, hx(0x061810))
+for gx in range(3, 13, 3):
+    for gy in range(3, 13): px(sf, gx, gy, hx(0x0f3a1e))
+for gy in range(3, 13, 3):
+    for gx in range(3, 13): px(sf, gx, gy, hx(0x0f3a1e))
+for (x, y) in ((5, 9), (6, 9), (5, 10), (6, 10), (9, 5), (10, 5), (9, 6), (10, 6)): px(sf, x, y, hx(0x9dffbf))   # two footprints
+for (x, y) in ((9, 9), (10, 9), (9, 10), (10, 10)): px(sf, x, y, hx(0xffd45c))                                  # the next step
+save(sf, B, 'step_controller_front')
 print('loco textures done')

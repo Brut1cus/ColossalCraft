@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "colossalcraft:block/step_controller"
+    },
+    "facing=east": {
+      "model": "colossalcraft:block/step_controller",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "colossalcraft:block/step_controller",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "colossalcraft:block/step_controller",
+      "y": 270
+    }
+  }
+}

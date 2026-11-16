@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "colossalcraft:block/netherite_motor_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/netherite_motor_y"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/netherite_motor_z"
+    }
+  }
+}

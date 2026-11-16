@@ -57,7 +57,7 @@ Each material comes in four hollow shapes. The axis comes from the face you plac
 | Panel Joint | vertical half slab against the N/E/S/W side you place it on. Axis goes through the panel; sneak while placing for a vertical (door-hinge) axis | 0.5 |
 | Pin Joint | thin axle | 0.25 |
 
-Bearing blocks turn along with the part their joint moves. In the Joints tab each joint shows its world **X, Y, Z**, so you can match it to the block you see in-game (F3).
+The outer housing of a bearing turns with the part its joint moves; the inner shaft stays with the parent. A Ball Joint's two bases each stay flat on the part they touch, and the ball swivels between them. In the Joints tab each joint shows its world **X, Y, Z**, so you can match it to the block you see in-game (F3).
 
 Recipes: 3 Bearing Joints in a row give 6 Slab Joints, 3 stacked give 6 Panel Joints, and 1 gives 4 Pin Joints.
 
@@ -69,6 +69,7 @@ Recipes: 3 Bearing Joints in a row give 6 Slab Joints, 3 stacked give 6 Panel Jo
 | Iron | 120 kN | 200 kN·m |
 | Gilded (gold) | 200 kN | 350 kN·m |
 | Diamond | 500 kN | 1000 kN·m |
+| Netherite | 1200 kN | 3000 kN·m |
 
 Scaling for a joint of total strength k (an **n×n** square of full joints has k = n²):
 - The force it can hold grows with its area: k times (9× for 3x3).
@@ -122,6 +123,12 @@ You don't have to park to use or change it:
 - **Explosions** blow off weak blocks (like terrain) and damage joints. A joint that takes too much breaks, and what it held falls off as a wreck. Stronger and bigger joints take more.
 - Other mods' machines (for example Create's) are carried along but only run once parked.
 
+## Step Controller
+A block that looks at the ground before each step and picks where the foot lands. It uses **25 CJ/t** while the walker stands or walks; without power it does nothing and steps go where the gait says.
+- For each step it checks a small grid of spots around where the foot should go. Every sole block must have ground under it (not over an edge), the soles must be nearly level, and the rise or drop must be one the leg can take. Lava, fire, magma, cactus, campfires, berry bushes and powder snow are refused. Water and slippery ground count against a spot, and so does distance from the wanted spot. It also keeps clear of the other feet.
+- If nothing good is near, it tries a half-length step. If that fails too, the foot steps in place.
+- **Right-click** it (parked or built) for a **top-down map**: ground height in shades of green, water, slippery and dangerous ground, walls, the body's outline, feet (solid = planted, hollow = stepping), the next step for each foot (yellow box, red X = no good footing) and the heading. It refreshes twice a second, only while open.
+
 ## Ball Joint
 A small joint that keeps the part below it **level with the ground** (feet stay flat on slopes and while the leg swings). It turns freely within its Limit in any direction; set Limit ±5° for a tight foot. Needs no motor. Recipe: any joint + slime ball. Put one between the shin and the foot.
 
@@ -174,13 +181,13 @@ Gearboxes are solid blocks with a **direction**: the arrows on the sides point f
 | Planetary Gearbox | 5:1 | ×4.5 | ×⅕ |
 | Worm Drive | 20:1 | ×12 | ×1/20 |
 
-Motor top speeds (before gears): Timber 30 RPM, Cobble 40, Copper 50, Iron 60, Gilded 120, Diamond 120 (1 RPM = 6°/s).
+Motor top speeds (before gears): Timber 30 RPM, Cobble 40, Copper 50, Iron 60, Gilded 120, Diamond 120, Netherite 150 (1 RPM = 6°/s).
 
 ## Motors
-**Servo Motors** come in Timber, Cobble, Copper, Iron, Gilded and Diamond.
+**Servo Motors** come in Timber, Cobble, Copper, Iron, Gilded, Diamond and Netherite.
 - A motor **touching a joint** drives that joint. If its torque is below what the limb needs, the joint stalls.
 - A motor touching **no joint** is a **drive motor** that pushes the Colossus along the ground, or through water.
-- Torque: 20k / 50k / 100k / 150k / 300k / 1M N·m. Power: 5 / 10 / 15 / 20 / 40 / 100 CJ/t.
+- Torque: 20k / 50k / 100k / 150k / 300k / 1M / 2.5M N·m. Power: 5 / 10 / 15 / 20 / 40 / 100 / 200 CJ/t.
 
 ## Engines (power, in CJ per tick)
 | Tier | Engine | Size | Output | Fuel |

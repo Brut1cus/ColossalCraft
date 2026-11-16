@@ -1,0 +1,40 @@
+{
+  "variants": {
+    "axis=x,facing=north": {
+      "model": "colossalcraft:block/netherite_joint_panel_north_x"
+    },
+    "axis=y,facing=north": {
+      "model": "colossalcraft:block/netherite_joint_panel_north_y"
+    },
+    "axis=z,facing=north": {
+      "model": "colossalcraft:block/netherite_joint_panel_north_z"
+    },
+    "axis=x,facing=south": {
+      "model": "colossalcraft:block/netherite_joint_panel_south_x"
+    },
+    "axis=y,facing=south": {
+      "model": "colossalcraft:block/netherite_joint_panel_south_y"
+    },
+    "axis=z,facing=south": {
+      "model": "colossalcraft:block/netherite_joint_panel_south_z"
+    },
+    "axis=x,facing=west": {
+      "model": "colossalcraft:block/netherite_joint_panel_west_x"
+    },
+    "axis=y,facing=west": {
+      "model": "colossalcraft:block/netherite_joint_panel_west_y"
+    },
+    "axis=z,facing=west": {
+      "model": "colossalcraft:block/netherite_joint_panel_west_z"
+    },
+    "axis=x,facing=east": {
+      "model": "colossalcraft:block/netherite_joint_panel_east_x"
+    },
+    "axis=y,facing=east": {
+      "model": "colossalcraft:block/netherite_joint_panel_east_y"
+    },
+    "axis=z,facing=east": {
+      "model": "colossalcraft:block/netherite_joint_panel_east_z"
+    }
+  }
+}

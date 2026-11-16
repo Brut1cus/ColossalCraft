@@ -256,7 +256,7 @@ public final class StructureScan {
         }
         t.put("Joints", js);
         t.put("LocoCfg", r.jointCfg.getCompound(StructureModel.LOCO).copy());
-        t.putInt("IKMode", m.ikMode); t.putInt("GaitMode", m.gaitMode); t.putInt("JumpDrives", m.jumpDrives); t.putInt("LocoControllers", m.locoControllers);
+        t.putInt("IKMode", m.ikMode); t.putInt("GaitMode", m.gaitMode); t.putInt("JumpDrives", m.jumpDrives); t.putInt("LocoControllers", m.locoControllers); t.putInt("StepControllers", m.stepControllers);
         t.putInt("Legs", m.legChains.size());
         if (r.entity != null) t.putFloat("JumpLevel", r.entity.jumpLevel());
         t.putDouble("GaitSpeed", m.gaitSpeed); t.putDouble("GaitScale", m.gaitScale());

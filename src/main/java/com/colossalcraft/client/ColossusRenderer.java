@@ -97,14 +97,22 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             }
             ps.popPose();
         }
-        // bearings turn with the part they move
+        // bearings: the outer housing turns with the part it moves, the inner shaft stays with the parent.
+        // Ball joints: each base stays flat on the part it touches, the ball swivels halfway between them.
         for (StructureModel.Joint j : m.joints) {
             if (j.childSegs.isEmpty()) continue;
-            Matrix4d local = segM[j.childSegs.get(0)];
-            ps.pushPose();
-            ps.mulPose(new Matrix4f(local));
-            for (BlockPos p : j.blocks) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.SPIN, null, 0);
-            ps.popPose();
+            int cs = j.childSegs.get(0);
+            Matrix4d local = segM[cs];
+            if (!j.ball) { drawJointPart(e, m, j, local, Part.SPIN, ps, buf, pt, light, ex, ey, ez, level, lp); continue; }
+            Matrix4d parent = segM[Math.max(0, j.parentSeg)];
+            boolean childBelow = m.segs.get(cs).com.y < j.pivot.y;
+            drawJointPart(e, m, j, local, childBelow ? Part.SPIN : Part.SPIN2, ps, buf, pt, light, ex, ey, ez, level, lp);
+            drawJointPart(e, m, j, parent, childBelow ? Part.SPIN2 : Part.SPIN, ps, buf, pt, light, ex, ey, ez, level, lp);
+            Matrix4d rel = new Matrix4d(parent).invert().mul(local);
+            org.joml.Quaterniond q = rel.getNormalizedRotation(new org.joml.Quaterniond());
+            org.joml.Quaterniond half = new org.joml.Quaterniond().slerp(q, 0.5);
+            Matrix4d mid = new Matrix4d(parent).translate(j.pivot.x, j.pivot.y, j.pivot.z).rotate(half).translate(-j.pivot.x, -j.pivot.y, -j.pivot.z);
+            drawJointPart(e, m, j, mid, Part.BALL, ps, buf, pt, light, ex, ey, ez, level, lp);
         }
         // motor groups: one shaft per group, as thick as the group, turning with its joint (times its gear ratio)
         for (StructureModel.MotorCluster mc : m.motorClusters) {
@@ -141,7 +149,14 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         super.render(e, yawIgnored, pt, ps, buf, light);
     }
 
-    enum Part { ALL, STATIC, SPIN, SPIN2, ALL_SPIN_TOO }
+    enum Part { ALL, STATIC, SPIN, SPIN2, BALL, ALL_SPIN_TOO }
+    private void drawJointPart(ColossusEntity e, StructureModel m, StructureModel.Joint j, Matrix4d local, Part part, PoseStack ps, MultiBufferSource buf, float pt, int light,
+                               double ex, double ey, double ez, net.minecraft.client.multiplayer.ClientLevel level, BlockPos.MutableBlockPos lp) {
+        ps.pushPose();
+        ps.mulPose(new Matrix4f(local));
+        for (BlockPos p : j.blocks) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, part, null, 0);
+        ps.popPose();
+    }
 
     /** (u, v) pixels across the axis + middle along it -> block coordinates (0..1). Same layout as the model generator. */
     private static org.joml.Vector3f uvToBlock(net.minecraft.core.Direction.Axis axis, double u, double v) {
@@ -175,7 +190,7 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
                 rnd.setSeed(42);
                 for (var q : model.getQuads(st, d < 0 ? null : net.minecraft.core.Direction.from3DDataValue(d), rnd, net.neoforged.neoforge.client.model.data.ModelData.EMPTY, rt)) {
                     int ti = q.getTintIndex();
-                    boolean keep = switch (part) { case STATIC -> ti < 9; case SPIN -> ti == 9; case SPIN2 -> ti == 10; default -> true; };
+                    boolean keep = switch (part) { case STATIC -> ti < 9; case SPIN -> ti == 9; case SPIN2 -> ti == 10; case BALL -> ti == 11; default -> true; };
                     if (!keep) continue;
                     vc.putBulkData(ps.last(), q, 1f, 1f, 1f, 1f, light, OverlayTexture.NO_OVERLAY);
                 }

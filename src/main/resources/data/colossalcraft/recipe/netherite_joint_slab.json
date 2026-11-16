@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "JJJ"
+  ],
+  "key": {
+    "J": {
+      "item": "colossalcraft:netherite_joint"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:netherite_joint_slab",
+    "count": 6
+  }
+}

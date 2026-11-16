@@ -132,6 +132,14 @@ public final class DevShots {
             case 264 -> mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
             case 275 -> shot("6_walking_front");
             case 277 -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            case 280 -> { ColossusEntity c = colossus(); if (c != null) net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.StepRequest(c.getId(), 0)); }
+            case 292 -> shot("8_step_planner");
+            case 294 -> mc.setScreen(null);
+            case 295 -> server(sp -> { ColossusEntity c = colossus(); if (c == null) return; c.allowDismount = true; sp.stopRiding(); c.allowDismount = false;
+                net.minecraft.world.phys.Vec3 a = c.blockWorldCenter(new BlockPos(-1, -6, 0)), eye = a.add(-2.2, 0.6, -1.6), d = a.subtract(eye);
+                sp.getAbilities().flying = true; sp.onUpdateAbilities();
+                sp.connection.teleport(eye.x, eye.y - 1.62, eye.z, (float) Math.toDegrees(Math.atan2(-d.x, d.z)), (float) Math.toDegrees(-Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)))); });
+            case 299 -> { mc.options.setCameraType(CameraType.FIRST_PERSON); shot("9_ankle"); }
             case 300 -> server(sp -> { ColossusEntity c = colossus(); if (c != null) { c.energy = 0; ColossalCraft.LOG.info("[devshots] power cut"); } });
             case 330, 345 -> { ColossusEntity c = colossus(); ColossalCraft.LOG.info("[devshots] t={} tilt={}", t, c == null ? -1 : c.tilt); }
             case 346 -> shot("7_fallen");
@@ -155,7 +163,8 @@ public final class DevShots {
                 lv.setBlockAndUpdate(b.offset(2, 4, 0), ModRegistry.GEARBOXES.get(1).get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.WEST));
                 for (int[] o : new int[][]{{3, 4, 0}, {3, 4, 1}, {3, 3, 0}, {3, 3, 1}}) lv.setBlockAndUpdate(b.offset(o[0], o[1], o[2]), mot); // 2x2 motor grid
             }
-            for (int y = 1; y <= 3; y++) lv.setBlockAndUpdate(b.offset(side, y, 0), Blocks.STONE_BRICKS.defaultBlockState());
+            for (int y = 2; y <= 3; y++) lv.setBlockAndUpdate(b.offset(side, y, 0), Blocks.STONE_BRICKS.defaultBlockState());
+            lv.setBlockAndUpdate(b.offset(side, 1, 0), ModRegistry.JOINT_SHAPES.get(MaterialTier.NETHERITE).get(com.colossalcraft.block.SimpleParts.JointShape.BALL).get().defaultBlockState()); // ball ankle
             lv.setBlockAndUpdate(b.offset(side, 0, 0), Blocks.STONE_BRICKS.defaultBlockState());
             lv.setBlockAndUpdate(b.offset(side, 0, -1), Blocks.STONE_BRICK_SLAB.defaultBlockState());
         }
@@ -164,6 +173,7 @@ public final class DevShots {
         lv.setBlockAndUpdate(b.offset(-1, 7, 0), ModRegistry.EMBER_BOILER.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(1, 7, 0), ModRegistry.SMALL_GYRO.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(1, 7, 1), ModRegistry.LOCOMOTION_CONTROLLER.get().defaultBlockState());
+        lv.setBlockAndUpdate(b.offset(-1, 7, 1), ModRegistry.STEP_CONTROLLER.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(-2, 7, -2), ModRegistry.STEAM_VENT.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(2, 7, -2), ModRegistry.BLAZE_JET.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(2, 7, 2), Blocks.CHEST.defaultBlockState());

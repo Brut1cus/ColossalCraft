@@ -73,7 +73,7 @@ public class WalkerController {
         if (h == legsHash && state.length == m.legChains.size()) return;
         legsHash = h;
         int n = m.legChains.size();
-        state = new State[n]; foot = new Vec3[n]; swingFrom = new Vec3[n]; swingTo = new Vec3[n]; swingT = new double[n]; swingLift = new double[n]; footRaise = new double[n]; slipping = new boolean[n];
+        state = new State[n]; foot = new Vec3[n]; swingFrom = new Vec3[n]; swingTo = new Vec3[n]; swingT = new double[n]; swingLift = new double[n]; footRaise = new double[n]; slipping = new boolean[n]; next = new Vec3[n]; nextOk = new boolean[n];
         for (int i = 0; i < n; i++) { state[i] = State.AIR; foot[i] = footFromPose(c, i); }
         track = null; nextGroup = 0; waitingGroup = -1;
     }
@@ -136,6 +136,10 @@ public class WalkerController {
 
     /** Gait clock in step cycles: each leg group lifts when its phase passes the stance share. */
     private double clock;
+    /** A powered Step Controller is aboard: steps go to the best foothold it finds near where the gait wants the foot. */
+    public boolean planner;
+    /** Where each foot will step next (for the Step Controller screen), and whether a good foothold was found. */
+    public Vec3[] next = new Vec3[0]; public boolean[] nextOk = new boolean[0];
     private double lastYaw = Double.NaN;
 
     /**
@@ -224,18 +228,19 @@ public class WalkerController {
                 for (int i = 0; i < n; i++) if (m.legChains.get(i).group() != G) { if (state[i] == State.STANCE) others.add(foot[i]); else othersDown = false; }
                 if (!othersDown || others.isEmpty() || !insideSupport(others, com, liftR)) { waitingGroup = G; next = clock; break; } // hold the clock: lean first
                 for (int i : lift) {
-                    // land where the hip will be halfway through the next stance (the gait's own speed), turned with the body
-                    double tAhead = duty * cycle * 0.5 + swingDur * 0.5;
-                    Vec3 to = neutral[i].add(vCmd.scale(tAhead));
-                    double turn = yawRate * tAhead;
-                    if (Math.abs(turn) > 1e-4) { Vec3 r = to.subtract(com); double ct = Math.cos(turn), st = Math.sin(turn); to = com.add(r.x * ct - r.z * st, r.y, r.x * st + r.z * ct); }
-                    Vec3 offs = to.subtract(neutral[i]); offs = new Vec3(offs.x, 0, offs.z);
-                    if (offs.length() > 0.6 * reachH + stride * 0.5) to = neutral[i].add(offs.normalize().scale(0.6 * reachH + stride * 0.5));
-                    // land on the real ground there and lift high enough to clear what is in between
                     double top = Math.min(H[i].y - 0.3, foot[i].y + 2.5);
-                    double gy = soleGround(c, i, new Vec3(to.x, top - 1, to.z));
-                    if (!Double.isNaN(gy) && gy > foot[i].y - 3) to = new Vec3(to.x, gy, to.z);
-                    else to = foot[i]; // a wall or a drop there: step in place
+                    Vec3 to = nominalTo(i, neutral[i], vCmd, duty * cycle * 0.5 + swingDur * 0.5, yawRate, com, reachH, stride);
+                    if (planner) {
+                        // the Step Controller looks around the spot for good footing; if there's none, a shorter step; else step in place
+                        Vec3 f = pickFoothold(c, i, to, avoidFor(i));
+                        if (f == null) f = pickFoothold(c, i, foot[i].add(to.subtract(foot[i]).scale(0.5)), avoidFor(i));
+                        to = f != null ? f : foot[i];
+                    } else {
+                        // land on the real ground there
+                        double gy = soleGround(c, i, new Vec3(to.x, top - 1, to.z));
+                        if (!Double.isNaN(gy) && gy > foot[i].y - 3) to = new Vec3(to.x, gy, to.z);
+                        else to = foot[i]; // a wall or a drop there: step in place
+                    }
                     double clear = Math.max(foot[i].y, to.y);
                     for (int k = 1; k < 4; k++) {
                         Vec3 q = foot[i].add(to.subtract(foot[i]).scale(k / 4.0));
@@ -248,6 +253,16 @@ public class WalkerController {
             }
             clock = next;
         }
+
+        // ---- Step Controller preview: where each foot will go next
+        if (planner && c.tickCount % 5 == 0) for (int i = 0; i < n; i++) {
+            if (state[i] == State.SWING) { next[i] = swingTo[i]; nextOk[i] = true; continue; }
+            if (state[i] != State.STANCE) { next[i] = null; continue; }
+            Vec3 nom = nominalTo(i, neutral[i], vCmd, duty * cycle * 0.5 + swingDur * 0.5, yawRate, com, reachH, stride);
+            Vec3 f = pickFoothold(c, i, nom, avoidFor(i));
+            next[i] = f != null ? f : nom; nextOk[i] = f != null;
+        }
+        if (!planner) Arrays.fill(next, null);
 
         // ---- 3. body, from the feet up
         List<Integer> planted = new ArrayList<>();
@@ -353,6 +368,65 @@ public class WalkerController {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < n; i++) sb.append(i == 0 ? "" : " ").append(state[i] == State.STANCE ? (slipping[i] ? "SLIP" : "DOWN") : state[i] == State.SWING ? "STEP" : "AIR");
         status = sb + (waiting ? "  shifting weight" : "");
+    }
+
+    /** Where the gait wants foot i to land: under where its hip will be halfway through the next stance, turned with the body. */
+    private static Vec3 nominalTo(int i, Vec3 neutral, Vec3 vCmd, double tAhead, double yawRate, Vec3 com, double reachH, double stride) {
+        Vec3 to = neutral.add(vCmd.scale(tAhead));
+        double turn = yawRate * tAhead;
+        if (Math.abs(turn) > 1e-4) { Vec3 r = to.subtract(com); double ct = Math.cos(turn), st = Math.sin(turn); to = com.add(r.x * ct - r.z * st, r.y, r.x * st + r.z * ct); }
+        Vec3 offs = to.subtract(neutral); offs = new Vec3(offs.x, 0, offs.z);
+        double lim = 0.6 * reachH + stride * 0.5;
+        if (offs.length() > lim) to = neutral.add(offs.normalize().scale(lim));
+        return to;
+    }
+    /** Spots other feet use (planted, or landing): a new step keeps clear of them. */
+    private List<Vec3> avoidFor(int i) {
+        List<Vec3> a = new ArrayList<>();
+        for (int k = 0; k < state.length; k++) if (k != i) { if (state[k] == State.STANCE) a.add(foot[k]); else if (state[k] == State.SWING) a.add(swingTo[k]); }
+        return a;
+    }
+    /**
+     * Step Controller: look at a small grid of spots around where the foot should go and pick the best foothold.
+     * Every sole block needs ground under it, the soles must be nearly level, the rise or drop must be one the leg can take,
+     * and lava, fire, cactus and the like are refused. Water and slippery ground cost extra. Closer to the wanted spot is better.
+     * Returns the contact point on the ground, or null if nothing nearby is good.
+     */
+    Vec3 pickFoothold(ColossusEntity c, int i, Vec3 want, List<Vec3> avoid) {
+        StructureModel.LegChain L = c.model.legChains.get(i);
+        Level level = c.level();
+        Vec3 from = foot[i];
+        double maxRise = Math.min(1.6, 0.35 * L.length()), top = from.y + maxRise + 1;
+        Vec3 best = null; double bestScore = Double.MAX_VALUE;
+        for (double dx = -1; dx <= 1.001; dx += 0.5) for (double dz = -1; dz <= 1.001; dz += 0.5) {
+            Vec3 p = new Vec3(want.x + dx, 0, want.z + dz);
+            boolean clear = true;
+            for (Vec3 a : avoid) if ((a.x - p.x) * (a.x - p.x) + (a.z - p.z) * (a.z - p.z) < 0.9 * 0.9) { clear = false; break; }
+            if (!clear) continue;
+            double hi = Double.NEGATIVE_INFINITY, lo = Double.POSITIVE_INFINITY; int miss = 0;
+            for (BlockPos sb : L.soles()) {
+                Vec3 off = levelOffset(c, L.foot(), new Vec3(sb.getX() + .5, L.foot().y, sb.getZ() + .5));
+                double gy = groundFrom(level, p.x + off.x, top, p.z + off.z, (int) Math.ceil(top - from.y) + 3);
+                if (Double.isNaN(gy) || gy < from.y - 2) { miss++; continue; }
+                hi = Math.max(hi, gy); lo = Math.min(lo, gy);
+            }
+            if (miss > 0 || hi - lo > 0.55) continue;            // over an edge, or too uneven
+            double rise = hi - from.y;
+            if (rise > maxRise || rise < -1.5) continue;
+            BlockPos under = BlockPos.containing(p.x, hi - 0.05, p.z), at = BlockPos.containing(p.x, hi + 0.05, p.z);
+            if (hazard(level.getBlockState(under)) || hazard(level.getBlockState(at)) || level.getFluidState(at).is(net.minecraft.tags.FluidTags.LAVA)) continue;
+            double score = Math.sqrt(dx * dx + dz * dz) + Math.abs(rise) * 0.8 + (hi - lo) * 2;
+            if (!level.getFluidState(at).isEmpty()) score += 3;
+            if (groundMu(level, new Vec3(p.x, hi, p.z)) < 0.2) score += 2;
+            if (score < bestScore) { bestScore = score; best = new Vec3(p.x, hi, p.z); }
+        }
+        return best;
+    }
+    static boolean hazard(BlockState s) {
+        net.minecraft.world.level.block.Block b = s.getBlock();
+        return b instanceof net.minecraft.world.level.block.BaseFireBlock || b instanceof net.minecraft.world.level.block.MagmaBlock || b instanceof net.minecraft.world.level.block.CactusBlock
+                || b instanceof net.minecraft.world.level.block.CampfireBlock || b instanceof net.minecraft.world.level.block.SweetBerryBushBlock || b instanceof net.minecraft.world.level.block.PowderSnowBlock
+                || b instanceof net.minecraft.world.level.block.WitherRoseBlock || s.getFluidState().is(net.minecraft.tags.FluidTags.LAVA);
     }
 
     private List<Vec3> others(List<Integer> planted, int group, StructureModel m) {

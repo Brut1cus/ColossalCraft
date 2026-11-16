@@ -228,6 +228,19 @@ public final class SimpleParts {
         }
     }
 
+    /** Step Controller: scans the ground ahead and picks where each foot lands (uses power). Right-click: top-down step planner. */
+    public static class StepControllerBlock extends HorizontalDirectionalBlock {
+        public static final double POWER = 25; // CJ per tick while a walker stands or walks
+        public StepControllerBlock(Properties p) { super(p); registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH)); }
+        @Override protected com.mojang.serialization.MapCodec<? extends HorizontalDirectionalBlock> codec() { return null; }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(FACING); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(FACING, c.getHorizontalDirection().getOpposite()); }
+        @Override protected net.minecraft.world.InteractionResult useWithoutItem(BlockState s, net.minecraft.world.level.Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
+            if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer sp) com.colossalcraft.colossus.StepPlanner.sendParked(sp, pos);
+            return net.minecraft.world.InteractionResult.sidedSuccess(level.isClientSide);
+        }
+    }
+
     /** Jump Drive: a capacitor. Charges slowly from the Colossus' power, lets it all out at once to launch it. */
     public static class JumpDriveBlock extends Block {
         public static final double CAPACITY = 600_000; public static final double CHARGE_RATE = 400; // CJ, CJ per tick

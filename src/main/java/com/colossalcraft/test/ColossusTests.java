@@ -899,4 +899,32 @@ public class ColossusTests {
             h.succeed();
         });
     }
+
+    @GameTest(template = "empty16", timeoutTicks = 220)
+    public static void stepControllerAvoidsDangerousGround(GameTestHelper h) {
+        walker(h, false, true);
+        h.setBlock(8, 7, 8, ModRegistry.STEP_CONTROLLER.get());
+        // magma right where the feet would normally land, with safe ground beside it
+        for (int z = 2; z <= 5; z++) { h.setBlock(6, 0, z, Blocks.MAGMA_BLOCK); h.setBlock(8, 0, z, Blocks.MAGMA_BLOCK); }
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] z0 = {0}; boolean[] burned = {false}; boolean[] planned = {false};
+        h.runAfterDelay(20, () -> { ColossusEntity c = find(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        for (int t = 21; t <= 200; t++) h.runAfterDelay(t, () -> {
+            ColossusEntity c = find(h);
+            if (c.getZ() - z0[0] < -6) c.setInput(0, 0, false, false);
+            planned[0] |= c.walker.planner;
+            for (int i = 0; i < c.walker.foot.length; i++) if (c.walker.state[i] == WalkerController.State.STANCE) {
+                var f = c.walker.foot[i];
+                if (h.getLevel().getBlockState(BlockPos.containing(f.x, f.y - 0.05, f.z)).is(Blocks.MAGMA_BLOCK)) burned[0] = true;
+            }
+        });
+        h.runAfterDelay(205, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] step planner dz={} burned={} planned={} status={}", c.getZ() - z0[0], burned[0], planned[0], c.walker.status);
+            h.assertTrue(planned[0], "the Step Controller should be planning (powered)");
+            h.assertTrue(!burned[0], "a foot was planted on magma");
+            h.assertTrue(c.getZ() - z0[0] < -3, "should still walk past the magma, dz=" + (c.getZ() - z0[0]));
+            h.succeed();
+        });
+    }
 }
