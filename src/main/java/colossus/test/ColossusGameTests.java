@@ -9,6 +9,7 @@ import colossus.client.ClientColossi;
 import colossus.core.Colossus;
 import colossus.core.ColossusManager;
 import colossus.core.ColossusRegistries;
+import colossus.gyro.GyroStabilizerBlockEntity;
 import colossus.net.SegmentBlocks;
 import colossus.net.StructureSync;
 import colossus.shipyard.ColossusRecord;
@@ -186,6 +187,37 @@ public class ColossusGameTests {
             h.assertTrue(m.gyros(id).get(0).torqueCapacity() > 0, "no torque capacity");
             h.assertTrue(AssemblyService.disassemble(h.getLevel(), id, null) || ColossusSavedData.get(h.getLevel()).byId(id) == null,
                     "disassembly refused");
+        });
+    }
+
+    /** A powered gyro spins up in the world, keeps that speed when assembled, and still has it after disassembly. */
+    @GameTest(template = "empty16", timeoutTicks = 200)
+    public static void gyroKeepsItsSpinThroughAssembly(GameTestHelper h) {
+        floor(h);
+        // a free-standing powered gyro spins up in the world
+        h.setBlock(2, 1, 2, ColossusRegistries.GYRO_STABILIZER.get());
+        h.setBlock(2, 2, 2, Blocks.REDSTONE_BLOCK);
+        // a deck whose gyro starts at 80% (as if spun up long ago)
+        for (int x = 6; x <= 8; x++) for (int z = 6; z <= 8; z++) h.setBlock(x, 4, z, Blocks.IRON_BLOCK);
+        h.setBlock(7, 5, 7, ColossusRegistries.HULL_CORES.get(CoreTier.IRON).get());
+        h.setBlock(6, 5, 6, ColossusRegistries.GYRO_STABILIZER.get());
+        ((GyroStabilizerBlockEntity) h.getBlockEntity(new BlockPos(6, 5, 6))).setSpin(0.8);
+
+        UUID id = AssemblyService.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 5, 7)), null);
+        h.assertTrue(id != null, "assembly failed");
+        var rotor = ColossusManager.get(h.getLevel()).gyros(id).get(0).rotors().get(0);
+        h.assertTrue(Math.abs(rotor.spinFraction() - 0.8) < 0.01, "rotor should start at 80%, got " + rotor.spinFraction());
+        h.assertTrue(AssemblyService.disassemble(h.getLevel(), id, null), "disassembly refused");
+
+        h.succeedWhen(() -> {
+            var free = (GyroStabilizerBlockEntity) h.getBlockEntity(new BlockPos(2, 1, 2));
+            h.assertTrue(free.spin() > 0.01, "powered gyro did not spin up in the world: " + free.spin());
+            // unpowered after disassembly it spins down slowly, so it is still well above zero
+            boolean found = false;
+            for (int y = 1; y <= 5 && !found; y++) {
+                if (h.getLevel().getBlockEntity(h.absolutePos(new BlockPos(6, y, 6))) instanceof GyroStabilizerBlockEntity be && be.spin() > 0.5) found = true;
+            }
+            h.assertTrue(found, "disassembled gyro lost its spin");
         });
     }
 }

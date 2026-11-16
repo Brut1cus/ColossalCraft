@@ -5,6 +5,8 @@ import colossus.assembly.HullCoreBlockEntity;
 import colossus.assembly.JointBlock;
 import colossus.assembly.JointKind;
 import colossus.assembly.graph.CoreTier;
+import colossus.gyro.GyroStabilizerBlock;
+import colossus.gyro.GyroStabilizerBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -71,12 +73,16 @@ public final class ColossusRegistries {
 
     // ---- Stabilization ----
     /** Powered control-moment gyro; an N×N square merges into one rotor (see {@code GyroStabilizer}). Redstone sets its throttle. */
-    public static final DeferredBlock<Block> GYRO_STABILIZER = block("gyro_stabilizer", Block::new, metal());
+    public static final DeferredBlock<GyroStabilizerBlock> GYRO_STABILIZER = block("gyro_stabilizer", GyroStabilizerBlock::new, metal());
 
     // ---- Block entities ----
     @SuppressWarnings("DataFlowIssue")
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HullCoreBlockEntity>> HULL_CORE_BE = BLOCK_ENTITIES.register("hull_core",
             () -> BlockEntityType.Builder.of(HullCoreBlockEntity::new, HULL_CORES.values().stream().map(DeferredBlock::get).toArray(Block[]::new)).build(null));
+
+    @SuppressWarnings("DataFlowIssue")
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GyroStabilizerBlockEntity>> GYRO_BE = BLOCK_ENTITIES.register("gyro_stabilizer",
+            () -> BlockEntityType.Builder.of(GyroStabilizerBlockEntity::new, GYRO_STABILIZER.get()).build(null));
 
     // ---- Creative tab ----
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB = TABS.register("main", () -> CreativeModeTab.builder()

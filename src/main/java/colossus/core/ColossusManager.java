@@ -5,6 +5,7 @@ import colossus.assembly.JointKind;
 import colossus.brain.balance.GyroController;
 import colossus.brain.balance.GyroStabilizer;
 import colossus.core.data.ColossusData;
+import colossus.gyro.GyroStabilizerBlockEntity;
 import colossus.net.PoseSync;
 import colossus.physics.BackendFactory;
 import colossus.physics.PhysicsWorld;
@@ -144,7 +145,12 @@ public final class ColossusManager {
             for (GyroStabilizer.Unit u : GyroStabilizer.units(cells)) {
                 GyroStabilizer.Rotor rotor = new GyroStabilizer.Rotor(u.footprint(), params);
                 List<BlockPos> blocks = new ArrayList<>();
-                for (int i : u.cells()) blocks.add(plot.get(i));
+                double spin = 0;
+                for (int i : u.cells()) {
+                    blocks.add(plot.get(i));
+                    if (level.getBlockEntity(plot.get(i)) instanceof GyroStabilizerBlockEntity be) spin += be.spin();
+                }
+                rotor.setSpinFraction(spin / u.cells().length); // spun up before assembly, or saved before a restart
                 rotors.add(rotor);
                 l.gyroUnits.add(new GyroBinding(si, rotor, blocks));
             }
@@ -165,12 +171,19 @@ public final class ColossusManager {
         return GyroStabilizer.combinedInertia(in, m, c, r.segments.get(segment).comRel);
     }
 
-    /** Redstone power on any block of a rotor sets its throttle (signal / 15). */
+    /** Redstone power on any block of a rotor sets its throttle (signal / 15); the rotor speed is written back to the blocks. */
     private void updateGyroThrottles(Live l) {
         for (GyroBinding b : l.gyroUnits) {
             int signal = 0;
             for (BlockPos p : b.blocks()) signal = Math.max(signal, level.getBestNeighborSignal(p));
             b.rotor().setThrottle(signal / 15.0);
+        }
+        storeGyroSpin(l);
+    }
+
+    private void storeGyroSpin(Live l) {
+        for (GyroBinding b : l.gyroUnits) {
+            for (BlockPos p : b.blocks()) if (level.getBlockEntity(p) instanceof GyroStabilizerBlockEntity be) be.setSpin(b.rotor().spinFraction());
         }
     }
 
@@ -203,7 +216,10 @@ public final class ColossusManager {
     public void despawn(UUID id) {
         Live l = live.remove(id);
         if (l == null || physics == null) return;
-        if (l.gyros != null) physics.removeController(l.gyros);
+        if (l.gyros != null) {
+            physics.removeController(l.gyros);
+            storeGyroSpin(l); // disassembly copies the block entities next, so the rotors keep their speed
+        }
         for (ConstraintHandle h : l.joints) if (h != null) physics.removeConstraint(h);
         for (BodyHandle h : l.bodies) physics.removeBody(h);
     }

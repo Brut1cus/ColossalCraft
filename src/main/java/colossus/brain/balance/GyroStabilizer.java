@@ -70,6 +70,11 @@ public final class GyroStabilizer {
 
         public double omega() { return omega; }
 
+        /** Rotor speed as a fraction of full speed (what the block entity stores). */
+        public double spinFraction() { return maxOmega <= 0 ? 0 : omega / maxOmega; }
+
+        public void setSpinFraction(double f) { omega = Math.max(0, Math.min(1, f)) * maxOmega; }
+
         public double rpm() { return omega * 60 / (2 * Math.PI); }
 
         public double angularMomentum() { return inertia * omega; }
