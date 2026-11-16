@@ -25,21 +25,36 @@ public final class ClientHooks {
     }
 
     /** Right-click on a built Colossus: Hull Core opens its screen, Pilot Throne seats you. Returns true if handled. */
-    public static boolean tryClickColossus() {
+    public static boolean tryClickColossus() { return tryColossus(false); }
+
+    /** Right- or left-click on a built Colossus: special blocks (Hull Core, controller, throne) open/seat; anything else is sent to the server
+     *  to use, mine or build against. Returns true if a Colossus block was in front of the world. */
+    public static boolean tryColossus(boolean attack) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player; if (p == null || p.isPassenger()) return false;
         Vec3 eye = p.getEyePosition(), to = eye.add(p.getViewVector(1f).scale(p.blockInteractionRange()));
         double worldDist = mc.hitResult != null && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS ? mc.hitResult.getLocation().distanceTo(eye) : Double.MAX_VALUE;
         for (ColossusEntity c : com.colossalcraft.colossus.ColossusCollision.all(true)) {
             if (c.level() != p.level() || c.model == null || !c.getBoundingBox().inflate(6).contains(eye)) continue;
-            BlockPos hit = c.raycastBlock(eye, to);
-            if (hit == null || c.blockWorldCenter(hit).distanceTo(eye) > worldDist + 0.7) continue;
+            Object[] h = c.raycastHit(eye, to);
+            if (h == null) continue;
+            BlockPos hit = (BlockPos) h[0]; net.minecraft.core.Direction face = (net.minecraft.core.Direction) h[1];
+            if (c.blockWorldCenter(hit).distanceTo(eye) > worldDist + 0.7) continue;
             var b = c.blocks.get(hit).getBlock();
-            if (b instanceof com.colossalcraft.block.HullCoreBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 0)); return true; }
-            if (b instanceof com.colossalcraft.block.SimpleParts.LocomotionControllerBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 2)); return true; }
-            if (b instanceof com.colossalcraft.block.SimpleParts.PilotSeatBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 1)); return true; }
+            if (!attack) {
+                if (b instanceof com.colossalcraft.block.HullCoreBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 0)); return true; }
+                if (b instanceof com.colossalcraft.block.SimpleParts.LocomotionControllerBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 2)); return true; }
+                if (b instanceof com.colossalcraft.block.SimpleParts.PilotSeatBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 1)); return true; }
+            }
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ColossusBlock(c.getId(), hit.asLong(), face.get3DDataValue(), attack ? 1 : 0));
+            return true;
         }
         return false;
+    }
+
+    public static void colossusBlocks(int id, CompoundTag data) {
+        var lvl = Minecraft.getInstance().level; if (lvl == null) return;
+        if (lvl.getEntity(id) instanceof ColossusEntity c) c.applyEdit(data);
     }
 
     public static void structureRemoved(int id, CompoundTag data) {

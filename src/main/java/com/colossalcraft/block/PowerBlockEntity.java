@@ -44,14 +44,19 @@ public class PowerBlockEntity extends BlockEntity implements net.minecraft.world
         public boolean isItemValid(int s, ItemStack st) { return fuel.isItemValid(s, st); }
     };
 
+    /** Burn one item from the fuel slot into stored energy if it fits. Also used for engines riding on a Colossus. */
+    public boolean burnFuel() {
+        ItemStack st = fuel.getStackInSlot(0);
+        if (st.isEmpty() || !addFuel(st, true)) return false;
+        addFuel(st, false);
+        ItemStack leftover = st.getCraftingRemainingItem(); // lava bucket -> empty bucket
+        ItemStack now = st.copy(); now.shrink(1);
+        fuel.setStackInSlot(0, now.isEmpty() ? leftover.copy() : now);
+        return true;
+    }
+
     public static void serverTick(Level level, BlockPos pos, BlockState state, PowerBlockEntity be) {
-        ItemStack st = be.fuel.getStackInSlot(0);
-        if (!st.isEmpty() && be.addFuel(st, true)) {
-            be.addFuel(st, false);
-            ItemStack leftover = st.getCraftingRemainingItem(); // lava bucket -> empty bucket
-            ItemStack now = st.copy(); now.shrink(1);
-            be.fuel.setStackInSlot(0, now.isEmpty() ? leftover.copy() : now);
-        }
+        be.burnFuel();
         if (!(state.getBlock() instanceof ControllerBlock) || level.getGameTime() % 20 != 0) return;
         ControllerBlock c = (ControllerBlock) state.getBlock();
         String msg = c.def.validate(level, pos, state.getValue(ControllerBlock.FACING));

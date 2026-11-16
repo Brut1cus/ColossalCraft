@@ -32,6 +32,12 @@ public class ColossalCraft {
         NeoForge.EVENT_BUS.addListener((AddReloadListenerEvent e) -> e.addListener(new Density()));
         NeoForge.EVENT_BUS.addListener(ColossalCraft::commands);
         // Crouch is 'lower' while piloting: only the leave key (V) lets the pilot off
+        // explosions damage Colossi: blocks blow off, joints can break (the piece falls off as a wreck)
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.level.ExplosionEvent.Detonate e) -> {
+            if (e.getLevel().isClientSide) return;
+            var ex = e.getExplosion();
+            for (var c : new java.util.ArrayList<>(com.colossalcraft.colossus.ColossusCollision.all(e.getLevel()))) c.explode(ex.center(), ex.radius());
+        });
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.EntityMountEvent e) -> {
             if (e.isDismounting() && e.getEntityBeingMounted() instanceof ColossusEntity c && !c.allowDismount && e.getEntityMounting() instanceof net.minecraft.world.entity.player.Player p
                     && p.isAlive() && !c.isRemoved() && p.isShiftKeyDown()) e.setCanceled(true);

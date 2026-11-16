@@ -50,6 +50,8 @@ public class WalkerController {
     private static final double KP = 8, KD = 5, KPV = 30, KDV = 10;
 
     public boolean usable(StructureModel m) { return !m.legChains.isEmpty(); }
+    /** Is any foot standing on the ground? */
+    public boolean planted() { for (State st : state) if (st == State.STANCE) return true; return false; }
 
     public void release(StructureModel m) {
         if (m.ikAngles != null) Arrays.fill(m.ikAngles, Double.NaN);

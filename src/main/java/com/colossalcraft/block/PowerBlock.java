@@ -47,7 +47,7 @@ public class PowerBlock extends BaseEntityBlock {
     @Override protected InteractionResult useWithoutItem(BlockState s, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (!level.isClientSide && level.getBlockEntity(pos) instanceof PowerBlockEntity be) {
             if (be.tier() != null && player instanceof net.minecraft.server.level.ServerPlayer sp) {
-                sp.openMenu(be, buf -> buf.writeBlockPos(pos));
+                sp.openMenu(be, buf -> EngineMenu.writeOpen(buf, pos, null));
                 if (s.getBlock() instanceof ControllerBlock && !be.formed && !be.status.isEmpty()) be.describe(player);
             } else be.describe(player);
         }

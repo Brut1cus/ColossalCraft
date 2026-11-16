@@ -93,6 +93,17 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public boolean autopilot;
     /** Physics walker (feet, balance, gait, IK). */
     public final WalkerController walker = new WalkerController();
+    /** A broken-off piece (no Hull Core): it falls as one rigid body and turns back into blocks once it comes to rest. */
+    public boolean wreck;
+    private int restTicks;
+    /** Fixed pose of a wreck's blocks (how its limb was bent when it broke off), applied before the part transforms. */
+    public Matrix4d bake;
+    /** Block entities brought to life on the server (engines, opened chests): edited live, saved back into {@link #bes}. */
+    public final Map<BlockPos, BlockEntity> liveBes = new HashMap<>();
+    /** Damage each joint has taken (explosions); past its strength the joint breaks. */
+    private double[] jointDamage = new double[0];
+    /** Mining progress on blocks of this Colossus (survival breaking). */
+    public final Map<BlockPos, Double> mining = new HashMap<>();
     private boolean bodyOnly;
     private static final EntityDataAccessor<CompoundTag> IK = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.COMPOUND_TAG);
     private static final EntityDataAccessor<Float> JUMP = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
@@ -115,6 +126,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private void rebuild() {
         model = new StructureModel(blocks, bes, jointCfg);
         overload = new int[model.joints.size()];
+        jointDamage = Arrays.copyOf(jointDamage, model.joints.size());
         art = model.transforms(walkPhase, walkBlend, spin, tickCount);
         entityData.set(INFINITE, model.infinite);
         setBoundingBox(makeBoundingBox());
@@ -155,6 +167,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public Matrix4d[] freshSegWorlds() { return segWorlds(position(), yaw, tilt, model.transforms(walkPhase, walkBlend, spin, tickCount)); }
     public Matrix4d segWorld(int seg, Vec3 pos, double yw, double tl, Matrix4d[] arts) {
         Matrix4d m = base(pos, yw, tl);
+        if (bake != null) m.mul(bake);
         if (seg < arts.length && arts[seg] != null) m.mul(arts[seg]);
         return m;
     }
@@ -217,6 +230,10 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         super.tick();
         if (!isRemoved()) ColossusCollision.all(level()).add(this); // client levels don't always fire onAddedToLevel
         if (model == null || blocks.isEmpty()) { if (!level().isClientSide) discard(); return; }
+        if (model.segs.isEmpty()) { // only bearing blocks left (a piece that broke off at its joints): just drop them
+            if (!level().isClientSide) { for (BlockPos p : new ArrayList<>(blocks.keySet())) dropBlock(p, null); discard(); }
+            return;
+        }
         prevYaw = yaw; prevWalkPhase = walkPhase; prevWalkBlend = walkBlend; prevSpin = spin; prevTilt = tilt;
         if (level().isClientSide) {
             Vec3 last = clientLastPos == null ? position() : clientLastPos;
@@ -246,6 +263,11 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         carry(before, segWorlds(position(), yaw, tilt, art), yaw - prevYaw);
         crush();
         checkJoints(accel);
+        if (isRemoved()) return;
+        tickLiveBes();
+        if (wreck) { // a broken-off piece: once it lies still, it becomes blocks again
+            if (onGroundC && vel.lengthSqr() < 0.01) { if (++restTicks > 40) { settle(); return; } } else restTicks = 0;
+        }
         entityData.set(YAW, (float) yaw); entityData.set(WALK, (float) walkPhase); entityData.set(BLEND, (float) walkBlend);
         entityData.set(SPIN, (float) spin); entityData.set(ENERGY, (float) energy); entityData.set(TILT, (float) tilt); entityData.set(TILT_DIR, (float) (Double.isNaN(tiltDir) ? -999 : tiltDir));
     }
@@ -281,7 +303,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         double vT = 0, dT = 0;
         if (pilot != null && inUp) vT = 1;
         else if (pilot != null && inDown) dT = 1;
-        else if (hover() && up > 0) vT = Math.max(0, Math.min(1, (M * g - buoy - M * vel.y * 2) / up));
+        else if (hover() && up > 0 && !(model.legged && walker.planted())) vT = Math.max(0, Math.min(1, (M * g - buoy - M * vel.y * 2) / up));
         Vec3 fwL = Vec3.atLowerCornerOf(model.forward.getNormal());
         Matrix4d[] W = segWorlds(position(), yaw, tilt, art);
         Vec3 thrust = Vec3.ZERO; double torqueY = 0, draw = 0;
@@ -754,25 +776,190 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         }
     }
 
-    private void breakJoint(int id) {
-        Set<BlockPos> rem = model.subtreeBlocks(id);
-        Vec3 jc = blockWorldCenter(model.joints.get(id).blocks.get(0));
-        int spawned = 0;
-        for (BlockPos p : rem) {
-            BlockState s = blocks.get(p);
-            if (s != null && spawned < 1500) {
-                Vec3 w = blockWorldCenter(p);
-                FallingBlockEntity fb = new FallingBlockEntity(level(), w.x, w.y - 0.5, w.z, s);
-                fb.time = 1; fb.blockData = bes.get(p);
-                fb.setDeltaMovement(vel.scale(0.05));
-                level().addFreshEntity(fb); spawned++;
-            }
-        }
+    /** A joint gives way: its bearing blocks shatter (dropped as items) and everything it held falls off as one wreck. */
+    public void breakJoint(int id) {
+        if (id < 0 || id >= model.joints.size()) return;
+        StructureModel.Joint j = model.joints.get(id);
+        Vec3 jc = blockWorldCenter(j.blocks.get(0));
+        for (BlockPos p : j.blocks) dropBlock(p, null);
         level().playSound(null, BlockPos.containing(jc), SoundEvents.ANVIL_BREAK, SoundSource.BLOCKS, 2f, 0.5f);
-        removeBlocks(rem);
-        LongArrayTag arr = new LongArrayTag(rem.stream().mapToLong(BlockPos::asLong).toArray());
-        CompoundTag t = new CompoundTag(); t.put("P", arr);
-        PacketDistributor.sendToPlayersTrackingEntity(this, new Net.StructureRemoved(getId(), t));
+        if (level() instanceof ServerLevel sl) sl.sendParticles(ParticleTypes.EXPLOSION, jc.x, jc.y, jc.z, 3, .3, .3, .3, 0);
+        editBlocks(Map.of(), Map.of(), new ArrayList<>(j.blocks));
+    }
+
+    /** Drop a block of this Colossus as items where it is (with a chest's contents). */
+    public void dropBlock(BlockPos p, @org.jetbrains.annotations.Nullable Player who) {
+        if (!(level() instanceof ServerLevel sl)) return;
+        BlockState st = blocks.get(p); if (st == null) return;
+        Vec3 w = blockWorldCenter(p);
+        BlockPos wp = BlockPos.containing(w);
+        BlockEntity be = liveBe(p);
+        if (be instanceof net.minecraft.world.Container ct) net.minecraft.world.Containers.dropContents(sl, wp, ct);
+        if (be instanceof com.colossalcraft.block.PowerBlockEntity pe) net.minecraft.world.Containers.dropItemStack(sl, w.x, w.y, w.z, pe.fuel.getStackInSlot(0).copy());
+        if (who == null || !who.isCreative())
+            for (net.minecraft.world.item.ItemStack it : Block.getDrops(st, sl, wp, null, who, who == null ? net.minecraft.world.item.ItemStack.EMPTY : who.getMainHandItem()))
+                net.minecraft.world.Containers.dropItemStack(sl, w.x, w.y, w.z, it);
+        liveBes.remove(p);
+    }
+
+    /**
+     * Change blocks of this Colossus while it stays where it is in the world: set/replace some, remove others.
+     * Parts no longer connected to the Hull Core fall off as wrecks. Server: tells the clients too.
+     */
+    public void editBlocks(Map<BlockPos, BlockState> set, Map<BlockPos, CompoundTag> setBes, Collection<BlockPos> del) {
+        Vec3 anchor = toWorld(Vec3.ZERO, position(), yaw);
+        for (BlockPos p : del) { blocks.remove(p); bes.remove(p); liveBes.remove(p); mining.remove(p); if (clientBes != null) clientBes.remove(p); }
+        for (var e : set.entrySet()) { blocks.put(e.getKey(), e.getValue()); if (!setBes.containsKey(e.getKey())) { bes.remove(e.getKey()); liveBes.remove(e.getKey()); } if (clientBes != null) clientBes.remove(e.getKey()); }
+        bes.putAll(setBes);
+        if (!level().isClientSide) {
+            CompoundTag t = new CompoundTag();
+            t.put("Del", new LongArrayTag(del.stream().mapToLong(BlockPos::asLong).toArray()));
+            ListTag sl = new ListTag();
+            for (var e : set.entrySet()) { CompoundTag b = new CompoundTag(); b.putLong("P", e.getKey().asLong()); b.putInt("S", Block.getId(e.getValue())); CompoundTag be = setBes.get(e.getKey()); if (be != null && be.sizeInBytes() < 32_768) b.put("E", be); sl.add(b); }
+            t.put("Set", sl);
+            PacketDistributor.sendToPlayersTrackingEntity(this, new Net.ColossusBlocks(getId(), t));
+        }
+        if (blocks.isEmpty()) { discard(); return; }
+        preSegOf = model.segOf; preArt = art; // where pieces were, for wrecks that break off
+        rebuild();
+        Vec3 d = model.com; double cs = Math.cos(yaw), sn = Math.sin(yaw);
+        setPos(anchor.x + d.x * cs - d.z * sn, anchor.y + d.y, anchor.z + d.x * sn + d.z * cs);
+        if (!level().isClientSide) detachIslands();
+    }
+    /** Client: apply an edit the server made. */
+    public void applyEdit(CompoundTag t) {
+        List<BlockPos> del = new ArrayList<>(); for (long l : t.getLongArray("Del")) del.add(BlockPos.of(l));
+        Map<BlockPos, BlockState> set = new HashMap<>(); Map<BlockPos, CompoundTag> sb = new HashMap<>();
+        for (Tag x : t.getList("Set", Tag.TAG_COMPOUND)) { CompoundTag b = (CompoundTag) x; BlockPos p = BlockPos.of(b.getLong("P")); set.put(p, Block.stateById(b.getInt("S"))); if (b.contains("E")) sb.put(p, b.getCompound("E")); }
+        editBlocks(set, sb, del);
+    }
+
+    private Map<BlockPos, Integer> preSegOf = Map.of(); private Matrix4d[] preArt = new Matrix4d[0];
+    /** Blocks no longer joined to the main body (the Hull Core, or for a wreck its biggest piece) break off as separate wrecks. */
+    private void detachIslands() {
+        if (blocks.isEmpty()) return;
+        List<Set<BlockPos>> islands = new ArrayList<>();
+        Set<BlockPos> seen = new HashSet<>();
+        for (BlockPos start : blocks.keySet()) {
+            if (seen.contains(start)) continue;
+            Set<BlockPos> isl = new HashSet<>(); ArrayDeque<BlockPos> q = new ArrayDeque<>(); q.add(start); seen.add(start);
+            while (!q.isEmpty()) { BlockPos p = q.poll(); isl.add(p); for (Direction d : Direction.values()) { BlockPos n = p.relative(d); if (blocks.containsKey(n) && seen.add(n)) q.add(n); } }
+            islands.add(isl);
+        }
+        if (islands.size() <= 1) return;
+        Set<BlockPos> main = null;
+        for (Set<BlockPos> isl : islands) if (!wreck && isl.contains(BlockPos.ZERO)) main = isl;
+        if (main == null) main = islands.stream().max(Comparator.comparingInt(Set::size)).get();
+        List<BlockPos> gone = new ArrayList<>();
+        for (Set<BlockPos> isl : islands) if (isl != main) { spawnWreck(isl); gone.addAll(isl); }
+        editBlocks(Map.of(), Map.of(), gone);
+    }
+
+    /** A piece that broke off: a new rigid Colossus with no Hull Core, posed exactly where its blocks were. */
+    private void spawnWreck(Set<BlockPos> part) {
+        BlockPos root = part.stream().min(Comparator.naturalOrder()).get();
+        Integer rootSeg = preSegOf.get(root);
+        Matrix4d oldPose = new Matrix4d();
+        if (bake != null) oldPose.mul(bake);
+        if (rootSeg != null && rootSeg < preArt.length && preArt[rootSeg] != null) oldPose.mul(preArt[rootSeg]);
+        ColossusEntity w = new ColossusEntity(ModRegistry.COLOSSUS.get(), level());
+        w.wreck = true;
+        for (BlockPos p : part) { BlockPos q = p.subtract(root); w.blocks.put(q, blocks.get(p)); CompoundTag be = bes.get(p); if (be != null) w.bes.put(q, be.copy()); }
+        w.jointCfg = new CompoundTag();
+        w.rebuild();
+        // world = T(pos) R(yaw) R(tilt) T(-com_w) * bake * p_new   must equal   T(pos) R(yaw) R(tilt) T(-com_old) * oldPose * (p_new + root)
+        Vec3 cw = w.model.com, co = model.com;
+        w.bake = new Matrix4d().translate(cw.x - co.x, cw.y - co.y, cw.z - co.z).mul(oldPose).translate(root.getX(), root.getY(), root.getZ());
+        w.yaw = w.prevYaw = yaw; w.tilt = w.prevTilt = tilt; w.tiltDir = tiltDir;
+        w.setPos(getX(), getY(), getZ());
+        w.vel = vel.add((random.nextDouble() - .5) * 0.6, 0.3, (random.nextDouble() - .5) * 0.6);
+        w.energy = 0; w.energyStart = 0;
+        level().addFreshEntity(w);
+    }
+
+    /** A wreck that has come to rest turns back into blocks where it lies (blocked spots drop as items). */
+    private void settle() {
+        if (!(level() instanceof ServerLevel sl)) return;
+        double snapped = Math.round(yaw / (Math.PI / 2)) * (Math.PI / 2);
+        int k = Math.floorMod((int) Math.round(yaw / (Math.PI / 2)), 4);
+        Rotation rot = new Rotation[]{Rotation.NONE, Rotation.CLOCKWISE_90, Rotation.CLOCKWISE_180, Rotation.COUNTERCLOCKWISE_90}[k];
+        List<BlockPos> placed = new ArrayList<>();
+        for (var e : blocks.entrySet()) {
+            BlockPos t = BlockPos.containing(blockWorldCenter(e.getKey()));
+            if (sl.getBlockState(t).canBeReplaced() && sl.isInWorldBounds(t) && !placed.contains(t)) {
+                sl.setBlock(t, e.getValue().rotate(sl, t, rot), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+                placed.add(t);
+                BlockEntity be = sl.getBlockEntity(t); CompoundTag tag = bes.get(e.getKey());
+                if (be != null && tag != null) { tag = tag.copy(); tag.putInt("x", t.getX()); tag.putInt("y", t.getY()); tag.putInt("z", t.getZ()); try { be.loadWithComponents(tag, sl.registryAccess()); be.setChanged(); } catch (Exception ignored) {} }
+            } else dropBlock(e.getKey(), null);
+        }
+        for (BlockPos t : placed) sl.blockUpdated(t, sl.getBlockState(t).getBlock());
+        discard();
+    }
+
+    // ------------------------------------------------------------ live block entities (engines, chests)
+    /** The live block entity of a block on this Colossus (made from its saved data the first time it's needed). Server only. */
+    @org.jetbrains.annotations.Nullable
+    public BlockEntity liveBe(BlockPos p) {
+        BlockEntity be = liveBes.get(p); if (be != null) return be;
+        BlockState st = blocks.get(p);
+        if (st == null || !(st.getBlock() instanceof net.minecraft.world.level.block.EntityBlock eb)) return null;
+        CompoundTag tag = bes.get(p);
+        try { be = tag != null ? BlockEntity.loadStatic(p, st, tag, level().registryAccess()) : eb.newBlockEntity(p, st); } catch (Exception ex) { be = null; }
+        if (be != null) liveBes.put(p, be);
+        return be;
+    }
+    /** Write a live block entity back into the Colossus' saved data. */
+    public void saveLive(BlockPos p) { BlockEntity be = liveBes.get(p); if (be != null && blocks.containsKey(p)) bes.put(p, be.saveWithFullMetadata(level().registryAccess())); }
+    public void saveAllLive() { for (BlockPos p : new ArrayList<>(liveBes.keySet())) saveLive(p); }
+    /** Engines keep burning the fuel in their slots while the Colossus runs; what they make goes into its power. */
+    private void tickLiveBes() {
+        for (var e : blocks.entrySet()) {
+            Block b = e.getValue().getBlock();
+            if (!(b instanceof PowerBlock) && !(b instanceof com.colossalcraft.block.ControllerBlock)) continue;
+            if (!(liveBe(e.getKey()) instanceof com.colossalcraft.block.PowerBlockEntity pe)) continue;
+            if (pe.fuel.getStackInSlot(0).isEmpty()) continue;
+            double ratio = energyStart > 0 ? (double) energy / energyStart : 1;
+            long tagE = pe.energy, eff = (long) (tagE * ratio);
+            pe.energy = eff;
+            boolean burned = pe.burnFuel();
+            long d = pe.energy - eff;
+            pe.energy = tagE + Math.max(0, d);
+            if (burned && d > 0) { energy += d; energyStart += d; }
+            if (burned) saveLive(e.getKey());
+        }
+    }
+
+    // ------------------------------------------------------------ explosions
+    /** An explosion nearby: weak blocks within reach are blown off (like terrain), joints take damage and can break. */
+    public void explode(Vec3 center, float radius) {
+        if (level().isClientSide || model == null || isRemoved()) return;
+        double reach = radius * 1.3 / 0.75 + 1;
+        if (!getBoundingBox().inflate(reach).contains(center)) return;
+        List<BlockPos> gone = new ArrayList<>();
+        double[] dmg = new double[model.joints.size()];
+        for (BlockPos p : blocks.keySet()) {
+            Vec3 w = blockWorldCenter(p); double d = w.distanceTo(center);
+            if (d > reach) continue;
+            double intensity = radius * (0.7 + random.nextDouble() * 0.6) - 0.75 * d;
+            Integer jid = model.jointOf.get(p);
+            if (jid != null) { dmg[jid] = Math.max(dmg[jid], Math.max(0, radius * 1.3 - 0.75 * d) * 10); continue; }
+            BlockState st = blocks.get(p);
+            if (st.getBlock() instanceof com.colossalcraft.block.HullCoreBlock) continue; // the heart holds
+            if (intensity - (st.getBlock().getExplosionResistance() + 0.3) * 0.3 > 0) gone.add(p);
+        }
+        for (BlockPos p : gone) if (random.nextDouble() < 1.0 / Math.max(1, radius)) dropBlock(p, null); else liveBes.remove(p);
+        // joints past their strength break (by key: ids change after each break)
+        List<Long> broken = new ArrayList<>();
+        for (StructureModel.Joint j : model.joints) {
+            jointDamage[j.id] += dmg[j.id];
+            if (jointDamage[j.id] > 20 * j.area * j.tier.jointForce / 120_000) broken.add(j.key);
+        }
+        if (!gone.isEmpty()) editBlocks(Map.of(), Map.of(), gone);
+        for (long key : broken) {
+            if (isRemoved()) break;
+            for (StructureModel.Joint j : model.joints) if (j.key == key) { breakJoint(j.id); break; }
+        }
     }
 
     /** Remove local blocks and keep the rest in the same world place. */
@@ -806,6 +993,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
 
     // ------------------------------------------------------------ disassembly
     public boolean disassemble(Player who) {
+        saveAllLive();
         double keepTilt = tilt; tilt = 0; // parks upright
         int k = Math.floorMod((int) Math.round(yaw / (Math.PI / 2)), 4);
         Rotation rot = new Rotation[]{Rotation.NONE, Rotation.CLOCKWISE_90, Rotation.CLOCKWISE_180, Rotation.COUNTERCLOCKWISE_90}[k];
@@ -873,6 +1061,34 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     }
 
     /** Which local block (if any) a ray hits. Returns null when nothing is hit within reach. */
+    /** The block a ray hits and the face it enters through (both in the Colossus' own frame), or null. */
+    public Object[] raycastHit(Vec3 from, Vec3 to) {
+        if (model == null) return null;
+        Vec3 d = to.subtract(from); double len = d.length(); if (len < 1e-6) return null;
+        Vec3 step = d.scale(0.05 / len);
+        Matrix4d[] inv = new Matrix4d[model.segs.size()];
+        for (int i = 0; i < inv.length; i++) inv[i] = segWorld(i).invert();
+        Vec3 p = from;
+        for (double t = 0; t <= len; t += 0.05, p = p.add(step)) {
+            for (int i = 0; i < inv.length; i++) {
+                Vector3d l = inv[i].transformPosition(new Vector3d(p.x, p.y, p.z));
+                BlockPos bp = BlockPos.containing(l.x, l.y, l.z);
+                Integer so = model.segOf.get(bp);
+                if (so == null || so != i) continue;
+                AABB sb = model.shapeBounds.getOrDefault(bp, new AABB(0, 0, 0, 1, 1, 1));
+                if (!sb.inflate(0.05).contains(l.x - bp.getX(), l.y - bp.getY(), l.z - bp.getZ())) continue;
+                // which face: where the previous ray point was, outside the block's shape
+                Vector3d q = inv[i].transformPosition(new Vector3d(p.x - step.x, p.y - step.y, p.z - step.z));
+                double qx = q.x - bp.getX(), qy = q.y - bp.getY(), qz = q.z - bp.getZ();
+                double[] out = {sb.minX - qx, qx - sb.maxX, sb.minY - qy, qy - sb.maxY, sb.minZ - qz, qz - sb.maxZ};
+                Direction[] dirs = {Direction.WEST, Direction.EAST, Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH};
+                int best = 0; for (int k = 1; k < 6; k++) if (out[k] > out[best]) best = k;
+                return new Object[]{bp, dirs[best]};
+            }
+        }
+        return null;
+    }
+
     public BlockPos raycastBlock(Vec3 from, Vec3 to) {
         if (model == null) return null;
         Vec3 d = to.subtract(from); double len = d.length(); if (len < 1e-6) return null;
@@ -908,6 +1124,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
 
     // ------------------------------------------------------------ save / sync
     @Override protected void addAdditionalSaveData(CompoundTag tag) {
+        if (!level().isClientSide) saveAllLive();
+        tag.putBoolean("Wreck", wreck);
+        if (bake != null) { double[] m = new double[16]; bake.get(m); ListTag bl = new ListTag(); for (double v : m) bl.add(net.minecraft.nbt.DoubleTag.valueOf(v)); tag.put("Bake", bl); }
         ListTag list = new ListTag();
         for (var e : blocks.entrySet()) {
             CompoundTag b = new CompoundTag(); b.putLong("P", e.getKey().asLong()); b.put("S", NbtUtils.writeBlockState(e.getValue()));
@@ -929,6 +1148,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             if (b.contains("E")) bes.put(p, b.getCompound("E"));
         }
         jointCfg = tag.getCompound("JointCfg");
+        wreck = tag.getBoolean("Wreck");
+        if (tag.contains("Bake")) { ListTag bl = tag.getList("Bake", Tag.TAG_DOUBLE); double[] m = new double[16]; for (int i = 0; i < 16; i++) m[i] = bl.getDouble(i); bake = new Matrix4d().set(m); }
         yaw = prevYaw = tag.getDouble("Yaw"); yawRate = tag.getDouble("YawRate");
         vel = new Vec3(tag.getDouble("VX"), tag.getDouble("VY"), tag.getDouble("VZ"));
         energy = tag.getLong("Energy"); energyStart = tag.getLong("EnergyStart");
@@ -941,6 +1162,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         buf.writeVarInt(blocks.size());
         for (var e : blocks.entrySet()) { buf.writeLong(e.getKey().asLong()); buf.writeVarInt(Block.getId(e.getValue())); }
         buf.writeNbt(jointCfg); buf.writeDouble(yaw);
+        buf.writeBoolean(wreck); buf.writeBoolean(bake != null);
+        if (bake != null) { double[] m = new double[16]; bake.get(m); for (double v : m) buf.writeDouble(v); }
         // block-entity data for client-side rendering (chests, machines, modded parts); skip huge ones
         List<Map.Entry<BlockPos, CompoundTag>> send = new ArrayList<>(); int total = 0;
         for (var e : bes.entrySet()) { int sz = e.getValue().sizeInBytes(); if (sz < 32_768 && total + sz < 1_500_000) { send.add(e); total += sz; } }
@@ -952,6 +1175,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         for (int i = 0; i < n; i++) { long p = buf.readLong(); blocks.put(BlockPos.of(p), Block.stateById(buf.readVarInt())); }
         CompoundTag c = buf.readNbt(); jointCfg = c == null ? new CompoundTag() : c;
         yaw = prevYaw = buf.readDouble();
+        wreck = buf.readBoolean();
+        if (buf.readBoolean()) { double[] m = new double[16]; for (int i = 0; i < 16; i++) m[i] = buf.readDouble(); bake = new Matrix4d().set(m); }
         int nb = buf.readVarInt(); bes = new HashMap<>();
         for (int i = 0; i < nb; i++) { long p = buf.readLong(); CompoundTag t = buf.readNbt(); if (t != null) bes.put(BlockPos.of(p), t); }
         rebuild();

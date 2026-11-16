@@ -37,7 +37,7 @@ The jar ends up in `build/libs/`. Run the in-world tests with `./gradlew runGame
 | Ctrl | Sprint (walkers step 1.6× faster) |
 | R | Fire the Jump Drive |
 | L | Open the Locomotion Controller |
-| H | Hover assist on/off |
+| H | Hover assist on/off (it rests while a walker stands on its feet) |
 | G | Open the Hull Core screen |
 | K | Park: turns it back into blocks |
 | V | Leave the seat (Shift no longer dismounts, it lowers) |
@@ -65,6 +65,7 @@ Recipes: 3 Bearing Joints in a row give 6 Slab Joints, 3 stacked give 6 Panel Jo
 |---|---|---|
 | Timber (wood) | 20 kN (about 2 t) | 30 kN·m |
 | Cobble (stone) | 50 kN | 60 kN·m |
+| Copper | 85 kN | 120 kN·m |
 | Iron | 120 kN | 200 kN·m |
 | Gilded (gold) | 200 kN | 350 kN·m |
 | Diamond | 500 kN | 1000 kN·m |
@@ -73,19 +74,18 @@ Scaling for a joint of total strength k (an **n×n** square of full joints has k
 - The force it can hold grows with its area: k times (9× for 3x3).
 - The bending (lever) it can hold grows with k^1.5, which is **n³** (27× for 3x3).
 
-Load counts gravity plus acceleration. If a joint stays over 100% load, it creaks, sparks and then **snaps**, and everything hanging from it falls off as blocks.
+Load counts gravity plus acceleration. If a joint stays over 100% load, it creaks, sparks and then **snaps**, and everything hanging from it falls off as one **wreck**: it falls, tumbles and turns back into blocks where it lands.
 
-## Walkers: physics-driven legs
-A walker is a Hull (a rigid body) plus legs (chains of joints). The Hull never moves because a leg "animates". It moves because planted feet push against the ground.
+## Walkers: feet first
+A walker stands on its feet and is placed from the lowest point up. Nothing "holds the Hull in the air": the body is wherever its legs put it.
 
-1. **Contact:** a foot that touches the ground is *planted*, and its world position is locked.
-2. **IK:** each tick the leg joints are solved so the leg reaches from the Hull's hip to its foot (within each joint's limit). What you see is that solution.
-3. **Balance controller:** works out the force the Hull needs (follow the pilot's speed, keep the weight over the feet), then splits it over the planted feet.
-4. **Ground reaction limits:** each foot can push sideways at most *grip × load*, and at most *hip motor torque ÷ hip height*. Grip is the lower of the foot block's and the ground's: about 0.8 normally, 0.02-0.04 on ice. A stiff leg also pushes along itself, so it only holds while tan(leg angle) ≤ grip. Past that the foot **slides**.
-5. **Hull dynamics:** the Hull moves only from those forces plus gravity and thrust. Legs are rigid struts: the Hull can't get further from a planted foot than the leg reaches, and it brakes before it would.
-6. **Gait:** before a foot lifts, the Hull stops going forward and leans just far enough over the foot that will carry it. Planted feet never slide with the body. Then the foot lifts, swings in an arc to a spot ahead (further at higher speed), and plants. Repeat.
-
-7. **Terrain:** a step lands on the real ground there (up a step, down a slope) and lifts high enough to clear what's in between. If any leg block would end up inside the ground, that foot is raised. A wall or a drop of more than 1.5 blocks makes the foot step in place.
+1. **Contact:** a foot that touches the ground is *planted*, and its world position is locked. It plants on the highest open ground under any of its sole blocks (never inside a wall).
+2. **Gait clock:** each leg group lifts when its turn in the step cycle comes (set by the gait in the Locomotion Controller). A group only lifts once the weight is over the other feet; until then the clock waits and the body leans over.
+3. **Body:** moves forward at the gait's own speed (stride ÷ stance time), leans sideways just far enough over the feet carrying the weight (a gyro lets it lean less), and speeds up or slows down only as fast as grip and hip motors allow. Its **height comes from the planted feet**: up a step, down a slope. Knee legs crouch with raise/lower; weak knees sag.
+4. **Grip:** about 1.0 on normal ground, 0.03-0.05 on ice. On ice the walker can't speed up quickly and the HUD shows SLIP. A stiff (knee-less) leg slides if it leans past its grip.
+5. **IK** bends each leg to its foot. If any leg block would end up inside the ground, that foot is raised.
+6. **Steps** land on the real ground (up a step, down a slope) and lift high enough to clear what's in between. A wall or a drop of more than 1.5 blocks makes the foot step in place.
+7. **Tipping:** if the weight stays outside the feet, it falls over.
 
 Set each **hip** (and any **knee**) joint to **Leg**, with a foot under it. Left/right step groups are automatic. The Swing setting is the joint's angle limit. The HUD shows each foot: DOWN, STEP, SLIP.
 
@@ -110,6 +110,17 @@ Joint setup moved here from the Hull Core. One per walker.
 - **Gait modes:** Biped, Digitigrade (knees bend backward), Quadruped (diagonal pairs step together), Spider (alternating legs around the body), Custom (pick each joint's step group in the Joints tab).
 - **Keys:** click a key button, press the new key. Esc sets it back to default. Defaults follow your movement keys (WASD, Space, Shift, Ctrl) and R for the Jump Drive.
 - Raise / lower bends the knees (legs with a knee only).
+- **Gait tab:** step speed, **stride** (how far each foot travels, as a share of the leg's reach), **lift** (step height) and **stance** (share of each step a foot stays down; "auto" uses the gait type's default). A blueprint preview shows the legs walking from the side and a step chart (bars = foot down). The speed shown is the speed the walker really walks at.
+- The Locomotion Controller only sets up legs. Hover and Build/Park are on the Hull Core.
+
+## Using a built Colossus
+You don't have to park to use or change it:
+- **Right-click** doors, trapdoors, fence gates and levers to toggle them. **Chests, barrels, hoppers, dispensers** and **crafting tables** open. **Engines** open their fuel screen, and fuel you put in burns into the Colossus' power while it runs.
+- **Place blocks** against any face with a block in hand (sneak to place against a door or chest). Not into the ground.
+- **Left-click** to mine a block (like normal mining; instant in creative). The Hull Core can't be removed while built.
+- Anything no longer joined to the main body breaks off as a **wreck**.
+- **Explosions** blow off weak blocks (like terrain) and damage joints. A joint that takes too much breaks, and what it held falls off as a wreck. Stronger and bigger joints take more.
+- Other mods' machines (for example Create's) are carried along but only run once parked.
 
 ## Ball Joint
 A small joint that keeps the part below it **level with the ground** (feet stay flat on slopes and while the leg swings). It turns freely within its Limit in any direction; set Limit ±5° for a tight foot. Needs no motor. Recipe: any joint + slime ball. Put one between the shin and the foot.
@@ -163,13 +174,13 @@ Gearboxes are solid blocks with a **direction**: the arrows on the sides point f
 | Planetary Gearbox | 5:1 | ×4.5 | ×⅕ |
 | Worm Drive | 20:1 | ×12 | ×1/20 |
 
-Motor top speeds (before gears): Timber 30 RPM, Cobble 40, Iron 60, Gilded 120, Diamond 120 (1 RPM = 6°/s).
+Motor top speeds (before gears): Timber 30 RPM, Cobble 40, Copper 50, Iron 60, Gilded 120, Diamond 120 (1 RPM = 6°/s).
 
 ## Motors
-**Servo Motors** come in Timber, Cobble, Iron, Gilded and Diamond.
+**Servo Motors** come in Timber, Cobble, Copper, Iron, Gilded and Diamond.
 - A motor **touching a joint** drives that joint. If its torque is below what the limb needs, the joint stalls.
 - A motor touching **no joint** is a **drive motor** that pushes the Colossus along the ground, or through water.
-- Torque: 20k / 50k / 150k / 300k / 1M N·m. Power: 5 / 10 / 20 / 40 / 100 CJ/t.
+- Torque: 20k / 50k / 100k / 150k / 300k / 1M N·m. Power: 5 / 10 / 15 / 20 / 40 / 100 CJ/t.
 
 ## Engines (power, in CJ per tick)
 | Tier | Engine | Size | Output | Fuel |
@@ -236,6 +247,9 @@ JEI or EMI show the exact recipes.
 
 ## Known limits (v0.1)
 - Colossi turn only left/right (yaw) while walking; they tip only when they fall.
-- Walkers need real power for their knees. A very wide two-leg stance still sways a bit when stepping.
+- Walkers need real power for their knees. A very wide two-leg stance leans a lot when stepping (add a gyro to lean less).
+- Editing blocks or toggling a door makes the walker re-plant its feet.
+- Blocks on a moving Colossus don't tick (furnaces don't smelt, Create machines don't run) until it's parked. Engines are the exception.
+- A wreck keeps the pose of the piece that broke off, except that its own inner joints straighten.
 - Big Colossi (thousands of blocks) can lower FPS, because every block is drawn each frame.
 - Do not use this mod together with Valkyrien Skies.

@@ -78,6 +78,19 @@ public final class Net {
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
+    /** Blocks of a built Colossus changed (server -> clients): {Del: [pos], Set: [{P, S, E?}]}. */
+    public record ColossusBlocks(int entity, CompoundTag data) implements CustomPacketPayload {
+        public static final Type<ColossusBlocks> TYPE = new Type<>(id("colossus_blocks"));
+        public static final StreamCodec<ByteBuf, ColossusBlocks> CODEC = StreamCodec.composite(ByteBufCodecs.VAR_INT, ColossusBlocks::entity, ByteBufCodecs.COMPOUND_TAG, ColossusBlocks::data, ColossusBlocks::new);
+        public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+    /** A player used (0) or hit (1) a block on a built Colossus (client -> server). Local block position and local face. */
+    public record ColossusBlock(int entity, long pos, int face, int action) implements CustomPacketPayload {
+        public static final Type<ColossusBlock> TYPE = new Type<>(id("colossus_block"));
+        public static final StreamCodec<ByteBuf, ColossusBlock> CODEC = StreamCodec.composite(ByteBufCodecs.VAR_INT, ColossusBlock::entity, ByteBufCodecs.VAR_LONG, ColossusBlock::pos, ByteBufCodecs.VAR_INT, ColossusBlock::face, ByteBufCodecs.VAR_INT, ColossusBlock::action, ColossusBlock::new);
+        public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+
     public static void register(RegisterPayloadHandlersEvent e) {
         PayloadRegistrar r = e.registrar("1");
         r.playToServer(PilotInput.TYPE, PilotInput.CODEC, Net::onInput);
@@ -86,6 +99,8 @@ public final class Net {
         r.playToServer(ClickColossus.TYPE, ClickColossus.CODEC, Net::onClickColossus);
         r.playToClient(ColossusConfig.TYPE, ColossusConfig.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.colossusConfig(p.entity(), p.cfg())));
         r.playToClient(HullData.TYPE, HullData.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.hullData(p.pos(), p.data())));
+        r.playToClient(ColossusBlocks.TYPE, ColossusBlocks.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.colossusBlocks(p.entity(), p.data())));
+        r.playToServer(ColossusBlock.TYPE, ColossusBlock.CODEC, (p, ctx) -> ctx.enqueueWork(() -> { if (ctx.player() instanceof ServerPlayer sp) com.colossalcraft.colossus.ColossusInteract.handle(sp, p); }));
         r.playToClient(StructureRemoved.TYPE, StructureRemoved.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.structureRemoved(p.entity(), p.data())));
     }
 

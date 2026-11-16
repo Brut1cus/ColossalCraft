@@ -21,7 +21,18 @@ public class EngineMenu extends AbstractContainerMenu {
     private final ContainerData data;
     private final PowerBlockEntity be;
 
-    public EngineMenu(int id, Inventory inv, RegistryFriendlyByteBuf buf) { this(id, inv, (PowerBlockEntity) inv.player.level().getBlockEntity(buf.readBlockPos())); }
+    public EngineMenu(int id, Inventory inv, RegistryFriendlyByteBuf buf) { this(id, inv, clientEngine(inv, buf)); }
+    /** World engine: the block entity at the position. Engine on a Colossus: a stand-in made from its block (the server sends the real data). */
+    private static PowerBlockEntity clientEngine(Inventory inv, RegistryFriendlyByteBuf buf) {
+        BlockPos p = buf.readBlockPos();
+        if (buf.readBoolean()) return new PowerBlockEntity(p, net.minecraft.world.level.block.Block.stateById(buf.readVarInt()));
+        return (PowerBlockEntity) inv.player.level().getBlockEntity(p);
+    }
+    /** What the server writes when it opens an engine screen. */
+    public static void writeOpen(RegistryFriendlyByteBuf buf, BlockPos p, net.minecraft.world.level.block.state.BlockState onColossus) {
+        buf.writeBlockPos(p); buf.writeBoolean(onColossus != null);
+        if (onColossus != null) buf.writeVarInt(net.minecraft.world.level.block.Block.getId(onColossus));
+    }
 
     public EngineMenu(int id, Inventory inv, PowerBlockEntity be) {
         super(ModRegistry.ENGINE_MENU.get(), id);
@@ -54,5 +65,7 @@ public class EngineMenu extends AbstractContainerMenu {
         return copy;
     }
 
-    @Override public boolean stillValid(Player p) { return !be.isRemoved() && p.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) < 64; }
+    /** Set for an engine riding on a Colossus: the block isn't in the world, so the Colossus decides when the screen stays open. */
+    public java.util.function.Predicate<Player> valid;
+    @Override public boolean stillValid(Player p) { return valid != null ? valid.test(p) : !be.isRemoved() && p.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) < 64; }
 }

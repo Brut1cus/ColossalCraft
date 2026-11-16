@@ -92,7 +92,7 @@ public final class DevShots {
             case 58 -> shot("0_closeup_chair");
             case 59 -> server(sp -> look(sp, base.offset(4, 5, -2), base.offset(2, 5, 0)));
             case 68 -> shot("0_closeup_joints");
-            case 70 -> server(sp -> { if (sp.serverLevel().getBlockEntity(base.offset(-1, 8, 0)) instanceof PowerBlockEntity pe) sp.openMenu(pe, buf -> buf.writeBlockPos(pe.getBlockPos())); });
+            case 70 -> server(sp -> { if (sp.serverLevel().getBlockEntity(base.offset(-1, 8, 0)) instanceof PowerBlockEntity pe) sp.openMenu(pe, buf -> com.colossalcraft.block.EngineMenu.writeOpen(buf, pe.getBlockPos(), null)); });
             case 85 -> shot("0b_engine_gui");
             case 86 -> mc.setScreen(null);
             case 90 -> server(sp -> { BlockPos h = base.offset(0, 8, 0); sp.connection.teleport(h.getX() + 0.5, h.getY(), h.getZ() - 2.5, 0f, 30f); });

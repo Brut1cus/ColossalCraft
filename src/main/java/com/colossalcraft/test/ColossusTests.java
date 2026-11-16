@@ -764,4 +764,139 @@ public class ColossusTests {
             h.succeed();
         });
     }
+
+    // ---------------------------------------------------------------- live blocks on a built Colossus
+    /** Create sends its own packets to every joining player, which test (mock) players can't take: these tests run without Create. */
+    static boolean skipWithCreate(GameTestHelper h) { if (net.neoforged.fml.ModList.get().isLoaded("create")) { h.succeed(); return true; } return false; }
+    static net.minecraft.server.level.ServerPlayer playerAt(GameTestHelper h, ColossusEntity c, BlockPos local) {
+        var sp = h.makeMockServerPlayerInLevel();
+        net.minecraft.world.phys.Vec3 w = c.blockWorldCenter(local);
+        sp.teleportTo(w.x + 1.5, w.y, w.z + 0.5);
+        return sp;
+    }
+    static void act(net.minecraft.server.level.ServerPlayer sp, ColossusEntity c, BlockPos local, Direction face, int action) {
+        com.colossalcraft.colossus.ColossusInteract.handle(sp, new com.colossalcraft.network.Net.ColossusBlock(c.getId(), local.asLong(), face.get3DDataValue(), action));
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 120)
+    public static void chestOpensWhileBuilt(GameTestHelper h) {
+        if (skipWithCreate(h)) return;
+        floor(h); ship(h, 0);
+        h.setBlock(8, 7, 7, Blocks.CHEST);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(40, () -> {
+            ColossusEntity c = find(h);
+            var sp = playerAt(h, c, new BlockPos(1, 0, 0));
+            act(sp, c, new BlockPos(1, 0, 0), Direction.UP, 0);
+            h.assertTrue(sp.containerMenu instanceof net.minecraft.world.inventory.ChestMenu, "chest didn't open: " + sp.containerMenu);
+            sp.containerMenu.getSlot(3).set(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.EMERALD, 5));
+            sp.closeContainer();
+            h.assertTrue(c.disassemble(null), "park failed");
+            var chest = (net.minecraft.world.level.block.entity.ChestBlockEntity) h.getBlockEntity(new BlockPos(8, 2, 7));
+            h.assertTrue(chest.getItem(3).getCount() == 5, "item put in on the move was lost: " + chest.getItem(3));
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 100)
+    public static void doorOpensWhileBuilt(GameTestHelper h) {
+        if (skipWithCreate(h)) return;
+        floor(h); ship(h, 0);
+        h.setBlock(9, 7, 7, Blocks.OAK_DOOR.defaultBlockState().setValue(net.minecraft.world.level.block.DoorBlock.HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER));
+        h.setBlock(9, 8, 7, Blocks.OAK_DOOR.defaultBlockState().setValue(net.minecraft.world.level.block.DoorBlock.HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER));
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(40, () -> {
+            ColossusEntity c = find(h);
+            var sp = playerAt(h, c, new BlockPos(2, 0, 0));
+            act(sp, c, new BlockPos(2, 1, 0), Direction.EAST, 0); // click the top half
+            var open = net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN;
+            h.assertTrue(c.blocks.get(new BlockPos(2, 0, 0)).getValue(open) && c.blocks.get(new BlockPos(2, 1, 0)).getValue(open), "door didn't open");
+            act(sp, c, new BlockPos(2, 0, 0), Direction.EAST, 0);
+            h.assertTrue(!c.blocks.get(new BlockPos(2, 0, 0)).getValue(open), "door didn't close");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 260)
+    public static void minedBlockLetsAPieceFallOff(GameTestHelper h) {
+        if (skipWithCreate(h)) return;
+        floor(h); ship(h, 0);
+        h.setBlock(10, 6, 7, Blocks.STONE_BRICKS); h.setBlock(11, 6, 7, Blocks.STONE_BRICKS); h.setBlock(12, 6, 7, Blocks.STONE_BRICKS); // an arm off the deck
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(40, () -> {
+            ColossusEntity c = find(h);
+            int n0 = c.blocks.size();
+            var sp = playerAt(h, c, new BlockPos(3, -1, 0));
+            sp.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+            act(sp, c, new BlockPos(3, -1, 0), Direction.UP, 1);
+            h.assertTrue(!c.blocks.containsKey(new BlockPos(3, -1, 0)), "block wasn't mined");
+            h.assertTrue(c.blocks.size() == n0 - 3, "the cut-off end should have broken away: " + (n0 - c.blocks.size()) + " gone");
+            long wrecks = h.getLevel().getEntitiesOfClass(ColossusEntity.class, h.getBounds().inflate(8)).stream().filter(e -> e.wreck).count();
+            h.assertTrue(wrecks == 1, "expected a falling wreck, found " + wrecks);
+        });
+        h.runAfterDelay(200, () -> {
+            long wrecks = h.getLevel().getEntitiesOfClass(ColossusEntity.class, h.getBounds().inflate(8)).stream().filter(e -> e.wreck).count();
+            h.assertTrue(wrecks == 0, "the wreck should have settled into blocks");
+            int bricks = 0;
+            for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) for (int y = 1; y < 4; y++) if (h.getBlockState(new BlockPos(x, y, z)).is(Blocks.STONE_BRICKS)) bricks++;
+            h.assertTrue(bricks == 2, "the broken-off piece should lie on the ground as 2 blocks, found " + bricks);
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 100)
+    public static void blockPlacedWhileBuilt(GameTestHelper h) {
+        if (skipWithCreate(h)) return;
+        floor(h); ship(h, 0);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(40, () -> {
+            ColossusEntity c = find(h);
+            var sp = playerAt(h, c, new BlockPos(2, -1, 2));
+            sp.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.FURNACE, 3));
+            act(sp, c, new BlockPos(2, -1, 2), Direction.UP, 0);
+            h.assertTrue(c.blocks.containsKey(new BlockPos(2, 0, 2)) && c.blocks.get(new BlockPos(2, 0, 2)).is(Blocks.FURNACE), "block not placed on the deck");
+            h.assertTrue(c.bes.containsKey(new BlockPos(2, 0, 2)), "placed furnace has no block entity data");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 260)
+    public static void explosionBreaksALegOff(GameTestHelper h) {
+        walker(h, false, true);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        int[] j0 = {0};
+        h.runAfterDelay(30, () -> {
+            ColossusEntity c = find(h);
+            j0[0] = c.model.joints.size();
+            StructureModel.Joint j = c.model.joints.get(0);
+            c.explode(c.blockWorldCenter(j.blocks.get(0)), 4f); // TNT right at a hip
+            h.assertTrue(c.isRemoved() || c.model.joints.size() < j0[0], "the hip joint should have broken");
+            long wrecks = h.getLevel().getEntitiesOfClass(ColossusEntity.class, h.getBounds().inflate(8)).stream().filter(e -> e.wreck).count();
+            h.assertTrue(wrecks >= 1, "the leg should fall off as a wreck");
+        });
+        h.runAfterDelay(240, () -> {
+            long wrecks = h.getLevel().getEntitiesOfClass(ColossusEntity.class, h.getBounds().inflate(8)).stream().filter(e -> e.wreck).count();
+            h.assertTrue(wrecks == 0, "the leg should have settled into blocks");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 100)
+    public static void engineBurnsFuelWhileBuilt(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        long[] e0 = {0};
+        h.runAfterDelay(20, () -> {
+            ColossusEntity c = find(h);
+            // the engine screen's fuel slot is this handler (opening the screen itself needs a real client)
+            var pe = (com.colossalcraft.block.PowerBlockEntity) c.liveBe(new BlockPos(-1, 0, 0));
+            pe.fuel.setStackInSlot(0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL, 2));
+            e0[0] = c.energy;
+        });
+        h.runAfterDelay(30, () -> {
+            ColossusEntity c = find(h);
+            h.assertTrue(c.energy > e0[0] + 1000, "coal put in on the move should add power: " + e0[0] + " -> " + c.energy);
+            h.succeed();
+        });
+    }
 }

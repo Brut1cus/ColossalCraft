@@ -84,7 +84,8 @@ public final class ClientEvents {
 
         /** Right-clicking a Hull Core or Pilot Throne on a built Colossus. */
         @SubscribeEvent public static void click(InputEvent.InteractionKeyMappingTriggered e) {
-            if (e.isUseItem() && e.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND && ClientHooks.tryClickColossus()) { e.setCanceled(true); e.setSwingHand(true); }
+            if (e.getHand() != net.minecraft.world.InteractionHand.MAIN_HAND) return;
+            if ((e.isUseItem() && ClientHooks.tryColossus(false)) || (e.isAttack() && ClientHooks.tryColossus(true))) { e.setCanceled(true); e.setSwingHand(true); }
         }
 
         /** Third person (F5 back and front) pulls the camera out to fit the whole Colossus. */

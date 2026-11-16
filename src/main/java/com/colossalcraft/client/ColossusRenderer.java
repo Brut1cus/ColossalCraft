@@ -79,6 +79,7 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         for (StructureModel.Joint j : m.joints) angles[j.id] = m.angle(j, wp, wb, spn, e.tickCount + pt);
         m.ikT = 1;
         Matrix4d[] segM = new Matrix4d[m.segs.size()];
+        if (e.bake != null) baseM.mul(e.bake); // a wreck keeps the pose it broke off in
         for (int i = 0; i < segM.length; i++) segM[i] = new Matrix4d(baseM).mul(art[i]);
         for (StructureModel.Seg s : m.segs) {
             Matrix4d local = segM[s.id];
