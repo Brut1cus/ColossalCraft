@@ -82,7 +82,7 @@ public final class LegIk {
         return Math.atan2(uu.cross(vv).dot(n), uu.dot(vv));
     }
 
-    static double wrap(double a) {
+    public static double wrap(double a) {
         while (a > Math.PI) a -= 2 * Math.PI;
         while (a < -Math.PI) a += 2 * Math.PI;
         return a;

@@ -32,10 +32,15 @@ public final class BodyPlanner {
     public static ConstraintDesc constraint(JointInput j, List<SegmentInput> segs, List<BodyHandle> handles, double gravity) {
         SegmentInput a = segs.get(j.parent()), b = segs.get(j.child());
         Vec3 ax = j.axisVector();
-        // a universal joint is a cross: the child's hinge axis is perpendicular to the parent's, or the solver snaps it 90°
-        Vec3 axB = j.kind().type == JointType.UNIVERSAL ? (j.axis() == 0 ? Vec3.Y : j.axis() == 1 ? Vec3.Z : Vec3.X) : ax;
+        // a universal joint is a cross of two hinges perpendicular to the block's axis (its through axis): a vertical
+        // ankle pitches about X and rolls about Z. The two hinge axes must be perpendicular or the solver snaps it 90°
+        Vec3 axA = ax, axB = ax;
+        if (j.kind().type == JointType.UNIVERSAL) {
+            axA = j.axis() == 0 ? Vec3.Y : Vec3.X;
+            axB = j.axis() == 2 ? Vec3.Y : Vec3.Z;
+        }
         ConstraintDesc d = ConstraintDesc.of(j.kind().type, handles.get(j.parent()), handles.get(j.child()),
-                j.anchorRel().sub(a.comRel()), j.anchorRel().sub(b.comRel()), ax, axB);
+                j.anchorRel().sub(a.comRel()), j.anchorRel().sub(b.comRel()), axA, axB);
         return switch (j.kind().type) {
             case HINGE, SLIDER -> d.withLimits(j.kind().lower, j.kind().upper);
             case BALL -> d.withCone(j.kind().upper, Math.toRadians(45));

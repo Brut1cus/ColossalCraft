@@ -69,6 +69,29 @@ public class WalkerTest {
         return AssembledColossusTest.build(w, false);
     }
 
+    /**
+     * A quadruped built the way a player should build one: a 6x6 deck (4.3 t) on 2x2 legs with 2x2 ball hips, hinge
+     * knees and universal ankles that keep the 2x2 feet flat. Merged 2x2 joints have 8x the torque of 1x1.
+     */
+    static Sim quadruped() {
+        FoundationTest.World w = new FoundationTest.World();
+        for (int x = 0; x < 6; x++) for (int z = 0; z < 6; z++) w.block(x, 7, z);
+        w.core(2, 8, 2);
+        for (int[] c : new int[][]{{0, 0}, {4, 0}, {0, 4}, {4, 4}}) {
+            for (int dx = 0; dx < 2; dx++) for (int dz = 0; dz < 2; dz++) {
+                int x = c[0] + dx, z = c[1] + dz;
+                w.joint(x, 6, z, "ball_bearing", 1);
+                w.block(x, 5, z).block(x, 4, z);
+                w.joint(x, 3, z, "thrust_bearing", 0);
+                w.block(x, 2, z);
+                w.joint(x, 1, z, "universal_joint", 1);
+                w.block(x, 0, z);
+            }
+        }
+        w.massAt = p -> p[1] >= 7 ? 120 : 25;
+        return AssembledColossusTest.build(w, false, 2, 8, 2);
+    }
+
     @Test public void discoversFourBallHingeLegs() {
         var s = AssembledColossusTest.build(AssembledColossusTest.table("ball_bearing", "thrust_bearing"), true);
         List<Limb> limbs = LimbDiscovery.discover(s.segments(), s.jointInputs(), s.root(), null, null);
@@ -81,18 +104,28 @@ public class WalkerTest {
         }
     }
 
-    static WalkerBrain brain(Sim s) {
+    static WalkerBrain brain(Sim s) { return brain(s, 1, WalkerBrain.Params.DEFAULT); }
+
+    /** The brain wired the way the game will wire it: every driven joint with its bodies, anchor, axis and rating. */
+    static WalkerBrain brain(Sim s, double torqueScale, WalkerBrain.Params params) {
         ComponentScaling scaling = new ComponentScaling();
         List<WalkerBrain.Leg> legs = new ArrayList<>();
         for (Limb l : LimbDiscovery.discover(s.segments(), s.jointInputs(), s.root(), null, null)) {
             WalkerBrain.Drive[] drives = new WalkerBrain.Drive[l.joints().length];
             for (int k = 0; k < drives.length; k++) {
                 BodyPlanner.JointInput ji = s.jointInputs().get(l.joints()[k]);
-                drives[k] = new WalkerBrain.Drive(s.joints().get(l.joints()[k]), ji.kind().type, BodyPlanner.holdLimit(ji, scaling));
+                drives[k] = new WalkerBrain.Drive(s.joints().get(l.joints()[k]), ji.kind().type, torqueScale * BodyPlanner.holdLimit(ji, scaling),
+                        s.bodies().get(ji.parent()), s.bodies().get(ji.child()), ji.anchorRel().sub(s.segments().get(ji.parent()).comRel()), ji.axisVector());
             }
-            legs.add(new WalkerBrain.Leg(l, drives, s.bodies().get(l.footSegment()), s.segments().get(l.footSegment()).comRel()));
+            WalkerBrain.Drive ankle = null;
+            if (l.hasAnkle()) {
+                BodyPlanner.JointInput ji = s.jointInputs().get(l.ankle());
+                ankle = new WalkerBrain.Drive(s.joints().get(l.ankle()), ji.kind().type, torqueScale * BodyPlanner.holdLimit(ji, scaling),
+                        s.bodies().get(ji.parent()), s.bodies().get(ji.child()), ji.anchorRel().sub(s.segments().get(ji.parent()).comRel()), ji.axisVector());
+            }
+            legs.add(new WalkerBrain.Leg(l, drives, ankle, s.bodies().get(l.footSegment()), s.segments().get(l.footSegment()).comRel()));
         }
-        return new WalkerBrain(s.bodies().get(s.root()), s.segments().get(s.root()).comRel(), legs, TerrainQuery.flat(0, 0.8), WalkerBrain.Params.DEFAULT);
+        return new WalkerBrain(s.bodies().get(s.root()), s.segments().get(s.root()).comRel(), legs, TerrainQuery.flat(0, 0.8), params);
     }
 
     @Test public void standsStillWithoutACommand() {
@@ -165,5 +198,83 @@ public class WalkerTest {
         assertTrue("foot really there: planted " + stepper.planted() + " vs " + footWorld(s, stepper.limb),
                 footWorld(s, stepper.limb).distance(stepper.planted()) < 0.3);
         assertTrue("upright during the step: worst " + worstTilt + "°", worstTilt < 5);
+    }
+
+    static double tiltDeg(Sim s) {
+        return Math.toDegrees(colossus.brain.balance.GyroStabilizer.tiltError(s.backend().bodyState(s.bodies().get(s.root())).pose().rotation()).length());
+    }
+
+    static Vec3 rootPos(Sim s) { return s.backend().bodyState(s.bodies().get(s.root())).pose().position(); }
+
+    /** The quadruped with ankles walks forward steadily and stays upright. */
+    @Test public void quadrupedWalksForwardUpright() {
+        Sim s = quadruped();
+        WalkerBrain b = brain(s);
+        PhysicsWorld w = new PhysicsWorld(s.backend(), 60, false, "test");
+        w.addController(b);
+        w.stepNow(60);
+        Vec3 p0 = rootPos(s);
+        b.command(0.5, 0, 0);
+        double worst = 0;
+        for (int i = 0; i < 60 * 40; i++) { w.stepNow(1); worst = Math.max(worst, tiltDeg(s)); }
+        Vec3 p = rootPos(s);
+        assertTrue("walked forward: " + (p.z() - p0.z()) + " m in 40 s", p.z() - p0.z() > 15);
+        assertTrue("kept its line: " + (p.x() - p0.x()), Math.abs(p.x() - p0.x()) < 2);
+        assertTrue("upright: worst tilt " + worst + "°", worst < 10);
+    }
+
+    /** A yaw command turns the machine on the spot. */
+    @Test public void quadrupedTurnsOnTheSpot() {
+        Sim s = quadruped();
+        WalkerBrain b = brain(s);
+        PhysicsWorld w = new PhysicsWorld(s.backend(), 60, false, "test");
+        w.addController(b);
+        w.stepNow(60);
+        Vec3 p0 = rootPos(s);
+        double prev = -s.backend().bodyState(s.bodies().get(s.root())).pose().rotation().yaw(), turned = 0;
+        b.command(0, 0, 0.15);
+        double worst = 0;
+        for (int i = 0; i < 60 * 30; i++) {
+            w.stepNow(1);
+            worst = Math.max(worst, tiltDeg(s));
+            double h = -s.backend().bodyState(s.bodies().get(s.root())).pose().rotation().yaw();
+            turned += Math.toDegrees(LegIk.wrap(h - prev)); // unwrapped: it may turn past 180°
+            prev = h;
+        }
+        Vec3 p = rootPos(s);
+        assertTrue("turned left: " + turned + "°", turned > 60);
+        assertTrue("on the spot: drifted " + Math.hypot(p.x() - p0.x(), p.z() - p0.z()) + " m", Math.hypot(p.x() - p0.x(), p.z() - p0.z()) < 2);
+        assertTrue("upright: worst tilt " + worst + "°", worst < 10);
+    }
+
+    /** When the command stops, the machine settles with every foot down and stays put. */
+    @Test public void quadrupedStopsWhenTheCommandStops() {
+        Sim s = quadruped();
+        WalkerBrain b = brain(s);
+        PhysicsWorld w = new PhysicsWorld(s.backend(), 60, false, "test");
+        w.addController(b);
+        w.stepNow(60);
+        b.command(0.5, 0, 0);
+        w.stepNow(60 * 8);
+        b.command(0, 0, 0);
+        w.stepNow(60 * 3);
+        Vec3 a = rootPos(s);
+        w.stepNow(60 * 5);
+        Vec3 c = rootPos(s);
+        assertTrue("stays put: moved " + c.sub(a), Math.hypot(c.x() - a.x(), c.z() - a.z()) < 0.3);
+        for (WalkerBrain.Leg l : b.legs()) assertTrue("all feet down", l.inStance());
+        assertTrue("upright: " + tiltDeg(s) + "°", tiltDeg(s) < 5);
+    }
+
+    /** Discovery spots ankles: the IK chain stops at the universal joint, which then keeps the foot level. */
+    @Test public void discoversAnkles() {
+        Sim s = quadruped();
+        List<Limb> limbs = LimbDiscovery.discover(s.segments(), s.jointInputs(), s.root(), null, null);
+        assertEquals(4, limbs.size());
+        for (Limb l : limbs) {
+            assertTrue(l.hasAnkle());
+            assertEquals("hip and knee in the chain", 2, l.chain().size());
+            assertEquals("foot 1.5 m below the ankle", -1.5, l.footBelowAnkle().y(), 1e-9);
+        }
     }
 }

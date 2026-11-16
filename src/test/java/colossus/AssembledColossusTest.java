@@ -37,8 +37,9 @@ public class AssembledColossusTest {
     record Sim(XpbdBackend backend, List<BodyHandle> bodies, List<ConstraintHandle> joints, List<BodyPlanner.JointInput> jointInputs, int root, double rootMass,
                List<BodyPlanner.SegmentInput> segments) {}
 
-    static Sim build(FoundationTest.World w, boolean holdPose) {
-        int cx = 2, cy = 6, cz = 2;
+    static Sim build(FoundationTest.World w, boolean holdPose) { return build(w, holdPose, 2, 6, 2); }
+
+    static Sim build(FoundationTest.World w, boolean holdPose, int cx, int cy, int cz) {
         StructureScanner.Result r = StructureScanner.scan(w, cx, cy, cz, CoreTier.STEEL.budget(0, 1_000_000), 100_000);
         assertTrue(r.errors().toString(), r.ok());
         XpbdBackend b = new XpbdBackend();
