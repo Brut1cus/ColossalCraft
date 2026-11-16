@@ -7,6 +7,7 @@
   "block.colossus.singularity_hull_core": "Singularity Hull Core",
   "block.colossus.core_lattice": "Core Lattice",
   "block.colossus.foot_pad": "Foot Pad",
+  "block.colossus.gyro_stabilizer": "Gyro Stabilizer",
   "block.colossus.thrust_bearing": "Thrust Bearing",
   "block.colossus.ball_bearing": "Ball Bearing",
   "block.colossus.universal_joint": "Universal Joint",
@@ -19,7 +20,7 @@
   "colossus.assembly.disabled": "Assembly is disabled on this server.",
   "colossus.assembly.too_many": "This dimension already has the most Colossi the server allows.",
   "colossus.assembly.failed": "Cannot assemble:",
-  "colossus.assembly.done": "%s blocks in %s parts are now one Colossus. Preview build: assembled Colossi are not drawn yet. Use /colossus disassemble nearest to put it back.",
+  "colossus.assembly.done": "%s blocks in %s parts are now one Colossus. Use /colossus disassemble nearest to put it back.",
   "colossus.disassembly.blocked": "Cannot put it back: %s blocks are in the way (first at %s).",
   "colossus.disassembly.done": "%s blocks are back in the world."
 }

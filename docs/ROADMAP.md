@@ -30,6 +30,7 @@ Build the hardest shared foundation first (ship space, interaction and the physi
 | Segment renderer, vanilla path: Segment blocks synced to clients (`SegmentBlocks`, split into parts, sent on assembly/login/dimension change; `ColossusRemoved` on disassembly), compiled per chunk layer into vertex buffers, drawn with the vanilla chunk shaders at the pose interpolated between the last two `PoseSync` packets, frustum-culled | done |
 | Segment renderer follow-ups: block entity renderers on board (chests, signs) and block-entity model data, live per-block light (now: world light sampled at the centre of mass, mesh rebuilt at most once a second when it changes), translucent sorting, resync when blocks change on board, 16³ render sub-regions for huge Segments | to do |
 | Segment renderer: Sodium and Iris paths in `colossus.compat` (the vanilla path runs alongside them until then) | to do |
+| Gyro Stabilizer (blueprint "stabilizer assist" / hovercraft gyro): powered control-moment gyro. Torque capacity = rotor angular momentum I·ω × gimbal rate; an N×N square merges into one rotor with N⁴ the inertia; bigger rotors spin up slower; a momentum budget means it rejects disturbances but cannot hold a permanent lean. Redstone sets the throttle until kinetic power exists. Runs every physics step via `PhysicsWorld.StepController`; `/colossus gyros` shows rpm, capacity and saturation. Rotors spin up in the world and keep their speed through assembly. A gyro steadies its own Segment and whatever is joined to it by torque-carrying joints; unmotorised ball bearings pass no torque, so a gyro on a torso cannot stop free-hipped legs tipping (seen in a client test: the torso stayed level 4 s longer, then the legs went). Walkers still need the brain's hip and knee servos | done |
 
 Still to do in Phase 2:
 
@@ -46,6 +47,8 @@ Still to do in Phase 2:
 Wheels and drivetrains → propellers, wings, balloons, hovercraft → kinetic network blocks (shafts, gearboxes, motors, scaling multiblocks) → energy eras and heat/airflow → materials and tech tree → demolition and ground pressure → weapons → nested Colossi, blueprints, wild Colossi.
 
 ## Decisions taken where the blueprint disagreed with itself
+
+- **Gyro power:** the blueprint says the Gyro Stabilizer is "powered" but kinetic and electric power arrive in Phase 3+. Until then redstone signal strength is its throttle; it will also accept shaft power or FE when those exist.
 
 - **Name:** display name ColossalCraft, mod id `colossus` (the blueprint also mentions "ColossusCraft" and "Colossus Arise").
 - **Material tiers vs size scaling:** the later "Size-Based Mechanical Scaling" section wins. Components share one baseline material; capability = base × N^exponent per component type, all in `component_scaling` data. The earlier 2x2 = 6×, 3x3 = 20×, 4x4 = 48× table is not a single power law; the default exponent is 3 (≈ N³, "cross-section × radius").

@@ -24,7 +24,19 @@ jobs:
       - name: Build and unit tests
         run: ./gradlew build --stacktrace
       - name: GameTests
-        run: ./gradlew runGameTestServer --stacktrace
+        # Watchdog: if the game test server is still running after 10 minutes (a hang, e.g. on shutdown), dump every
+        # JVM's threads before failing, so the log shows what blocked instead of a bare 30-minute cancellation.
+        run: |
+          ./gradlew runGameTestServer --stacktrace &
+          pid=$!
+          for i in $(seq 1 120); do
+            if ! kill -0 "$pid" 2>/dev/null; then wait "$pid"; exit $?; fi
+            sleep 5
+          done
+          echo "::error::GameTests still running after 10 minutes; thread dumps follow"
+          for p in $(jps -q); do echo "===== jstack $p ($(jps -l | grep "^$p " | cut -d' ' -f2-))"; jstack "$p" || true; done
+          kill "$pid" || true
+          exit 1
       - uses: actions/upload-artifact@v4
         if: always()
         with:

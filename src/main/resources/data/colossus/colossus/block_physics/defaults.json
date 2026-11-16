@@ -84,6 +84,11 @@
       "mass": 300,
       "friction": 0.9,
       "restitution": 0.05
+    },
+    "colossus:gyro_stabilizer": {
+      "mass": 3000,
+      "friction": 0.4,
+      "restitution": 0.1
     }
   },
   "tags": {

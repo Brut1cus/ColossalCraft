@@ -21,6 +21,14 @@ public final class ColossusConfig {
     public static final ModConfigSpec.BooleanValue JOINT_BREAKING;
     public static final ModConfigSpec.DoubleValue STRAIN_BREAK_SECONDS;
 
+    public static final ModConfigSpec.DoubleValue GYRO_ROTOR_MASS;
+    public static final ModConfigSpec.DoubleValue GYRO_MAX_RPM;
+    public static final ModConfigSpec.DoubleValue GYRO_MOTOR_TORQUE;
+    public static final ModConfigSpec.DoubleValue GYRO_GIMBAL_RATE;
+    public static final ModConfigSpec.DoubleValue GYRO_NATURAL_FREQUENCY;
+    public static final ModConfigSpec.DoubleValue GYRO_DAMPING_RATIO;
+    public static final ModConfigSpec.DoubleValue GYRO_DESATURATION;
+
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
 
@@ -49,7 +57,25 @@ public final class ColossusConfig {
         STRAIN_BREAK_SECONDS = b.comment("Seconds of sustained overload before a joint snaps.").defineInRange("strainBreakSeconds", 3.0, 0.1, 600.0);
         b.pop();
 
+        b.comment("Gyro Stabilizers. Torque capacity = rotor angular momentum (I·ω) × gimbal rate; an N×N rotor has N⁴ the inertia of one block.").push("gyro");
+        GYRO_ROTOR_MASS = b.comment("Rotor mass of one Gyro Stabilizer block, kg (an N×N rotor weighs N² times this; radius 0.5·N m).")
+                .defineInRange("rotorMass", 2000.0, 1.0, 1e7);
+        GYRO_MAX_RPM = b.comment("Rotor speed at full redstone power.").defineInRange("maxRpm", 3000.0, 1.0, 100_000.0);
+        GYRO_MOTOR_TORQUE = b.comment("Spin motor torque of one block, N·m (× N² for an N×N rotor). Lower = slower spin-up.")
+                .defineInRange("motorTorque", 26_000.0, 1.0, 1e9);
+        GYRO_GIMBAL_RATE = b.comment("Fastest gimbal swing, rad/s. Torque capacity = I·ω × this.").defineInRange("gimbalRate", 1.0, 0.01, 100.0);
+        GYRO_NATURAL_FREQUENCY = b.comment("How briskly it levels the hull, rad/s.").defineInRange("naturalFrequency", 2.0, 0.1, 50.0);
+        GYRO_DAMPING_RATIO = b.comment("1 = level without overshoot; lower wobbles, higher is sluggish.").defineInRange("dampingRatio", 1.0, 0.05, 10.0);
+        GYRO_DESATURATION = b.comment("Gimbal re-centring torque when the momentum budget is full, as a fraction of capacity.")
+                .defineInRange("desaturation", 0.1, 0.0, 1.0);
+        b.pop();
+
         SPEC = b.build();
+    }
+
+    public static colossus.brain.balance.GyroStabilizer.Params gyroParams() {
+        return new colossus.brain.balance.GyroStabilizer.Params(GYRO_ROTOR_MASS.get(), 0.5, GYRO_MAX_RPM.get(), GYRO_MOTOR_TORQUE.get(),
+                GYRO_GIMBAL_RATE.get(), GYRO_NATURAL_FREQUENCY.get(), GYRO_DAMPING_RATIO.get(), GYRO_DESATURATION.get());
     }
 
     private ColossusConfig() {}

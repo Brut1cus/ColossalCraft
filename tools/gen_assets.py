@@ -19,6 +19,7 @@ JOINTS = [('thrust_bearing', 'Thrust Bearing'), ('ball_bearing', 'Ball Bearing')
           ('swivel_bearing', 'Swivel Bearing'), ('slider_joint', 'Slider Joint'), ('spring_damper', 'Spring Damper'),
           ('fixed_weld', 'Fixed Weld')]
 SIMPLE = [('core_lattice', 'Core Lattice'), ('foot_pad', 'Foot Pad')]
+GYRO = ('gyro_stabilizer', 'Gyro Stabilizer')
 
 # ----------------------------------------------------------------------------- textures
 def textures():
@@ -64,6 +65,19 @@ def textures():
     for y in range(2, 16, 4):
         for x in range(16): px(im, x, y, shade(c, 1.6))
     im.save(f'{out}/foot_pad.png')
+    # Gyro Stabilizer: brass rotor ring on a steel housing (end), gimbal band on the sides
+    housing = (95, 98, 105); brass = (205, 165, 75)
+    end = img(housing, 4242); frame(end, housing)
+    ring(end, 7.5, 7.5, 3.5, 6.6, brass); ring(end, 7.5, 7.5, 4.6, 5.4, shade(brass, 0.7)); ring(end, 7.5, 7.5, 0, 1.6, (90, 200, 255))
+    for i in (2, 13):
+        for j in (7, 8): px(end, i, j, shade(brass, 1.2)); px(end, j, i, shade(brass, 1.2))
+    end.save(f'{out}/gyro_stabilizer_end.png')
+    side = img(housing, 4343); frame(side, housing)
+    for x in range(1, 15):
+        for y in (5, 10): px(side, x, y, shade(brass, 0.9))
+        for y in range(6, 10): px(side, x, y, shade(brass, 0.6 + 0.04 * ((x + y) % 4)))
+    for (x, y) in [(2, 2), (13, 2), (2, 13), (13, 13)]: px(side, x, y, shade(housing, 1.5))
+    side.save(f'{out}/gyro_stabilizer_side.png')
     joint_col = {'thrust_bearing': (200, 160, 70), 'ball_bearing': (180, 180, 190), 'universal_joint': (150, 170, 200),
                  'swivel_bearing': (190, 120, 80), 'slider_joint': (120, 160, 120), 'spring_damper': (200, 200, 90),
                  'fixed_weld': (150, 150, 150)}
@@ -99,6 +113,12 @@ def models():
         w(f'{A}/blockstates/{n}.json', {'variants': {'': {'model': f'{NS}:block/{n}'}}})
         w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}'})
         lang[f'block.{NS}.{n}'] = name
+    n, name = GYRO
+    w(f'{A}/models/block/{n}.json', {'parent': 'minecraft:block/cube_column',
+                                      'textures': {'end': f'{NS}:block/{n}_end', 'side': f'{NS}:block/{n}_side'}})
+    w(f'{A}/blockstates/{n}.json', {'variants': {'': {'model': f'{NS}:block/{n}'}}})
+    w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}'})
+    lang[f'block.{NS}.{n}'] = name
     for n, name in JOINTS:
         w(f'{A}/models/block/{n}.json', {'parent': 'minecraft:block/cube_column',
                                           'textures': {'end': f'{NS}:block/{n}_end', 'side': f'{NS}:block/{n}_side'}})
@@ -113,7 +133,7 @@ def models():
         'colossus.assembly.disabled': 'Assembly is disabled on this server.',
         'colossus.assembly.too_many': 'This dimension already has the most Colossi the server allows.',
         'colossus.assembly.failed': 'Cannot assemble:',
-        'colossus.assembly.done': '%s blocks in %s parts are now one Colossus. Preview build: assembled Colossi are not drawn yet. Use /colossus disassemble nearest to put it back.',
+        'colossus.assembly.done': '%s blocks in %s parts are now one Colossus. Use /colossus disassemble nearest to put it back.',
         'colossus.disassembly.blocked': 'Cannot put it back: %s blocks are in the way (first at %s).',
         'colossus.disassembly.done': '%s blocks are back in the world.',
     })
@@ -137,7 +157,7 @@ def shapeless(name, items, count=1):
                                   'result': {'id': f'{NS}:{name}', 'count': count}})
 
 def data():
-    all_blocks = [f'{t}_hull_core' for t, _ in TIERS] + [n for n, _ in SIMPLE] + [n for n, _ in JOINTS]
+    all_blocks = [f'{t}_hull_core' for t, _ in TIERS] + [n for n, _ in SIMPLE] + [n for n, _ in JOINTS] + [GYRO[0]]
     for n in all_blocks: loot(n)
     axe = ['wooden_hull_core']
     hoe = ['foot_pad']
@@ -167,6 +187,8 @@ def data():
     shapeless('spring_damper', [f'{NS}:slider_joint', '#c:slime_balls', '#c:ingots/iron'])
     shaped('fixed_weld', ['NIN', 'I I', 'NIN'], {'I': '#c:ingots/iron', 'N': '#c:nuggets/iron'}, 4)
     shaped('foot_pad', ['WWW', 'III'], {'W': '#minecraft:wool', 'I': '#c:ingots/iron'}, 2)
+    shaped('gyro_stabilizer', ['IRI', 'GBG', 'IRI'], {'I': '#c:ingots/iron', 'R': '#c:dusts/redstone', 'G': '#c:ingots/gold',
+                                                      'B': '#c:storage_blocks/iron'})
 
     # Blueprint mass table (kg per full block), friction, restitution
     def p(m, f=0.6, r=0.1): return {'mass': m, 'friction': f, 'restitution': r}
@@ -178,7 +200,7 @@ def data():
             'minecraft:crying_obsidian': p(2600, 0.6, 0.05), 'minecraft:netherite_block': p(15000, 0.5), 'minecraft:diamond_block': p(3500, 0.5),
             'minecraft:copper_block': p(8900, 0.4, 0.2), 'minecraft:ice': p(900, 0.02), 'minecraft:packed_ice': p(900, 0.02),
             'minecraft:blue_ice': p(900, 0.01), 'minecraft:slime_block': p(1100, 0.8, 0.8), 'minecraft:honey_block': p(1400, 0.9, 0.0),
-            'colossus:foot_pad': p(300, 0.9, 0.05)},
+            'colossus:foot_pad': p(300, 0.9, 0.05), 'colossus:gyro_stabilizer': p(3000, 0.4, 0.1)},
         'tags': {
             'c:storage_blocks/steel': p(7850, 0.4, 0.2), 'c:storage_blocks/lead': p(11300, 0.5, 0.05),
             'minecraft:wool': p(50, 0.6), 'minecraft:leaves': p(50, 0.6), 'minecraft:planks': p(400, 0.5, 0.2),

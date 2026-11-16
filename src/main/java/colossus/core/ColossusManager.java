@@ -2,7 +2,10 @@ package colossus.core;
 
 import colossus.assembly.BodyPlanner;
 import colossus.assembly.JointKind;
+import colossus.brain.balance.GyroController;
+import colossus.brain.balance.GyroStabilizer;
 import colossus.core.data.ColossusData;
+import colossus.gyro.GyroStabilizerBlockEntity;
 import colossus.net.PoseSync;
 import colossus.physics.BackendFactory;
 import colossus.physics.PhysicsWorld;
@@ -27,7 +30,8 @@ import java.util.concurrent.TimeUnit;
  * <ol>
  *   <li>read the last physics snapshot, update Segment poses, track joint strain (creak → slip → break)</li>
  *   <li>refresh the terrain cache around bodies</li>
- *   <li>push commands (new bodies, joint motor targets) to the physics thread</li>
+ *   <li>push commands (new bodies, joint motor targets) to the physics thread; set Gyro Stabilizer throttles from
+ *   redstone on board (the gyros themselves run every physics step as a {@code PhysicsWorld.StepController})</li>
  *   <li>sync poses to clients at 20 Hz</li>
  * </ol>
  * The brain (gaits, IK, balance) plugs in between steps 1 and 3 in Phase 2.
@@ -46,7 +50,16 @@ public final class ColossusManager {
         final List<ConstraintHandle> joints = new ArrayList<>();
         double[] strainSeconds;
         boolean ready;
+        /** Gyro Stabilizers, if any: the controller runs on the physics thread; the units map each rotor to its blocks. */
+        GyroController gyros;
+        final List<GyroBinding> gyroUnits = new ArrayList<>();
     }
+
+    /** One rotor and the ship-space blocks whose redstone power drives it. */
+    record GyroBinding(int segment, GyroStabilizer.Rotor rotor, List<BlockPos> blocks) {}
+
+    /** Read-only view of one Segment's gyros, for commands and tests. */
+    public record GyroInfo(int segment, List<GyroStabilizer.Rotor> rotors, double torqueCapacity, double saturation) {}
 
     private ColossusManager(ServerLevel level) { this.level = level; }
 
@@ -108,7 +121,82 @@ public final class ColossusManager {
                 if (h != null && max > 0) physics.enqueue(be -> be.setMotorTarget(h, 0, max));
             }
         }
+        attachGyros(r, l);
         l.ready = true;
+    }
+
+    /** Finds Gyro Stabilizer blocks in each Segment's plot, merges N×N squares into rotors and starts their controller. */
+    private void attachGyros(ColossusRecord r, Live l) {
+        GyroStabilizer.Params params = ColossusConfig.gyroParams();
+        Map<BodyHandle, GyroStabilizer> stabilizers = new HashMap<>();
+        for (int si = 0; si < r.segments.size(); si++) {
+            ColossusRecord.SegmentRecord s = r.segments.get(si);
+            List<int[]> cells = new ArrayList<>();
+            List<BlockPos> plot = new ArrayList<>();
+            for (long c : s.cells) {
+                BlockPos at = s.plotPos(c);
+                if (!level.getBlockState(at).is(ColossusRegistries.GYRO_STABILIZER.get())) continue;
+                BlockPos rel = BlockPos.of(c);
+                cells.add(new int[]{rel.getX(), rel.getY(), rel.getZ()});
+                plot.add(at);
+            }
+            if (cells.isEmpty()) continue;
+            List<GyroStabilizer.Rotor> rotors = new ArrayList<>();
+            for (GyroStabilizer.Unit u : GyroStabilizer.units(cells)) {
+                GyroStabilizer.Rotor rotor = new GyroStabilizer.Rotor(u.footprint(), params);
+                List<BlockPos> blocks = new ArrayList<>();
+                double spin = 0;
+                for (int i : u.cells()) {
+                    blocks.add(plot.get(i));
+                    if (level.getBlockEntity(plot.get(i)) instanceof GyroStabilizerBlockEntity be) spin += be.spin();
+                }
+                rotor.setSpinFraction(spin / u.cells().length); // spun up before assembly, or saved before a restart
+                rotors.add(rotor);
+                l.gyroUnits.add(new GyroBinding(si, rotor, blocks));
+            }
+            stabilizers.put(l.bodies.get(si), new GyroStabilizer(rotors, s.inertia, machineInertia(r, si), params));
+        }
+        if (stabilizers.isEmpty()) return;
+        l.gyros = new GyroController(stabilizers);
+        physics().addController(l.gyros);
+        updateGyroThrottles(l);
+    }
+
+    /** Whole-machine inertia about one Segment's centre of mass, in the core frame (the assembled orientation). */
+    static colossus.physics.math.Mat3 machineInertia(ColossusRecord r, int segment) {
+        List<colossus.physics.math.Mat3> in = new ArrayList<>();
+        List<Double> m = new ArrayList<>();
+        List<Vec3> c = new ArrayList<>();
+        for (ColossusRecord.SegmentRecord s : r.segments) { in.add(s.inertia); m.add(s.mass); c.add(s.comRel); }
+        return GyroStabilizer.combinedInertia(in, m, c, r.segments.get(segment).comRel);
+    }
+
+    /** Redstone power on any block of a rotor sets its throttle (signal / 15); the rotor speed is written back to the blocks. */
+    private void updateGyroThrottles(Live l) {
+        for (GyroBinding b : l.gyroUnits) {
+            int signal = 0;
+            for (BlockPos p : b.blocks()) signal = Math.max(signal, level.getBestNeighborSignal(p));
+            b.rotor().setThrottle(signal / 15.0);
+        }
+        storeGyroSpin(l);
+    }
+
+    private void storeGyroSpin(Live l) {
+        for (GyroBinding b : l.gyroUnits) {
+            for (BlockPos p : b.blocks()) if (level.getBlockEntity(p) instanceof GyroStabilizerBlockEntity be) be.setSpin(b.rotor().spinFraction());
+        }
+    }
+
+    /** Gyro telemetry per Segment that has any (empty if the Colossus has none or is not running). */
+    public List<GyroInfo> gyros(UUID id) {
+        Live l = live.get(id);
+        if (l == null || l.gyros == null) return List.of();
+        List<GyroInfo> out = new ArrayList<>();
+        for (int si = 0; si < l.bodies.size(); si++) {
+            GyroStabilizer g = l.gyros.gyros().get(l.bodies.get(si));
+            if (g != null) out.add(new GyroInfo(si, g.rotors(), g.torqueCapacity(), g.saturation()));
+        }
+        return out;
     }
 
     static List<BodyPlanner.SegmentInput> segments(ColossusRecord r) {
@@ -128,6 +216,10 @@ public final class ColossusManager {
     public void despawn(UUID id) {
         Live l = live.remove(id);
         if (l == null || physics == null) return;
+        if (l.gyros != null) {
+            physics.removeController(l.gyros);
+            storeGyroSpin(l); // disassembly copies the block entities next, so the rotors keep their speed
+        }
         for (ConstraintHandle h : l.joints) if (h != null) physics.removeConstraint(h);
         for (BodyHandle h : l.bodies) physics.removeBody(h);
     }
@@ -160,14 +252,16 @@ public final class ColossusManager {
             }
             // 2. terrain around the machine
             if (minX < maxX) terrain.refresh(level, minX, minY - 4, minZ, maxX, maxY, maxZ, now, 40);
-            // 3. strain: creak -> slip -> break
+            // 3. gyro power from redstone on board
+            if (l.gyros != null) updateGyroThrottles(l);
+            // 4. strain: creak -> slip -> break
             if (ColossusConfig.JOINT_BREAKING.get()) trackStrain(r, l, snap, dt);
         }
         if (now % 200 == 0) {
             terrain.evictOlderThan(now, 1200);
             data.setDirty();
         }
-        // 4. pose sync to clients (consumed by the Phase 2 renderer)
+        // 5. pose sync to clients (drawn by colossus.client.render.SegmentRenderer)
         for (ColossusRecord r : data.all()) {
             if (!live.containsKey(r.id)) continue;
             PacketDistributor.sendToPlayersInDimension(level, PoseSync.of(r));

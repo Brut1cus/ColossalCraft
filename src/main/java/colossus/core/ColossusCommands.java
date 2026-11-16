@@ -18,7 +18,7 @@ import java.util.UUID;
 
 /**
  * Operator commands (permission level 2):
- * {@code /colossus scan <pos>}, {@code assemble <pos>}, {@code disassemble <id>}, {@code disassemble nearest},
+ * {@code /colossus scan <pos>}, {@code assemble <pos>}, {@code disassemble <id>}, {@code disassemble nearest}, {@code gyros},
  * {@code list}, {@code physics}.
  */
 public final class ColossusCommands {
@@ -52,6 +52,19 @@ public final class ColossusCommands {
                         long broken = r.joints.stream().filter(j -> j.broken).count();
                         reply(c, String.format(Locale.ROOT, "%s %s blocks=%d segments=%d joints=%d (broken %d) at %.1f %.1f %.1f",
                                 r.id, r.coreTier, r.blockCount(), r.segments.size(), r.joints.size(), broken, p.x(), p.y(), p.z()));
+                    }
+                    return 1;
+                }))
+                .then(Commands.literal("gyros").executes(c -> {
+                    ColossusRecord r = nearest(c.getSource());
+                    if (r == null) { reply(c, "No Colossus in this dimension."); return 0; }
+                    var info = ColossusManager.get(c.getSource().getLevel()).gyros(r.id);
+                    if (info.isEmpty()) { reply(c, "Nearest Colossus has no Gyro Stabilizers."); return 0; }
+                    for (ColossusManager.GyroInfo g : info) {
+                        StringBuilder rotors = new StringBuilder();
+                        for (var rot : g.rotors()) rotors.append(String.format(Locale.ROOT, " %dx%d@%.0frpm(%.0f%%)", rot.footprint, rot.footprint, rot.rpm(), rot.throttle() * 100));
+                        reply(c, String.format(Locale.ROOT, "segment %d: capacity %.1f kN·m, momentum budget %.0f%% used, rotors%s",
+                                g.segment(), g.torqueCapacity() / 1000, g.saturation() * 100, rotors));
                     }
                     return 1;
                 }))

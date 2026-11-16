@@ -5,6 +5,8 @@ import colossus.assembly.HullCoreBlockEntity;
 import colossus.assembly.JointBlock;
 import colossus.assembly.JointKind;
 import colossus.assembly.graph.CoreTier;
+import colossus.gyro.GyroStabilizerBlock;
+import colossus.gyro.GyroStabilizerBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -27,7 +29,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 
-/** Phase 1 content: Hull Cores (five tiers), Core Lattice, the seven joint blocks and the Foot Pad. */
+/** Content: Hull Cores (five tiers), Core Lattice, the seven joint blocks, the Foot Pad and the Gyro Stabilizer. */
 public final class ColossusRegistries {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Colossus.MODID);
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Colossus.MODID);
@@ -69,10 +71,18 @@ public final class ColossusRegistries {
     public static final DeferredBlock<Block> FOOT_PAD = block("foot_pad", Block::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(2f).sound(SoundType.WOOL).friction(0.5f));
 
+    // ---- Stabilization ----
+    /** Powered control-moment gyro; an N×N square merges into one rotor (see {@code GyroStabilizer}). Redstone sets its throttle. */
+    public static final DeferredBlock<GyroStabilizerBlock> GYRO_STABILIZER = block("gyro_stabilizer", GyroStabilizerBlock::new, metal());
+
     // ---- Block entities ----
     @SuppressWarnings("DataFlowIssue")
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HullCoreBlockEntity>> HULL_CORE_BE = BLOCK_ENTITIES.register("hull_core",
             () -> BlockEntityType.Builder.of(HullCoreBlockEntity::new, HULL_CORES.values().stream().map(DeferredBlock::get).toArray(Block[]::new)).build(null));
+
+    @SuppressWarnings("DataFlowIssue")
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GyroStabilizerBlockEntity>> GYRO_BE = BLOCK_ENTITIES.register("gyro_stabilizer",
+            () -> BlockEntityType.Builder.of(GyroStabilizerBlockEntity::new, GYRO_STABILIZER.get()).build(null));
 
     // ---- Creative tab ----
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB = TABS.register("main", () -> CreativeModeTab.builder()
