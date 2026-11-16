@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.148'
 }
 
-version = '0.2.0-alpha'
+version = '0.3.0-alpha'
 group = 'dev.colossalcraft'
 base { archivesName = 'colossalcraft-1.21.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -35,6 +35,19 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = 21
     options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked']
+}
+
+// neoforge.mods.toml reads the mod version from the jar manifest (${file.jarVersion}); without it a normal install shows a
+// placeholder version
+jar {
+    manifest {
+        attributes(
+                'Implementation-Title': 'ColossalCraft',
+                'Implementation-Version': project.version,
+                'Implementation-Vendor': 'ColossalCraft',
+                'Specification-Title': 'colossus',
+                'Specification-Version': project.version)
+    }
 }
 
 test {
