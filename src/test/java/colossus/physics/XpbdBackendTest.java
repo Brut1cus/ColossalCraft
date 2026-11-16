@@ -109,6 +109,51 @@ public class XpbdBackendTest {
         assertTrue("arm sags", b.bodyState(arm).pose().position().y() < -1);
     }
 
+    // ---- orientation servos (ball, universal)
+
+    static double angleFrom(Quat q, Quat target) { return target.mul(q.conjugate()).angle(); }
+
+    @Test public void ballServoHoldsACantileverAgainstGravity() {
+        double[] sag = new double[2];
+        for (int k = 0; k < 2; k++) {
+            XpbdBackend b = new XpbdBackend();
+            BodyHandle base = b.createBody(BodyDesc.fixed(Pose.IDENTITY, List.of()));
+            BodyHandle arm = cube(b, 500, new Vec3(2, 0, 0));
+            ConstraintHandle c = b.addConstraint(ConstraintDesc.of(JointType.BALL, base, arm, Vec3.ZERO, new Vec3(-2, 0, 0), Vec3.X, Vec3.X));
+            // needs 500 kg · 9.81 · 2 m ≈ 9.8 kN·m
+            if (k == 1) b.setMotorOrientation(c, Quat.IDENTITY, 40_000);
+            for (int i = 0; i < 240; i++) b.step(DT);
+            sag[k] = -b.bodyState(arm).pose().position().y();
+        }
+        assertTrue("a free ball joint swings down: " + sag[0], sag[0] > 1.5);
+        assertTrue("a held one stays level: " + sag[1], sag[1] < 0.3);
+    }
+
+    @Test public void ballServoDrivesToATarget() {
+        XpbdBackend b = new XpbdBackend();
+        b.setGravity(Vec3.ZERO);
+        BodyHandle base = b.createBody(BodyDesc.fixed(Pose.IDENTITY, List.of()));
+        BodyHandle arm = cube(b, 300, new Vec3(0, -2, 0));
+        ConstraintHandle c = b.addConstraint(ConstraintDesc.of(JointType.BALL, base, arm, Vec3.ZERO, new Vec3(0, 2, 0), new Vec3(0, -1, 0), new Vec3(0, -1, 0)));
+        Quat target = Quat.axisAngle(new Vec3(1, 0, 1).normalize(), Math.toRadians(35)).mul(Quat.axisAngle(Vec3.Y, Math.toRadians(20)));
+        b.setMotorOrientation(c, target, 30_000);
+        for (int i = 0; i < 300; i++) b.step(DT);
+        double off = Math.toDegrees(angleFrom(b.bodyState(arm).pose().rotation(), target));
+        assertTrue("reached the swing+twist target, off by " + off + "°", off < 2);
+        Vec3 tip = b.bodyState(arm).pose().position();
+        assertEquals("stays on the joint", 2, tip.length(), 0.02);
+    }
+
+    @Test public void weakBallServoSags() {
+        XpbdBackend b = new XpbdBackend();
+        BodyHandle base = b.createBody(BodyDesc.fixed(Pose.IDENTITY, List.of()));
+        BodyHandle arm = cube(b, 2000, new Vec3(2, 0, 0));
+        ConstraintHandle c = b.addConstraint(ConstraintDesc.of(JointType.BALL, base, arm, Vec3.ZERO, new Vec3(-2, 0, 0), Vec3.X, Vec3.X));
+        b.setMotorOrientation(c, Quat.IDENTITY, 5_000); // needs ~39 kN·m
+        for (int i = 0; i < 240; i++) b.step(DT);
+        assertTrue("torque clamp respected", b.bodyState(arm).pose().position().y() < -1);
+    }
+
     @Test public void ballJointConeLimit() {
         XpbdBackend b = new XpbdBackend();
         BodyHandle anchor = b.createBody(BodyDesc.fixed(Pose.IDENTITY, List.of()));

@@ -45,6 +45,13 @@ public interface PhysicsBackend extends AutoCloseable {
     /** Servo target for a motorised joint: angle in radians (hinge) or offset in metres (slider). */
     void setMotorTarget(ConstraintHandle constraint, double target, double maxForceOrTorque);
 
+    /**
+     * Orientation servo for a ball or universal joint: drive the child to {@code target}, a rotation relative to the pose
+     * the joint was created in, expressed in the parent's frame ({@link colossus.physics.math.Quat#IDENTITY} holds the
+     * assembled pose). Torque is a 3-axis PD clamped to {@code maxTorque} N·m; 0 switches the servo off.
+     */
+    void setMotorOrientation(ConstraintHandle constraint, colossus.physics.math.Quat target, double maxTorque);
+
     /** Teleport a body (assembly, disassembly, admin commands). Velocities are zeroed. */
     void setPose(BodyHandle body, Pose pose);
 

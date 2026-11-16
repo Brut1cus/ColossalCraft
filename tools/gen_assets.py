@@ -200,7 +200,9 @@ def data():
             'minecraft:crying_obsidian': p(2600, 0.6, 0.05), 'minecraft:netherite_block': p(15000, 0.5), 'minecraft:diamond_block': p(3500, 0.5),
             'minecraft:copper_block': p(8900, 0.4, 0.2), 'minecraft:ice': p(900, 0.02), 'minecraft:packed_ice': p(900, 0.02),
             'minecraft:blue_ice': p(900, 0.01), 'minecraft:slime_block': p(1100, 0.8, 0.8), 'minecraft:honey_block': p(1400, 0.9, 0.0),
-            'colossus:foot_pad': p(300, 0.9, 0.05), 'colossus:gyro_stabilizer': p(3000, 0.4, 0.1)},
+            'colossus:foot_pad': p(300, 0.9, 0.05), 'colossus:gyro_stabilizer': p(3000, 0.4, 0.1),
+            # bearing housings are mostly hollow; at solid-steel mass a 1x1 joint could not carry its own housings
+            **{f'colossus:{j}': p(1000, 0.4, 0.1) for j, _ in JOINTS}},
         'tags': {
             'c:storage_blocks/steel': p(7850, 0.4, 0.2), 'c:storage_blocks/lead': p(11300, 0.5, 0.05),
             'minecraft:wool': p(50, 0.6), 'minecraft:leaves': p(50, 0.6), 'minecraft:planks': p(400, 0.5, 0.2),

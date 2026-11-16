@@ -58,7 +58,7 @@ public class AssembledColossusTest {
             BodyPlanner.JointInput ji = new BodyPlanner.JointInput(JointKind.byId(jp.type()), jp.parent(), jp.child(),
                     jp.anchor().sub(new Vec3(cx, cy, cz)), jp.axis(), jp.footprint());
             ConstraintHandle h = b.addConstraint(BodyPlanner.constraint(ji, segs, bodies, 9.81));
-            if (holdPose) b.setMotorTarget(h, 0, BodyPlanner.holdLimit(ji, scaling));
+            if (holdPose) BodyPlanner.hold(b, h, ji, scaling);
             joints.add(h);
             inputs.add(ji);
         }
@@ -82,6 +82,35 @@ public class AssembledColossusTest {
         ComponentScaling scaling = new ComponentScaling();
         double hipStrain = BodyPlanner.strain(s.jointInputs.get(0), s.backend.constraintState(s.joints.get(0)), scaling);
         assertTrue("strain " + hipStrain, hipStrain > 1 && hipStrain < 2.5);
+    }
+
+    /** Ball-bearing hips used to be unpowered, so a walker's torso flopped on them; now they servo-hold too. */
+    @Test public void heldBallHipsKeepATableStanding() {
+        for (boolean hold : new boolean[]{false, true}) {
+            Sim s = build(table("ball_bearing", "thrust_bearing"), hold);
+            double y0 = s.backend.bodyState(s.bodies.get(s.root)).pose().position().y();
+            s.backend.applyForce(s.bodies.get(s.root), new Vec3(150_000, 0, 150_000), s.backend.bodyState(s.bodies.get(s.root)).pose().position());
+            for (int i = 0; i < 240; i++) s.backend.step(1 / 60.0);
+            BodyState st = s.backend.bodyState(s.bodies.get(s.root));
+            double drop = y0 - st.pose().position().y();
+            double tilt = Math.toDegrees(st.pose().rotation().angle());
+            if (hold) {
+                assertTrue("held: deck stays up, dropped " + drop, drop < 0.3);
+                assertTrue("held: deck stays level, " + tilt + "°", tilt < 5);
+            } else {
+                assertTrue("free ball hips collapse, dropped " + drop, drop > 1);
+            }
+        }
+    }
+
+    /** A universal joint built by the planner must sit still at rest (its two axes are set perpendicular). */
+    @Test public void universalJointStartsAtRest() {
+        Sim s = build(table("universal_joint", "thrust_bearing"), true);
+        for (int i = 0; i < 120; i++) s.backend.step(1 / 60.0);
+        for (int i = 0; i < s.bodies.size(); i++) {
+            double tilt = Math.toDegrees(s.backend.bodyState(s.bodies.get(i)).pose().rotation().angle());
+            assertTrue("segment " + i + " rotated " + tilt + "° at rest", tilt < 5);
+        }
     }
 
     @Test public void limpJointsLetItCollapse() {
