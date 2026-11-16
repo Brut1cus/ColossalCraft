@@ -7,6 +7,7 @@ import colossus.assembly.graph.CoreTier;
 import colossus.assembly.graph.StructureScanner;
 import colossus.client.ClientColossi;
 import colossus.core.Colossus;
+import colossus.core.ColossusManager;
 import colossus.core.ColossusRegistries;
 import colossus.net.SegmentBlocks;
 import colossus.net.StructureSync;
@@ -152,5 +153,39 @@ public class ColossusGameTests {
         ClientColossi.remove(id);
         h.assertTrue(AssemblyService.disassemble(h.getLevel(), id, null), "disassembly refused");
         h.succeed();
+    }
+
+    /**
+     * A deck with a 2x2 Gyro Stabilizer powered by a redstone block on board and a lone unpowered one: the 2x2 merges
+     * into one rotor and spins up, the lone one stays still.
+     */
+    @GameTest(template = "empty16", timeoutTicks = 200)
+    public static void gyroMergesSquaresAndSpinsUpOnRedstone(GameTestHelper h) {
+        floor(h);
+        for (int x = 4; x <= 10; x++) for (int z = 6; z <= 9; z++) h.setBlock(x, 2, z, Blocks.IRON_BLOCK);
+        h.setBlock(7, 3, 7, ColossusRegistries.HULL_CORES.get(CoreTier.IRON).get());
+        for (int x = 4; x <= 5; x++) for (int z = 6; z <= 7; z++) h.setBlock(x, 3, z, ColossusRegistries.GYRO_STABILIZER.get());
+        h.setBlock(4, 4, 6, Blocks.REDSTONE_BLOCK);
+        h.setBlock(10, 3, 9, ColossusRegistries.GYRO_STABILIZER.get());
+
+        UUID id = AssemblyService.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 3, 7)), null);
+        h.assertTrue(id != null, "assembly failed");
+        ColossusManager m = ColossusManager.get(h.getLevel());
+        List<ColossusManager.GyroInfo> gyros = m.gyros(id);
+        h.assertTrue(gyros.size() == 1, "expected gyros on one segment, got " + gyros.size());
+        var rotors = gyros.get(0).rotors();
+        h.assertTrue(rotors.size() == 2, "expected a 2x2 rotor and a 1x1 rotor, got " + rotors.size());
+        var big = rotors.stream().filter(r -> r.footprint == 2).findFirst().orElse(null);
+        var small = rotors.stream().filter(r -> r.footprint == 1).findFirst().orElse(null);
+        h.assertTrue(big != null && small != null, "rotor footprints wrong");
+        h.succeedWhen(() -> {
+            h.assertTrue(big.throttle() == 1, "redstone block should give full throttle, got " + big.throttle());
+            // physics runs in real time while the test server races through ticks, so only ask that it is turning
+            h.assertTrue(big.rpm() > 5, "2x2 rotor still at " + big.rpm() + " rpm");
+            h.assertTrue(small.rpm() == 0 && small.throttle() == 0, "unpowered rotor turned");
+            h.assertTrue(m.gyros(id).get(0).torqueCapacity() > 0, "no torque capacity");
+            h.assertTrue(AssemblyService.disassemble(h.getLevel(), id, null) || ColossusSavedData.get(h.getLevel()).byId(id) == null,
+                    "disassembly refused");
+        });
     }
 }

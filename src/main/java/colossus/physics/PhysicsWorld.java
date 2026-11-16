@@ -29,7 +29,16 @@ public final class PhysicsWorld implements AutoCloseable {
         public ConstraintState constraint(ConstraintHandle h) { return constraints.getOrDefault(h.id(), ConstraintState.MISSING); }
     }
 
+    /**
+     * Code that runs on the physics thread before every step, after queued commands (controllers that must act at the
+     * physics rate, like gyros and, later, joint servos). Must not touch Minecraft objects.
+     */
+    public interface StepController {
+        void beforeStep(PhysicsBackend backend, double dt);
+    }
+
     private final PhysicsBackend backend;
+    private final java.util.List<StepController> controllers = new java.util.ArrayList<>();
     private final double dt;
     private final ConcurrentLinkedQueue<Consumer<PhysicsBackend>> commands = new ConcurrentLinkedQueue<>();
     private final Set<Integer> trackedBodies = new LinkedHashSet<>();
@@ -102,6 +111,11 @@ public final class PhysicsWorld implements AutoCloseable {
         });
     }
 
+    /** Runs {@code c} before every step from the next one on. */
+    public void addController(StepController c) { enqueue(b -> controllers.add(c)); }
+
+    public void removeController(StepController c) { enqueue(b -> controllers.remove(c)); }
+
     public void removeBody(BodyHandle h) { enqueue(b -> { b.removeBody(h); trackedBodies.remove(h.id()); }); }
 
     public void removeConstraint(ConstraintHandle h) { enqueue(b -> { b.removeConstraint(h); trackedConstraints.remove(h.id()); }); }
@@ -131,6 +145,7 @@ public final class PhysicsWorld implements AutoCloseable {
         long t0 = System.nanoTime();
         Consumer<PhysicsBackend> c;
         while ((c = commands.poll()) != null) c.accept(backend);
+        for (StepController sc : controllers) sc.beforeStep(backend, dt);
         backend.step(dt);
         stepIndex++;
         Map<Integer, BodyState> bs = new HashMap<>();

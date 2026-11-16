@@ -27,7 +27,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 
-/** Phase 1 content: Hull Cores (five tiers), Core Lattice, the seven joint blocks and the Foot Pad. */
+/** Content: Hull Cores (five tiers), Core Lattice, the seven joint blocks, the Foot Pad and the Gyro Stabilizer. */
 public final class ColossusRegistries {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Colossus.MODID);
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Colossus.MODID);
@@ -68,6 +68,10 @@ public final class ColossusRegistries {
     /** Marks a limb's end effector; any Segment touching the ground at rest also counts as a foot. */
     public static final DeferredBlock<Block> FOOT_PAD = block("foot_pad", Block::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(2f).sound(SoundType.WOOL).friction(0.5f));
+
+    // ---- Stabilization ----
+    /** Powered control-moment gyro; an N×N square merges into one rotor (see {@code GyroStabilizer}). Redstone sets its throttle. */
+    public static final DeferredBlock<Block> GYRO_STABILIZER = block("gyro_stabilizer", Block::new, metal());
 
     // ---- Block entities ----
     @SuppressWarnings("DataFlowIssue")

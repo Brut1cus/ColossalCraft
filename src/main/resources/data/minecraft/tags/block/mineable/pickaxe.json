@@ -11,6 +11,7 @@
     "colossus:swivel_bearing",
     "colossus:slider_joint",
     "colossus:spring_damper",
-    "colossus:fixed_weld"
+    "colossus:fixed_weld",
+    "colossus:gyro_stabilizer"
   ]
 }

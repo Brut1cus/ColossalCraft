@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "IRI",
+    "GBG",
+    "IRI"
+  ],
+  "key": {
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "R": {
+      "tag": "c:dusts/redstone"
+    },
+    "G": {
+      "tag": "c:ingots/gold"
+    },
+    "B": {
+      "tag": "c:storage_blocks/iron"
+    }
+  },
+  "result": {
+    "id": "colossus:gyro_stabilizer",
+    "count": 1
+  }
+}

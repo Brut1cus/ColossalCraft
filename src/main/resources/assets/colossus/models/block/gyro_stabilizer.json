@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "colossus:block/gyro_stabilizer_end",
+    "side": "colossus:block/gyro_stabilizer_side"
+  }
+}
