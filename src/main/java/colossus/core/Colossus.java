@@ -3,6 +3,7 @@ package colossus.core;
 import colossus.compat.CompatManager;
 import colossus.core.data.DataLoaders;
 import colossus.net.ColossusNet;
+import colossus.net.StructureSync;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
@@ -32,6 +33,9 @@ public final class Colossus {
         NeoForge.EVENT_BUS.addListener(ColossusCommands::register);
         NeoForge.EVENT_BUS.addListener(ColossusManager::onLevelTick);
         NeoForge.EVENT_BUS.addListener(ColossusManager::onServerStopping);
+        NeoForge.EVENT_BUS.addListener(StructureSync::onLogin);
+        NeoForge.EVENT_BUS.addListener(StructureSync::onChangedDimension);
+        NeoForge.EVENT_BUS.addListener(StructureSync::onRespawn);
     }
 
     public static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath(MODID, path); }

@@ -25,7 +25,14 @@ Build the hardest shared foundation first (ship space, interaction and the physi
 
 ## Phase 2: see it and touch it
 
-- Segment renderer: vanilla path (ship-space sections compiled to buffers, drawn with the interpolated Segment pose), then Sodium and Iris paths in `colossus.compat`.
+| Area | Status |
+|---|---|
+| Segment renderer, vanilla path: Segment blocks synced to clients (`SegmentBlocks`, split into parts, sent on assembly/login/dimension change; `ColossusRemoved` on disassembly), compiled per chunk layer into vertex buffers, drawn with the vanilla chunk shaders at the pose interpolated between the last two `PoseSync` packets, frustum-culled | done |
+| Segment renderer follow-ups: block entity renderers on board (chests, signs) and block-entity model data, live per-block light (now: world light sampled at the centre of mass, mesh rebuilt at most once a second when it changes), translucent sorting, resync when blocks change on board, 16³ render sub-regions for huge Segments | to do |
+| Segment renderer: Sodium and Iris paths in `colossus.compat` (the vanilla path runs alongside them until then) | to do |
+
+Still to do in Phase 2:
+
 - Interaction redirect mixins: client pick, server reach checks, container `stillValid`, sound/particle positions.
 - Entity carrying and ship-local mode; entity collision against Segments.
 - Assembly GUI (3D preview, colour-coded Segments, CoM and support polygon), Rigging GUI (limits, gains, solver, pole vector), Gait Editor.

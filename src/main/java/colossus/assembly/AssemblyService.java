@@ -5,6 +5,7 @@ import colossus.assembly.graph.StructureScanner;
 import colossus.core.Colossus;
 import colossus.core.ColossusConfig;
 import colossus.core.ColossusManager;
+import colossus.net.StructureSync;
 import colossus.physics.math.Pose;
 import colossus.physics.math.Quat;
 import colossus.physics.math.Vec3;
@@ -141,6 +142,7 @@ public final class AssemblyService {
 
         data.put(rec);
         ColossusManager.get(level).spawn(rec);
+        StructureSync.sendToLevel(level, rec);
         Colossus.LOG.info("Assembled Colossus {}: {} blocks, {} segments, {} joints", id, r.blockCount(), r.segments().size(), r.joints().size());
         tell(player, Component.translatable("colossus.assembly.done", r.blockCount(), r.segments().size()).withStyle(ChatFormatting.GREEN));
         for (String w : r.warnings()) tell(player, Component.literal("⚠ " + w).withStyle(ChatFormatting.YELLOW));
@@ -232,6 +234,7 @@ public final class AssemblyService {
         for (BlockPos to : moves.values()) level.updateNeighborsAt(to, level.getBlockState(to).getBlock());
 
         data.remove(id);
+        StructureSync.removed(level, id);
         tell(player, Component.translatable("colossus.disassembly.done", moves.size()).withStyle(ChatFormatting.GREEN));
         return true;
     }
