@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "colossus:block/ball_bearing_end",
+    "side": "colossus:block/ball_bearing_side"
+  }
+}

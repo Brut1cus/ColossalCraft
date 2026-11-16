@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "colossus:block/steel_hull_core"
+    }
+  }
+}

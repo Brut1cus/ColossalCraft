@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ENE",
+    "NRN",
+    "ENE"
+  ],
+  "key": {
+    "E": {
+      "item": "minecraft:echo_shard"
+    },
+    "N": {
+      "tag": "c:ingots/netherite"
+    },
+    "R": {
+      "tag": "c:storage_blocks/redstone"
+    }
+  },
+  "result": {
+    "id": "colossus:core_lattice",
+    "count": 1
+  }
+}

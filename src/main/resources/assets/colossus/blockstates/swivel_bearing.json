@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "colossus:block/swivel_bearing"
+    },
+    "axis=z": {
+      "model": "colossus:block/swivel_bearing",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "colossus:block/swivel_bearing",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

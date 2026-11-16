@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "colossus:block/thrust_bearing"
+    },
+    "axis=z": {
+      "model": "colossus:block/thrust_bearing",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "colossus:block/thrust_bearing",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

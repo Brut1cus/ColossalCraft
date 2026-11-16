@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "INI",
+    "I I",
+    "INI"
+  ],
+  "key": {
+    "I": {
+      "tag": "c:ingots/iron"
+    },
+    "N": {
+      "tag": "c:nuggets/iron"
+    }
+  },
+  "result": {
+    "id": "colossus:swivel_bearing",
+    "count": 2
+  }
+}

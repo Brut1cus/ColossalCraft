@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "colossus:block/singularity_hull_core"
+    }
+  }
+}

@@ -3,43 +3,30 @@ loaderVersion="[4,)"
 license="All Rights Reserved"
 
 [[mods]]
-modId="colossalcraft"
+modId="colossus"
 version="${file.jarVersion}"
 displayName="ColossalCraft"
 authors="ColossalCraft"
-description='''Build mechanized Colossi - mechs, ships, robots and creatures - from any blocks, then bring them to life.'''
+description='''Build a machine block by block, place a Hull Core, and bring it to life as one physics-driven Colossus that walks, drives, sails or flies.'''
 
-[[mixins]]
-config="colossalcraft.mixins.json"
-
-[[accessTransformers]]
-file="META-INF/accesstransformer.cfg"
-
-[[dependencies.colossalcraft]]
+# Independence rule: NeoForge is the only requirement. Every other mod is optional.
+[[dependencies.colossus]]
 modId="neoforge"
 type="required"
 versionRange="[21.1.0,)"
 ordering="NONE"
 side="BOTH"
 
-[[dependencies.colossalcraft]]
+[[dependencies.colossus]]
 modId="minecraft"
 type="required"
 versionRange="[1.21.1,1.21.2)"
 ordering="NONE"
 side="BOTH"
 
-[[dependencies.colossalcraft]]
+[[dependencies.colossus]]
 modId="create"
 type="optional"
 versionRange="[6.0.0,)"
 ordering="AFTER"
-side="BOTH"
-
-[[dependencies.colossalcraft]]
-modId="valkyrienskies"
-type="discouraged"
-reason="Both mods move blocks as ships and hook the same game code. Use one or the other."
-versionRange="[0,)"
-ordering="NONE"
 side="BOTH"
