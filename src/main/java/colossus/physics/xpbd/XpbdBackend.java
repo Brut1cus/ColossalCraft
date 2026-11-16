@@ -24,6 +24,13 @@ import java.util.Map;
  * Not yet: body-vs-body contacts, CCD, islands on worker threads (see docs/ROADMAP.md, Phase 1 → Phase 2).
  */
 public final class XpbdBackend implements PhysicsBackend {
+    /**
+     * Servo stiffness: a joint motor reaches its full rated torque at this angle error (rad), or full force at this
+     * offset error (m). Stiff enough that a loaded leg holds its pose within a few degrees (a walker is position-
+     * controlled, so compliance shows up as feet off target); damping is critical on the joint's effective inertia.
+     */
+    static final double SERVO_FULL_EFFORT_ANGLE = 0.05, SERVO_FULL_EFFORT_OFFSET = 0.05;
+
     private final Map<Integer, XpbdBody> bodies = new LinkedHashMap<>();
     private final Map<Integer, XpbdJoint> joints = new LinkedHashMap<>();
     private int nextBody = 1, nextJoint = 1;
@@ -377,7 +384,7 @@ public final class XpbdBackend implements PhysicsBackend {
                 case HINGE, SWIVEL -> {
                     Vec3 ax = a.q.rotate(d.axisA());
                     double ieff = 1.0 / Math.max(1e-12, a.invMassRot(ax) + b.invMassRot(ax));
-                    double kp = d.stiffness() > 0 ? d.stiffness() : j.motorMax / 0.25;
+                    double kp = d.stiffness() > 0 ? d.stiffness() : j.motorMax / SERVO_FULL_EFFORT_ANGLE;
                     double kd = d.damping() > 0 ? d.damping() : 2 * Math.sqrt(kp * ieff);
                     double err = d.type() == colossus.physics.api.JointType.SWIVEL ? wrap(j.motorTarget - j.position) : j.motorTarget - j.position;
                     double tau = clamp(kp * err - kd * j.velocity, j.motorMax);
@@ -393,7 +400,7 @@ public final class XpbdBackend implements PhysicsBackend {
                         f = -d.stiffness() * (j.position - d.restLength()) - d.damping() * j.velocity;
                     } else {
                         double meff = 1.0 / Math.max(1e-12, a.invMass + b.invMass);
-                        double kp = d.stiffness() > 0 ? d.stiffness() : j.motorMax / 0.1;
+                        double kp = d.stiffness() > 0 ? d.stiffness() : j.motorMax / SERVO_FULL_EFFORT_OFFSET;
                         double kd = d.damping() > 0 ? d.damping() : 2 * Math.sqrt(kp * meff);
                         f = clamp(kp * (j.motorTarget - j.position) - kd * j.velocity, j.motorMax);
                     }
@@ -410,7 +417,7 @@ public final class XpbdBackend implements PhysicsBackend {
                     Vec3 relW = b.w.sub(a.w);
                     Vec3 u = err.lengthSq() > 1e-12 ? err.normalize() : relW.lengthSq() > 1e-12 ? relW.normalize() : Vec3.Y;
                     double ieff = 1.0 / Math.max(1e-12, a.invMassRot(u) + b.invMassRot(u));
-                    double kp = d.stiffness() > 0 ? d.stiffness() : j.motorMax / 0.25;
+                    double kp = d.stiffness() > 0 ? d.stiffness() : j.motorMax / SERVO_FULL_EFFORT_ANGLE;
                     double kd = d.damping() > 0 ? d.damping() : 2 * Math.sqrt(kp * ieff);
                     Vec3 tau = err.mul(kp).sub(relW.mul(kd));
                     double tl = tau.length();

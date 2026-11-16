@@ -221,7 +221,7 @@ def data():
         'wheel': {'base_torque': 10000, 'base_load': 60000, 'torque_exponent': 3.0, 'load_exponent': 2.5},
         'piston': {'base_torque': 0, 'base_load': 120000, 'torque_exponent': 0.0, 'load_exponent': 2.5}})
     gaits = {
-        'quad_walk': ([0, 0.5, 0.75, 0.25], 0.75, False, 0, 1.5), 'quad_trot': ([0, 0.5, 0.5, 0], 0.5, True, 1.2, 4),
+        'quad_walk': ([0.5, 0, 0.75, 0.25], 0.75, False, 0, 1.5), 'quad_trot': ([0, 0.5, 0.5, 0], 0.5, True, 1.2, 4),
         'quad_pace': ([0, 0.5, 0, 0.5], 0.5, True, 1.2, 4), 'quad_gallop': ([0, 0.1, 0.6, 0.5], 0.35, True, 3.5, 99),
         'biped_walk': ([0, 0.5], 0.6, True, 0, 2), 'biped_run': ([0, 0.5], 0.4, True, 1.8, 99),
         'tripod_step': ([0, 1 / 3, 2 / 3], 2 / 3, False, 0, 99),
