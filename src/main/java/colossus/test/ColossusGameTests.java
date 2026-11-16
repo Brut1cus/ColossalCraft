@@ -5,12 +5,18 @@ import colossus.assembly.JointBlock;
 import colossus.assembly.JointKind;
 import colossus.assembly.graph.CoreTier;
 import colossus.assembly.graph.StructureScanner;
+import colossus.client.ClientColossi;
 import colossus.core.Colossus;
 import colossus.core.ColossusRegistries;
+import colossus.net.SegmentBlocks;
+import colossus.net.StructureSync;
 import colossus.shipyard.ColossusRecord;
 import colossus.shipyard.ColossusSavedData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.Container;
@@ -21,6 +27,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
+import java.util.List;
 import java.util.UUID;
 
 /** In-world tests. Run with {@code ./gradlew runGameTestServer}. Pure maths is covered by {@code ./gradlew test}. */
@@ -102,5 +109,48 @@ public class ColossusGameTests {
             h.assertTrue(found, "chest with 7 diamonds not found after disassembly");
             h.assertTrue(ColossusSavedData.get(h.getLevel()).byId(id) == null, "record not removed");
         });
+    }
+
+    /** The renderer's input: every Segment's blocks reach the client intact, split into parts, and reassemble. */
+    @GameTest(template = "empty16", timeoutTicks = 100)
+    public static void structureSyncCarriesEverySegmentBlock(GameTestHelper h) {
+        floor(h);
+        BlockPos core = biped(h);
+        UUID id = AssemblyService.assemble(h.getLevel(), core, null);
+        h.assertTrue(id != null, "assembly failed");
+        ColossusRecord rec = ColossusSavedData.get(h.getLevel()).byId(id);
+
+        // tiny parts force the multi-part path (the torso holds 11 blocks)
+        List<SegmentBlocks> payloads = StructureSync.payloads(h.getLevel(), rec, 4);
+        int iron = Block.getId(Blocks.IRON_BLOCK.defaultBlockState()), cells = 0, ironCells = 0;
+        ClientColossi.remove(id);
+        for (SegmentBlocks p : payloads) {
+            h.assertTrue(p.cells().length <= 4, "part too large");
+            ByteBuf buf = Unpooled.buffer();
+            SegmentBlocks.CODEC.encode(buf, p);
+            SegmentBlocks back = SegmentBlocks.CODEC.decode(buf);
+            h.assertTrue(java.util.Arrays.equals(back.cells(), p.cells()) && java.util.Arrays.equals(back.states(), p.states())
+                    && back.comRel().equals(p.comRel()) && back.part() == p.part() && back.parts() == p.parts(), "codec round trip changed the payload");
+            cells += p.cells().length;
+            for (int s : p.states()) if (s == iron) ironCells++;
+            ClientColossi.accept(back);
+        }
+        h.assertTrue(cells == 23, "expected 23 synced cells, got " + cells);
+        h.assertTrue(ironCells == 16, "expected 16 iron blocks, got " + ironCells);
+
+        ClientColossi.Structure st = ClientColossi.structure(id);
+        h.assertTrue(st != null && st.segments() == rec.segments.size(), "client structure missing");
+        for (int i = 0; i < st.segments(); i++) {
+            ClientColossi.SegmentData d = st.segment(i);
+            ColossusRecord.SegmentRecord s = rec.segments.get(i);
+            h.assertTrue(d.complete() && d.size() == s.cells.length, "segment " + i + " incomplete on the client");
+            for (int c = 0; c < d.size(); c++) {
+                BlockPos plot = s.plotPos(d.cell(c));
+                h.assertTrue(Block.stateById(d.state(c)) == h.getLevel().getBlockState(plot), "segment " + i + " cell " + c + " has the wrong block");
+            }
+        }
+        ClientColossi.remove(id);
+        h.assertTrue(AssemblyService.disassemble(h.getLevel(), id, null), "disassembly refused");
+        h.succeed();
     }
 }
