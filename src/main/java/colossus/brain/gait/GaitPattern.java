@@ -31,7 +31,8 @@ public record GaitPattern(String name, double[] phaseOffsets, double dutyFactor,
 
     // ------------------------------------------------------------------ presets from the blueprint
 
-    public static GaitPattern quadWalk() { return new GaitPattern("walk", new double[]{0, 0.5, 0.75, 0.25}, 0.75, false, 0, 1.5); }
+    /** Lateral-sequence walk (blueprint): legs lift LH, LF, RH, RF, a quarter cycle apart, so the body sways mostly fore-aft. */
+    public static GaitPattern quadWalk() { return new GaitPattern("walk", new double[]{0.5, 0, 0.75, 0.25}, 0.75, false, 0, 1.5); }
     public static GaitPattern quadTrot() { return new GaitPattern("trot", new double[]{0, 0.5, 0.5, 0}, 0.5, true, 1.2, 4); }
     public static GaitPattern quadPace() { return new GaitPattern("pace", new double[]{0, 0.5, 0, 0.5}, 0.5, true, 1.2, 4); }
     public static GaitPattern quadGallop() { return new GaitPattern("gallop", new double[]{0, 0.1, 0.6, 0.5}, 0.35, true, 3.5, 99); }

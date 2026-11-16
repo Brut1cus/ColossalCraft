@@ -31,7 +31,11 @@ public class FoundationTest {
         World joint(int x, int y, int z, String type, int axis) { kinds.put(k(x, y, z), Kind.JOINT); joints.put(k(x, y, z), new JointInfo(type, axis)); return this; }
         @Override public Kind kind(int x, int y, int z) { return y < 0 ? Kind.EXCLUDED : kinds.getOrDefault(k(x, y, z), Kind.EMPTY); }
         @Override public JointInfo joint(int x, int y, int z) { return joints.get(k(x, y, z)); }
-        @Override public double mass(int x, int y, int z) { return 1000; }
+        /** Mass of every block, kg (1 t unless a test builds a lighter machine). */
+        double blockMass = 1000;
+        /** Per-block mass override (x, y, z) → kg, or null for {@link #blockMass} everywhere. */
+        java.util.function.ToDoubleFunction<int[]> massAt;
+        @Override public double mass(int x, int y, int z) { return massAt != null ? massAt.applyAsDouble(new int[]{x, y, z}) : blockMass; }
         @Override public boolean isLattice(int x, int y, int z) { return lattice.contains(k(x, y, z)); }
     }
 

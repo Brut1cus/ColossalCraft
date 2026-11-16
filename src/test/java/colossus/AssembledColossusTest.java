@@ -34,7 +34,8 @@ public class AssembledColossusTest {
         return w;
     }
 
-    record Sim(XpbdBackend backend, List<BodyHandle> bodies, List<ConstraintHandle> joints, List<BodyPlanner.JointInput> jointInputs, int root, double rootMass) {}
+    record Sim(XpbdBackend backend, List<BodyHandle> bodies, List<ConstraintHandle> joints, List<BodyPlanner.JointInput> jointInputs, int root, double rootMass,
+               List<BodyPlanner.SegmentInput> segments) {}
 
     static Sim build(FoundationTest.World w, boolean holdPose) {
         int cx = 2, cy = 6, cz = 2;
@@ -62,7 +63,7 @@ public class AssembledColossusTest {
             joints.add(h);
             inputs.add(ji);
         }
-        return new Sim(b, bodies, joints, inputs, r.root().id(), r.root().mass().mass());
+        return new Sim(b, bodies, joints, inputs, r.root().id(), r.root().mass().mass(), segs);
     }
 
     @Test public void heldJointsKeepATableStanding() {
