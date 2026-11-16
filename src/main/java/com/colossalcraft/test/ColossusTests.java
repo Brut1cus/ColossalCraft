@@ -532,7 +532,7 @@ public class ColossusTests {
         });
         h.runAfterDelay(102, () -> {
             ColossusEntity c = find(h);
-            double muG = 2 * (1 - Blocks.BLUE_ICE.getFriction()) * 9.81;
+            double muG = StructureModel.grip(Blocks.BLUE_ICE.getFriction()) * 9.81;
             ColossalCraft.LOG.info("[test] ice dz={} maxAcc={} (grip limit {}) slipped={}", c.getZ() - z0[0], maxAcc[0], muG, slipped[0]);
             h.assertTrue(slipped[0], "feet should slip on ice");
             h.assertTrue(maxAcc[0] <= muG * 1.5 + 0.05, "accelerated faster than ice grip allows: " + maxAcc[0]);
@@ -719,7 +719,7 @@ public class ColossusTests {
         h.runAfterDelay(30, () -> { ColossusEntity c = find(h); start[0] = c.getZ(); start[1] = c.getY(); c.autopilot = true; c.setInput(1, 0, false, false); lastV[0] = c.vel; });
         for (int t = 31; t <= 200; t++) { int tt = t; h.runAfterDelay(t, () -> {
             ColossusEntity c = find(h);
-            if (tt == 130) c.setInput(0, 0, false, false); // stop before the test area's wall, then stand
+            if (c.getZ() - start[0] < -4.5) c.setInput(0, 0, false, false); // stop before the edge of the test area, then stand
             net.minecraft.world.phys.Vec3 dv = c.vel.subtract(lastV[0]); lastV[0] = c.vel;
             jitter[0] += dv.length();
             var w = c.walker;
@@ -747,11 +747,11 @@ public class ColossusTests {
         bigMech(h, true);
         for (int x = 0; x < 16; x++) for (int z = 0; z <= 4; z++) h.setBlock(x, 1, z, Blocks.STONE); // a 1-block step ahead
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7)), null), "assemble failed");
-        double[] y0 = {0}, pen = {0};
-        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); y0[0] = c.getY(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        double[] y0 = {0}, pen = {0}, z0s = {0};
+        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); y0[0] = c.getY(); z0s[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
         for (int t = 31; t <= 230; t++) { int tt = t; h.runAfterDelay(t, () -> {
             ColossusEntity c = find(h);
-            if (tt == 190) c.setInput(0, 0, false, false);
+            if (c.getZ() - z0s[0] < -5.0) c.setInput(0, 0, false, false); // on the step: stop before the edge
             double p = WalkerController.maxLegPenetration(c);
             if (p > pen[0]) { pen[0] = p; ColossalCraft.LOG.info("[test] step t={} penetration {} feet {}", tt, p, c.walker.status); }
         }); }

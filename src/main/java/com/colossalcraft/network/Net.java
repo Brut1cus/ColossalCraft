@@ -192,6 +192,7 @@ public final class Net {
                 }
                 case 3 -> { hc.hover = !hc.hover; hc.setChanged(); }
                 case 9 -> { hc.joints.put(StructureModel.GAIT, gait(hc.joints.getCompound(StructureModel.GAIT), a.value())); hc.setChanged(); }
+                case 16 -> { hc.joints.put(StructureModel.GAIT, gaitShape(hc.joints.getCompound(StructureModel.GAIT), a.joint(), a.value())); hc.setChanged(); }
                 case 4 -> { if (ColossusEntity.assemble(sp.level(), a.pos(), sp)) { closeScreen(sp, a.pos()); return; } }
                 default -> {}
             }
@@ -211,6 +212,17 @@ public final class Net {
     }
 
     private static CompoundTag gait(CompoundTag g, int value) { g = g.copy(); g.putInt("Speed", Math.max(5, Math.min(400, value))); return g; }
+    /** Gait shape: which = 0 stride %, 1 lift %, 2 stance % (0 = default). */
+    private static CompoundTag gaitShape(CompoundTag g, int which, int value) {
+        g = g.copy();
+        switch (which) {
+            case 0 -> g.putInt("Stride", Math.max(20, Math.min(100, value)));
+            case 1 -> g.putInt("Lift", Math.max(5, Math.min(50, value)));
+            case 2 -> g.putInt("Duty", value < 50 ? 0 : Math.min(90, value));
+            default -> {}
+        }
+        return g;
+    }
 
     private static CompoundTag applyJoint(CompoundTag c, HullAction a) {
         c = c.copy();
@@ -244,6 +256,7 @@ public final class Net {
             }
             case 3 -> c.toggleHover();
             case 9 -> { CompoundTag cfg = c.jointCfg.copy(); cfg.put(StructureModel.GAIT, gait(cfg.getCompound(StructureModel.GAIT), a.value())); c.setJointCfg(cfg); }
+            case 16 -> { CompoundTag cfg = c.jointCfg.copy(); cfg.put(StructureModel.GAIT, gaitShape(cfg.getCompound(StructureModel.GAIT), a.joint(), a.value())); c.setJointCfg(cfg); }
             case 5 -> { if (c.disassemble(sp)) { closeScreen(sp, BlockPos.ZERO); sp.displayClientMessage(Component.literal("Parked: the Colossus is blocks again."), true); return; } }
             default -> {}
         }

@@ -39,6 +39,16 @@ public class StructureModel {
     public int ikMode = 0, gaitMode = 0, locoControllers, jumpDrives;
     /** Steps per second (one full leg cycle). */
     public double gaitSpeed = 0.5;
+    /** Gait shape (Locomotion Controller): stride as a share of the legs' reach, step height as a share of leg length,
+     *  stance share of each cycle (0 = the gait type's default). */
+    public double gaitStride = 0.45, gaitLift = 0.2, gaitDutyCfg = 0;
+    /** Share of each step cycle a foot is on the ground. */
+    public double duty() {
+        if (gaitDutyCfg > 0) return gaitDutyCfg;
+        return switch (gaitMode) { case GAIT_QUAD -> 0.7; case GAIT_SPIDER, GAIT_CUSTOM -> 0.65; default -> 0.6; };
+    }
+    /** Grip of a block from its slipperiness (vanilla friction: 0.6 normal, 0.98 ice). */
+    public static double grip(double friction) { return Math.max(0.02, Math.min(1.5, 2.5 * (1 - friction))); }
 
     public static class Seg {
         public int id, parentJoint = -1, depth;
@@ -284,7 +294,13 @@ public class StructureModel {
         }
         for (Joint j : joints) j.subCom = j.subMass > 0 ? j.subCom.scale(1 / j.subMass) : j.pivot;
 
-        if (cfg.contains(GAIT)) gaitSpeed = Math.max(0.05, cfg.getCompound(GAIT).getInt("Speed") / 100.0);
+        if (cfg.contains(GAIT)) {
+            CompoundTag gc = cfg.getCompound(GAIT);
+            if (gc.contains("Speed")) gaitSpeed = Math.max(0.05, gc.getInt("Speed") / 100.0);
+            if (gc.contains("Stride")) gaitStride = Math.max(0.2, Math.min(1.0, gc.getInt("Stride") / 100.0));
+            if (gc.contains("Lift")) gaitLift = Math.max(0.05, Math.min(0.5, gc.getInt("Lift") / 100.0));
+            if (gc.contains("Duty")) gaitDutyCfg = gc.getInt("Duty") <= 0 ? 0 : Math.max(0.5, Math.min(0.9, gc.getInt("Duty") / 100.0));
+        }
         if (cfg.contains(LOCO)) { CompoundTag lc = cfg.getCompound(LOCO); ikMode = Math.floorMod(lc.getInt("IK"), IK_MODES.length); gaitMode = Math.floorMod(lc.getInt("Gait"), GAIT_MODES.length); }
         // ---- gears: from each joint walk through touching gearboxes; a motor gets the ratio of the gearbox it touches ----
         Map<BlockPos, double[]> motorGear = new HashMap<>(); // motor -> {joint, ratio, efficiency}
@@ -515,7 +531,7 @@ public class StructureModel {
             for (BlockPos p : segs.get(fs).blocks) if (p.getY() == minY && solid.contains(p)) {
                 fx += p.getX() + .5; fz += p.getZ() + .5; n++;
                 float slip = blocks.get(p).getBlock().getFriction(); // vanilla: 0.6 normal, 0.98 ice
-                mu += Math.max(0.02, Math.min(1.2, 2.0 * (1 - slip)));
+                mu += grip(slip);
             }
             if (n == 0) continue;
             Vec3 foot = new Vec3(fx / n, minY, fz / n);

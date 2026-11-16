@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "colossalcraft:copper_joint"
+    }
+  ],
+  "result": {
+    "id": "colossalcraft:copper_joint_pin",
+    "count": 4
+  }
+}

@@ -44,7 +44,7 @@ def grill(im, col, x0=3, x1=12, y0=3, y1=12, vertical=False):
 def save(im, folder, name): im.save(os.path.join(folder, name + '.png'))
 
 STEEL = hx(0x6f7a84)
-MATS = {'wood': hx(0xa07a45), 'stone': hx(0x8d8d8d), 'iron': hx(0xe2e2e2), 'gold': hx(0xf5c842), 'diamond': hx(0x4fe3dc)}
+MATS = {'wood': hx(0xa07a45), 'stone': hx(0x8d8d8d), 'copper': hx(0xd8763f), 'iron': hx(0xe2e2e2), 'gold': hx(0xf5c842), 'diamond': hx(0x4fe3dc)}
 
 # --- Joints (log-like column: side + end) ---
 for i, (m, a) in enumerate(MATS.items()):

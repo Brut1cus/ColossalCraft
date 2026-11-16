@@ -88,9 +88,11 @@ public class HullCoreScreen extends Screen {
             Button b = Button.builder(Component.literal(TABS[i]), x -> { tab = ti; scroll = 0; rebuild(); }).bounds(l + 6, t + 28 + i * 24, NAV - 10, 20).build();
             b.active = tab != i; addRenderableWidget(b);
         }
-        Button hover = Button.builder(Component.literal("Hover: " + (data.getBoolean("Hover") ? "ON" : "OFF")), x -> send(3, -1, 0)).bounds(l + 6, t + H - 76, NAV - 10, 18).build();
-        hover.setTooltip(Tooltip.create(Component.literal("Hover assist: thrusters hold height on their own when you don't press up/down.")));
-        addRenderableWidget(hover);
+        if (!loco()) { // the Locomotion Controller only sets up legs; hover and building live on the Hull Core
+            Button hover = Button.builder(Component.literal("Hover: " + (data.getBoolean("Hover") ? "ON" : "OFF")), x -> send(3, -1, 0)).bounds(l + 6, t + H - 76, NAV - 10, 18).build();
+            hover.setTooltip(Tooltip.create(Component.literal("Hover assist: thrusters hold height on their own when you don't press up/down.")));
+            addRenderableWidget(hover);
+        }
         if (!built()) {
             Button rescan = Button.builder(Component.literal("Rescan"), x -> send(0, -1, 0)).bounds(l + 6, t + H - 54, NAV - 10, 18).build();
             rescan.setTooltip(Tooltip.create(Component.literal("Look at the blocks again after you change the build.")));
@@ -107,7 +109,7 @@ public class HullCoreScreen extends Screen {
             act.active = ok;
             act.setTooltip(Tooltip.create(Component.literal(ok ? "Turn these blocks into one moving Colossus. Scaffolding stays behind." : strings("Errors").getString(0))));
         }
-        addRenderableWidget(act);
+        if (!loco()) addRenderableWidget(act);
 
         if (cur().equals("Gait")) gaitWidgets(l + NAV + 8, t + 30);
         if (cur().equals("Keys")) keyWidgets(l + NAV + 8, t + 30);
@@ -150,34 +152,133 @@ public class HullCoreScreen extends Screen {
     // ------------------------------------------------------------------ Gait & Keys (Locomotion Controller)
     private void gaitWidgets(int x, int y) {
         int ik = data.getInt("IKMode"), gm = data.getInt("GaitMode");
-        Button b1 = Button.builder(Component.literal("IK: " + com.colossalcraft.colossus.StructureModel.IK_MODES[ik]), z -> send(11, -1, ik + 1)).bounds(x, y + 12, 150, 16).build();
+        Button b1 = Button.builder(Component.literal("IK: " + com.colossalcraft.colossus.StructureModel.IK_MODES[ik]), z -> send(11, -1, ik + 1)).bounds(x, y + 10, 156, 15).build();
         b1.setTooltip(Tooltip.create(Component.literal("Analytic 2-link: exact hip+knee solution (falls back to FABRIK for longer legs). FABRIK: fast, any number of joints in the leg's plane. CCD: works with any joint axes.")));
         addRenderableWidget(b1);
-        Button b2 = Button.builder(Component.literal("Gait: " + com.colossalcraft.colossus.StructureModel.GAIT_MODES[gm]), z -> send(12, -1, gm + 1)).bounds(x, y + 32, 150, 16).build();
+        Button b2 = Button.builder(Component.literal("Gait: " + com.colossalcraft.colossus.StructureModel.GAIT_MODES[gm]), z -> send(12, -1, gm + 1)).bounds(x + 160, y + 10, 156, 15).build();
         b2.setTooltip(Tooltip.create(Component.literal("Biped: left/right. Digitigrade: knees bend backwards like a bird. Quadruped: diagonal pairs step together. Spider: every other leg round the body. Custom: set each leg's step group in Joints.")));
         addRenderableWidget(b2);
-        int gs = (int) Math.round(data.getDouble("GaitSpeed") * 100);
-        addRenderableWidget(Button.builder(Component.literal("-"), z -> send(9, -1, gs - (gs > 50 ? 10 : 5))).bounds(x + 110, y + 52, 18, 14).build());
-        addRenderableWidget(Button.builder(Component.literal("+"), z -> send(9, -1, gs + (gs >= 50 ? 10 : 5))).bounds(x + 132, y + 52, 18, 14).build());
+        int gs = (int) Math.round(data.getDouble("GaitSpeed") * 100), st = (int) Math.round(data.getDouble("GaitStride") * 100),
+                lf = (int) Math.round(data.getDouble("GaitLift") * 100), du = (int) Math.round(data.getDouble("GaitDuty") * 100);
+        boolean auto = data.getBoolean("GaitDutyAuto");
+        // label | - | + in a 2x2 grid
+        stepper(x, y + 30, z -> send(9, -1, gs - (gs > 50 ? 10 : 5)), z -> send(9, -1, gs + (gs >= 50 ? 10 : 5)), "Step cycles per second. Faster steps = faster walking.");
+        stepper(x + 160, y + 30, z -> send(16, 0, st - 5), z -> send(16, 0, st + 5), "Stride: how far each foot travels per step, as a share of the leg's reach. Longer = faster, but needs more balance.");
+        stepper(x, y + 46, z -> send(16, 1, lf - 5), z -> send(16, 1, lf + 5), "Step height: how high a foot lifts, as a share of the leg's length. Higher clears steps and rough ground.");
+        stepper(x + 160, y + 46, z -> send(16, 2, auto ? du - 5 : du - 5 < 50 ? 0 : du - 5), z -> send(16, 2, Math.max(50, du) + 5),
+                "Stance: share of each step a foot stays down. More = steadier, slower. Below 50% goes back to the gait type's default.");
+    }
+    private void stepper(int x, int y, Button.OnPress minus, Button.OnPress plus, String tip) {
+        Button a = Button.builder(Component.literal("-"), minus).bounds(x + 120, y, 16, 13).build(); a.setTooltip(Tooltip.create(Component.literal(tip)));
+        Button b = Button.builder(Component.literal("+"), plus).bounds(x + 138, y, 16, 13).build(); b.setTooltip(Tooltip.create(Component.literal(tip)));
+        addRenderableWidget(a); addRenderableWidget(b);
     }
 
+    // blueprint colours
+    private static final int BP_BG = 0xFF0D2F57, BP_GRID = 0xFF1A4677, BP_LINE = 0xFFE8F2FF, BP_DIM = 0xFF7FA6D6, BP_ACC = 0xFFFFD45C;
+
+    /** Gait tab: settings, plus a blueprint-style walking preview (side view and step diagram) drawn with lines only. */
     private void gait(GuiGraphics g, int x, int y) {
-        g.drawString(font, "KINEMATICS", x, y, DIM, false);
-        g.drawString(font, String.format("Step speed %.2f /s", data.getDouble("GaitSpeed")), x, y + 55, TXT, false);
-        int ix = x + 160, iy = y + 12;
-        g.drawString(font, "Legs found: " + data.getInt("Legs"), ix, iy, data.getInt("Legs") > 0 ? TXT : WARN, false); iy += 12;
-        g.drawString(font, "Sprint: 1.6x step speed", ix, iy, DIM, false); iy += 12;
-        g.drawString(font, "Raise/Lower: knee legs", ix, iy, DIM, false); iy += 12;
-        int jd = data.getInt("JumpDrives");
-        g.drawString(font, "Jump Drives: " + jd, ix, iy, jd > 0 ? TXT : DIM, false); iy += 12;
-        if (jd > 0) {
-            float lv = data.contains("JumpLevel") ? data.getFloat("JumpLevel") : 0;
-            bar(g, ix, iy, 120, Math.max(0, lv), 0xFFB98CFF, data.contains("JumpLevel") ? String.format("charge %.0f%%", lv * 100) : "charges once built",
-                    "A Jump Drive charges slowly from the Colossus' power and lets it all go at once: the legs kick past their motors and the Hull launches. Needs 20% charge.");
-            iy += 14;
+        g.drawString(font, "GAIT", x, y, DIM, false);
+        double speed = data.getDouble("GaitSpeed"), strideF = data.getDouble("GaitStride"), liftF = data.getDouble("GaitLift"), duty = data.getDouble("GaitDuty");
+        CompoundTag geo = data.getCompound("LegGeo");
+        ListTag legs = geo.getList("Legs", Tag.TAG_COMPOUND);
+        // the same numbers the walker uses
+        double reachH = Double.MAX_VALUE, legLen = 1;
+        for (Tag tg : legs) { CompoundTag lt = (CompoundTag) tg; reachH = Math.min(reachH, lt.getFloat("Len") * Math.sin(Math.min(lt.getFloat("Lim"), Math.toRadians(60)))); legLen = Math.max(legLen, lt.getFloat("Len")); }
+        if (legs.isEmpty()) reachH = 1;
+        double stride = Math.min(1.6 * reachH, strideF * 1.2 * reachH), cycle = 1 / Math.max(0.05, speed), v = stride / (duty * cycle);
+        g.drawString(font, String.format("Speed %.2f /s", speed), x, y + 33, TXT, false);
+        g.drawString(font, String.format("Stride %.0f%% (%.1f b)", strideF * 100, stride), x + 160, y + 33, TXT, false);
+        g.drawString(font, String.format("Lift %.0f%% (%.1f b)", liftF * 100, liftF * legLen), x, y + 49, TXT, false);
+        g.drawString(font, String.format("Stance %.0f%%%s", duty * 100, data.getBoolean("GaitDutyAuto") ? " auto" : ""), x + 160, y + 49, TXT, false);
+
+        int px = x, py = y + 64, pw = 200, ph = top() + H - 40 - py;
+        int dx = px + pw + 4, dw = W - NAV - 16 - pw - 4;
+        g.fill(px, py, px + pw, py + ph, BP_BG); g.fill(dx, py, dx + dw, py + ph, BP_BG);
+        for (int gx = px + 10; gx < px + pw; gx += 10) g.fill(gx, py, gx + 1, py + ph, BP_GRID);
+        for (int gy = py + 10; gy < py + ph; gy += 10) g.fill(px, gy, px + pw, gy + 1, BP_GRID);
+        if (legs.isEmpty()) { g.drawString(font, "No legs: set hips/knees to Leg.", px + 6, py + 6, BP_LINE, false); return; }
+        int groups = 1; for (Tag tg : legs) groups = Math.max(groups, ((CompoundTag) tg).getInt("Group") + 1);
+        double phase = (System.currentTimeMillis() / 1000.0 * speed) % 1.0;
+        // side view: forward to the right, up is up. Fit body + legs + a stride of travel.
+        float f0 = geo.contains("F0") ? geo.getFloat("F0") : -1, f1 = geo.contains("F1") ? geo.getFloat("F1") : 1, u0 = geo.contains("U0") ? geo.getFloat("U0") : 0, u1 = geo.contains("U1") ? geo.getFloat("U1") : 1;
+        double minF = f0 - stride, maxF = f1 + stride, minU = 0, maxU = u1;
+        for (Tag tg : legs) for (Tag pt : ((CompoundTag) tg).getList("P", Tag.TAG_COMPOUND)) { minU = Math.min(minU, ((CompoundTag) pt).getFloat("U")); }
+        double sc = Math.min((pw - 16) / Math.max(1e-3, maxF - minF), (ph - 18) / Math.max(1e-3, maxU - minU + liftF * legLen));
+        double ox = px + 8 - minF * sc, oy = py + ph - 8 + minU * sc; // screen = (ox + f*sc, oy - u*sc)
+        int groundY = (int) Math.round(oy - minU * sc);
+        // ground line with moving ticks (the world slides back under the walker)
+        g.fill(px + 2, groundY, px + pw - 2, groundY + 1, BP_LINE);
+        double travel = (System.currentTimeMillis() / 1000.0 * v) % 1.0;
+        for (double tx = -travel; tx * sc < pw; tx += 1) { int sx = (int) Math.round(px + 8 + tx * sc); if (sx > px + 2 && sx < px + pw - 2) g.fill(sx, groundY + 1, sx + 1, groundY + 4, BP_DIM); }
+        // body outline
+        rect(g, (int) Math.round(ox + f0 * sc), (int) Math.round(oy - u1 * sc), (int) Math.round(ox + f1 * sc), (int) Math.round(oy - u0 * sc), BP_LINE);
+        // legs: far side first and dimmer
+        List<CompoundTag> order = new ArrayList<>(); for (Tag tg : legs) order.add((CompoundTag) tg);
+        order.sort(Comparator.comparingDouble(lt -> lt.getList("P", Tag.TAG_COMPOUND).getCompound(0).getFloat("S")));
+        for (CompoundTag lt : order) {
+            ListTag pl = lt.getList("P", Tag.TAG_COMPOUND);
+            int k = pl.size(); if (k < 3) continue;
+            double[][] p = new double[k][2];
+            for (int i = 0; i < k; i++) { CompoundTag pt = pl.getCompound(i); p[i][0] = pt.getFloat("F"); p[i][1] = pt.getFloat("U"); }
+            double ph2 = (phase + (double) lt.getInt("Group") / groups) % 1.0, df, du2 = 0;
+            if (ph2 < duty) df = stride / 2 - stride * (ph2 / duty);
+            else { double u = (ph2 - duty) / (1 - duty); df = -stride / 2 + stride * u; du2 = liftF * legLen * Math.sin(Math.PI * u); }
+            // effector target (ankle or foot) moves with the foot; the foot stays level
+            double[] tgt = {p[k - 2][0] + df, p[k - 2][1] + du2};
+            double[][] chain = new double[k - 1][]; for (int i = 0; i < k - 1; i++) chain[i] = p[i].clone();
+            fabrik2(chain, tgt, data.getInt("GaitMode") == com.colossalcraft.colossus.StructureModel.GAIT_DIGI ? -1 : 1);
+            boolean near = pl.getCompound(0).getFloat("S") >= 0;
+            int col = near ? BP_LINE : BP_DIM;
+            for (int i = 0; i + 1 < chain.length; i++) line(g, ox + chain[i][0] * sc, oy - chain[i][1] * sc, ox + chain[i + 1][0] * sc, oy - chain[i + 1][1] * sc, col);
+            double fx = ox + (p[k - 1][0] + df) * sc, fy = oy - (p[k - 1][1] + du2) * sc;
+            line(g, ox + chain[k - 2][0] * sc, oy - chain[k - 2][1] * sc, fx, fy, col);
+            line(g, fx - 0.6 * sc, fy, fx + 0.6 * sc, fy, ph2 < duty ? BP_ACC : col); // sole: yellow while planted
+            for (int i = 0; i < chain.length - 1; i++) { int cx = (int) Math.round(ox + chain[i][0] * sc), cy = (int) Math.round(oy - chain[i][1] * sc); rect(g, cx - 1, cy - 1, cx + 2, cy + 2, col); }
         }
-        String[] help = {"Set hips and knees to Leg in the Joints tab.", "Put a Ball Joint above each foot to keep it level.", "Keys tab: choose the keys to walk, turn, raise,", "lower, sprint and jump."};
-        int hy = y + 80; for (String h : help) { g.drawString(font, h, x, hy, DIM, false); hy += 11; }
+        g.drawString(font, String.format("%.1f m/s", v), px + 4, py + 3, BP_ACC, false);
+        // step diagram: one row per leg, bar = foot down, cursor = now
+        g.drawString(font, "STEPS", dx + 4, py + 3, BP_DIM, false);
+        int rowH = Math.max(6, Math.min(12, (ph - 18) / Math.max(1, legs.size()))), bx0 = dx + 22, bw = dw - 26;
+        for (int i = 0; i < order.size(); i++) {
+            CompoundTag lt = order.get(order.size() - 1 - i);
+            int ry = py + 14 + i * rowH;
+            float side = lt.getList("P", Tag.TAG_COMPOUND).getCompound(0).getFloat("S"), fwd = lt.getList("P", Tag.TAG_COMPOUND).getCompound(0).getFloat("F");
+            g.drawString(font, (side < 0 ? "L" : "R") + (fwd >= 0 ? "f" : "b"), dx + 4, ry, BP_LINE, false);
+            double off = (double) lt.getInt("Group") / groups;
+            for (int sx = 0; sx < bw; sx++) {
+                double p2 = ((double) sx / bw + off) % 1.0;
+                if (p2 < duty) g.fill(bx0 + sx, ry + 1, bx0 + sx + 1, ry + rowH - 2, BP_LINE);
+            }
+        }
+        int cx = bx0 + (int) Math.round(phase * bw);
+        g.fill(cx, py + 12, cx + 1, py + 14 + order.size() * rowH, BP_ACC);
+    }
+    private static void rect(GuiGraphics g, int x0, int y0, int x1, int y1, int col) {
+        if (x1 < x0) { int t = x0; x0 = x1; x1 = t; } if (y1 < y0) { int t = y0; y0 = y1; y1 = t; }
+        g.fill(x0, y0, x1, y0 + 1, col); g.fill(x0, y1 - 1, x1, y1, col); g.fill(x0, y0, x0 + 1, y1, col); g.fill(x1 - 1, y0, x1, y1, col);
+    }
+    /** A 1-pixel line made of small steps (cheap: no textures, no 3D). */
+    private static void line(GuiGraphics g, double x0, double y0, double x1, double y1, int col) {
+        int n = (int) Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)));
+        for (int i = 0; i <= n; i++) { double t = n == 0 ? 0 : (double) i / n; int x = (int) Math.round(x0 + (x1 - x0) * t), y = (int) Math.round(y0 + (y1 - y0) * t); g.fill(x, y, x + 1, y + 1, col); }
+    }
+    /** 2D FABRIK: chain[0] stays fixed, the last point reaches for the target. */
+    private static void fabrik2(double[][] c, double[] t, int kneeDir) {
+        int k = c.length; if (k < 2) return;
+        double[] len = new double[k - 1]; double total = 0;
+        for (int i = 0; i < k - 1; i++) { len[i] = Math.hypot(c[i + 1][0] - c[i][0], c[i + 1][1] - c[i][1]); total += len[i]; }
+        double[] base = c[0].clone();
+        double dd = Math.hypot(t[0] - base[0], t[1] - base[1]);
+        if (dd > total) t = new double[]{base[0] + (t[0] - base[0]) / dd * total * 0.999, base[1] + (t[1] - base[1]) / dd * total * 0.999};
+        for (int i = 1; i < k - 1; i++) c[i][0] += kneeDir * 0.12 * len[i - 1]; // knees bend forward (back for digitigrade)
+        for (int it = 0; it < 10; it++) {
+            c[k - 1] = t.clone();
+            for (int i = k - 2; i >= 0; i--) { double dx = c[i][0] - c[i + 1][0], dy = c[i][1] - c[i + 1][1], d = Math.max(1e-9, Math.hypot(dx, dy)); c[i] = new double[]{c[i + 1][0] + dx / d * len[i], c[i + 1][1] + dy / d * len[i]}; }
+            c[0] = base.clone();
+            for (int i = 0; i < k - 1; i++) { double dx = c[i + 1][0] - c[i][0], dy = c[i + 1][1] - c[i][1], d = Math.max(1e-9, Math.hypot(dx, dy)); c[i + 1] = new double[]{c[i][0] + dx / d * len[i], c[i][1] + dy / d * len[i]}; }
+        }
     }
 
     private static String keyName(int code) { return InputConstantsName.of(code); }
@@ -291,7 +392,8 @@ public class HullCoreScreen extends Screen {
         }
         // footer status
         ListTag er = strings("Errors");
-        String status = !er.isEmpty() ? er.getString(0) : built() ? "Press G while piloting to open this screen." : "Ready. Press BUILD COLOSSUS.";
+        String status = !er.isEmpty() ? er.getString(0) : loco() ? (built() ? "Press L while piloting to open this screen." : "Build the Colossus from its Hull Core.")
+                : built() ? "Press G while piloting to open this screen." : "Ready. Press BUILD COLOSSUS.";
         g.drawString(font, font.plainSubstrByWidth(status, W - 175), l + 8, t + H - 21, !er.isEmpty() ? ERR : DIM, false);
         for (Tip tp : tips) if (mx >= tp.x0 && mx < tp.x1 && my >= tp.y0 && my < tp.y1) { g.renderTooltip(font, font.split(Component.literal(tp.text), 220), mx, my); break; }
     }

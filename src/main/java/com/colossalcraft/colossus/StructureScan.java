@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
 
@@ -155,6 +156,35 @@ public final class StructureScan {
     }
 
     /** Blocks for the 3D joints view: visible blocks (max ~6000), packed as {x|y|z, id}. id = part + 1, or 1000 + joint id. */
+    /** Leg shapes for the gait preview, in the body's frame: forward, side (right +), up, measured from the centre of mass. */
+    private static CompoundTag legGeo(StructureModel m) {
+        CompoundTag out = new CompoundTag();
+        Vec3 f = Vec3.atLowerCornerOf(m.forward.getNormal()), rt = new Vec3(-f.z, 0, f.x);
+        ListTag legs = new ListTag();
+        for (StructureModel.LegChain L : m.legChains) {
+            CompoundTag lt = new CompoundTag();
+            List<Vec3> pts = new ArrayList<>();
+            for (int j : L.joints()) pts.add(m.joints.get(j).pivot);
+            pts.add(L.effector()); pts.add(L.foot());
+            ListTag pl = new ListTag();
+            for (Vec3 p : pts) { Vec3 d = p.subtract(m.com); CompoundTag pt = new CompoundTag(); pt.putFloat("F", (float) d.dot(f)); pt.putFloat("S", (float) d.dot(rt)); pt.putFloat("U", (float) d.y); pl.add(pt); }
+            lt.put("P", pl); lt.putInt("Group", L.group()); lt.putFloat("Len", (float) L.length()); lt.putBoolean("Ankle", L.ankle() != null);
+            lt.putFloat("Lim", (float) L.limits()[0]);
+            legs.add(lt);
+        }
+        out.put("Legs", legs);
+        double f0 = 1e9, f1 = -1e9, s0 = 1e9, s1 = -1e9, u0 = 1e9, u1 = -1e9;
+        for (StructureModel.Seg sg : m.segs) {
+            if (m.legSegs.contains(sg.id)) continue;
+            for (BlockPos b : sg.blocks) for (int k = 0; k < 8; k++) {
+                Vec3 d = new Vec3(b.getX() + (k & 1), b.getY() + ((k >> 1) & 1), b.getZ() + ((k >> 2) & 1)).subtract(m.com);
+                double df = d.dot(f), ds = d.dot(rt); f0 = Math.min(f0, df); f1 = Math.max(f1, df); s0 = Math.min(s0, ds); s1 = Math.max(s1, ds); u0 = Math.min(u0, d.y); u1 = Math.max(u1, d.y);
+            }
+        }
+        if (f0 < f1) { out.putFloat("F0", (float) f0); out.putFloat("F1", (float) f1); out.putFloat("S0", (float) s0); out.putFloat("S1", (float) s1); out.putFloat("U0", (float) u0); out.putFloat("U1", (float) u1); }
+        return out;
+    }
+
     public static CompoundTag points(StructureModel m) {
         CompoundTag t = new CompoundTag();
         List<BlockPos> list = new ArrayList<>(m.visible);
@@ -230,6 +260,8 @@ public final class StructureScan {
         t.putInt("Legs", m.legChains.size());
         if (r.entity != null) t.putFloat("JumpLevel", r.entity.jumpLevel());
         t.putDouble("GaitSpeed", m.gaitSpeed); t.putDouble("GaitScale", m.gaitScale());
+        t.putDouble("GaitStride", m.gaitStride); t.putDouble("GaitLift", m.gaitLift); t.putDouble("GaitDuty", m.duty()); t.putBoolean("GaitDutyAuto", m.gaitDutyCfg <= 0);
+        t.put("LegGeo", legGeo(m));
         t.putDouble("CoreGyro", m.coreGyro); t.putBoolean("Balanced", m.balanced()); t.putDouble("BalanceOff", m.balanceOffset.length());
         t.putDouble("CX", m.com.x); t.putDouble("CY", m.com.y); t.putDouble("CZ", m.com.z);
         if (m.support != null) { t.putDouble("SX0", m.support.minX); t.putDouble("SZ0", m.support.minZ); t.putDouble("SX1", m.support.maxX); t.putDouble("SZ1", m.support.maxZ); t.putDouble("SY", m.support.minY); }

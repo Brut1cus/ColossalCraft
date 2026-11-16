@@ -7,7 +7,7 @@ def w(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as f: json.dump(obj, f, indent=2)
 def tex(n): return f'{NS}:block/{n}'
-MATS = ['wood', 'stone', 'iron', 'gold', 'diamond']
+MATS = ['wood', 'stone', 'copper', 'iron', 'gold', 'diamond']
 NAMES = {}
 blocks = []
 
@@ -57,7 +57,7 @@ w(f'{A}/models/block/gantry_scaffold.json', {'parent': 'minecraft:block/block', 
 w(f'{A}/blockstates/gantry_scaffold.json', {'variants': {'': {'model': f'{NS}:block/gantry_scaffold'}}})
 blocks.append('gantry_scaffold'); NAMES['gantry_scaffold'] = 'Gantry Scaffold'
 # --- joints & motors ---
-JN = {'wood': 'Timber', 'stone': 'Cobble', 'iron': 'Iron', 'gold': 'Gilded', 'diamond': 'Diamond'}
+JN = {'wood': 'Timber', 'stone': 'Cobble', 'copper': 'Copper', 'iron': 'Iron', 'gold': 'Gilded', 'diamond': 'Diamond'}
 AX = {'x': (0, 1, 2), 'y': (1, 0, 2), 'z': (2, 0, 1)}  # axis index, u index, v index
 def box(lo, hi, axis_i, spin=False):
     faces = {}
@@ -235,7 +235,7 @@ shaped('enriched_fuel_cell', ['GRG', 'AFA', 'GRG'], {'G': 'minecraft:glowstone_d
 shaped('deuterium_cell', ['PAP', 'AWA', 'PAP'], {'P': 'minecraft:prismarine_crystals', 'A': AL, 'W': 'minecraft:water_bucket'}, 2)
 shaped('hull_core', ['CRC', 'RBR', 'CRC'], {'C': S, 'R': 'minecraft:redstone', 'B': 'minecraft:redstone_block'})
 shaped('pilot_seat', ['W  ', 'WWW', 'CLC'], {'W': '#minecraft:wool', 'C': S, 'L': 'minecraft:lever'})
-MM = {'wood': '#minecraft:planks', 'stone': '#minecraft:stone_crafting_materials', 'iron': 'minecraft:iron_ingot', 'gold': 'minecraft:gold_ingot', 'diamond': 'minecraft:diamond'}
+MM = {'wood': '#minecraft:planks', 'stone': '#minecraft:stone_crafting_materials', 'copper': 'minecraft:copper_ingot', 'iron': 'minecraft:iron_ingot', 'gold': 'minecraft:gold_ingot', 'diamond': 'minecraft:diamond'}
 for m, mat in MM.items():
     shaped(f'{m}_joint', ['MCM', 'C C', 'MCM'], {'M': mat, 'C': S}, 4)
     shaped(f'{m}_motor', ['CMC', 'MRM', 'CPC'], {'M': mat, 'C': S, 'R': 'minecraft:redstone', 'P': 'minecraft:copper_ingot'})
