@@ -79,6 +79,8 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
         Vec3 planted, foothold;
         SwingTrajectory swing;
         boolean stance = true;
+        /** Heading (rad about +Y) the foot was planted with; a planted foot keeps it while the body turns. */
+        double footHeading;
         volatile double lastError;
 
         /** The ankle's drive (keeps the foot level), or null for a leg without an ankle. */
@@ -167,6 +169,9 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
 
     public Vec3 desiredPosition() { return desiredPos; }
 
+    /** Desired heading, rad about +Y (diagnostics and tests). */
+    public double desiredHeading() { return desiredYaw; }
+
     @Override public void beforeStep(PhysicsBackend backend, double dt) {
         BodyState s = backend.bodyState(root);
         if (s == BodyState.MISSING) return;
@@ -180,6 +185,12 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
         double footSpeed = Math.hypot(fwd, side) + Math.abs(yawRate) * turnRadius;
         if (footSpeed > params.maxSpeed()) { double k = params.maxSpeed() / footSpeed; fwd *= k; side *= k; yawRate *= k; }
         speedNow = Math.hypot(fwd, side) + Math.abs(yawRate) * turnRadius;
+        // the heading target pauses like the position does: while a leg is held, or when the body lags the turn by more
+        // than MAX_HEADING_LEAD (a target that keeps turning without the legs makes the body spin to catch up)
+        boolean held = false;
+        for (int i = 0; i < legs.size(); i++) held |= planner.isHeld(i);
+        double headingLag = LegIk.wrap(desiredYaw + yawRate * dt - headingOf(body.rotation()));
+        if (held || Math.abs(headingLag) > MAX_HEADING_LEAD && headingLag * yawRate > 0) yawRate = 0;
         desiredYaw += yawRate * dt;
         turnRate = yawRate;
         Quat yaw = Quat.axisAngle(Vec3.Y, desiredYaw);
@@ -222,14 +233,23 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
             }
         }
         double liftInterval = 1 / Math.max(1e-3, planner.frequency(Math.max(0.05, speedNow)) * legs.size());
-        double swayTau = Math.max(0.3, params.swayTime() * liftInterval);
+        // standing still the sway eases back to centre on a fixed short time (the gait-based one would take ages)
+        double swayTau = moving ? Math.max(0.3, params.swayTime() * liftInterval) : 0.5;
         sway = sway.add(swayTarget.sub(sway).mul(Math.min(1, dt / swayTau)));
         desiredPos = desiredPos.add(sway);
 
         // 2. gait
         double speed = speedNow;
         Vec3 capture = colossus.brain.balance.BalanceController.capturePoint(body.position(), s.linearVelocity(), footBaseY + groundShift);
-        boolean[] stance = planner.advance(dt, speed, leg -> canLift(leg, body.position()) && canLift(leg, capture), leg -> true);
+        // deadlock breaker: a leg held longer than HOLD_RELAX only needs the CoM inside the remaining feet (no margin,
+        // no capture point); otherwise a machine can stand forever with every lift vetoed (seen in game after ~15 blocks)
+        boolean relaxed = heldSeconds > HOLD_RELAX;
+        boolean[] stance = planner.advance(dt, speed,
+                leg -> relaxed ? canLift(leg, body.position(), 0) : canLift(leg, body.position(), params.minMargin()) && canLift(leg, capture, params.minMargin()),
+                leg -> true);
+        boolean anyHeld = false;
+        for (int i = 0; i < legs.size(); i++) anyHeld |= planner.isHeld(i);
+        heldSeconds = anyHeld ? heldSeconds + dt : 0;
 
         // 3. foot targets
         for (int i = 0; i < legs.size(); i++) {
@@ -240,6 +260,7 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
                 // plant where the foot really came down (a short or blocked swing lands early), on the ground. It is
                 // not re-read later: re-anchoring a stance foot (even once, after it settles) destabilised the walk
                 l.planted = actual == null ? l.foothold : new Vec3(actual.x(), groundY(actual), actual.z());
+                l.footHeading = desiredYaw;
                 l.swing = null;
             }
             // a stance foot is never re-anchored to where it slid: following a sliding foot removes the force that would
@@ -264,11 +285,13 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
      * so stiff legs push the body toward the pose they were solved for.
      */
     private void solveAndDrive(PhysicsBackend backend, Leg l, Vec3 footWorld, Vec3 basePos, Quat baseRot, double share) {
-        Quat heading = Quat.axisAngle(Vec3.Y, desiredYaw);
+        // a planted foot keeps the heading it landed with; a swinging foot turns with the body
+        Quat heading = Quat.axisAngle(Vec3.Y, l.stance ? l.footHeading : desiredYaw);
         // with an ankle the chain ends at the ankle, which sits above the (level) foot
         Vec3 effector = l.limb.hasAnkle() ? footWorld.sub(heading.rotate(l.limb.footBelowAnkle())) : footWorld;
         Quat inv = baseRot.conjugate();
-        IkSolver.Result r = LegIk.solve(l.limb.chain(), l.warm, inv.rotate(effector.sub(basePos)).sub(l.limb.hip().sub(rootComRel)));
+        Quat legTurn = inv.mul(heading).normalize();
+        IkSolver.Result r = LegIk.solve(l.limb.chain(), l.warm, inv.rotate(effector.sub(basePos)).sub(l.limb.hip().sub(rootComRel)), legTurn);
         l.warm = r.pose();
         l.lastError = r.error();
         drive(backend, l, r.pose(), share);
@@ -276,13 +299,16 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
             // foot orientation relative to the shin so that, in the world, the foot is level and faces the heading
             Quat shin = l.limb.chain().forward(r.pose()).end();
             Quat footInBase = inv.mul(heading);
-            backend.setMotorOrientation(l.ankle.handle(), shin.conjugate().mul(footInBase).normalize(), effort(l.ankle) * share);
+            // swing only: a universal joint cannot twist about its through axis, and a servo asked to would push at full
+            // effort against its own constraint until the strain meter snaps it
+            Quat level = swingOnly(shin.conjugate().mul(footInBase).normalize(), l.ankle.axis());
+            backend.setMotorOrientation(l.ankle.handle(), level, effort(l.ankle) * share);
         }
     }
 
     private double standY0, crouchNow;
     private Vec3 sway = Vec3.ZERO;
-    private double speedNow, turnRate;
+    private double speedNow, turnRate, heldSeconds;
     /** Mean horizontal distance from the root's centre of mass to the hips: the radius feet circle when turning. */
     private final double turnRadius;
     /** Most torque any leg servo is asked for, N·m (see {@link #servoBudget}). */
@@ -298,7 +324,7 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
     }
     /** Steps on which commanded progress paused, by reason (diagnostics). */
     public int pausedLead, pausedHeld;
-    private static final double CROUCH_SECONDS = 1.0, ANKLELESS_CROUCH = 0.05;
+    private static final double CROUCH_SECONDS = 1.0, ANKLELESS_CROUCH = 0.05, MAX_HEADING_LEAD = 0.3, HOLD_RELAX = 1.5;
 
     private void initialise(Pose body) {
         initialised = true;
@@ -312,9 +338,21 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
         double y = 0;
         for (Leg l : legs) {
             l.planted = body.toWorld(l.limb.footRest().sub(rootComRel));
+            l.footHeading = desiredYaw;
             y += l.planted.y();
         }
         footBaseY = y / legs.size();
+    }
+
+    /** {@code q} with its twist about {@code axis} removed (swing–twist decomposition): q = swing · twist. */
+    static Quat swingOnly(Quat q, Vec3 axis) {
+        Vec3 a = axis.normalize();
+        double p = q.x() * a.x() + q.y() * a.y() + q.z() * a.z();
+        Quat twist = new Quat(q.w(), a.x() * p, a.y() * p, a.z() * p);
+        double n = Math.sqrt(twist.w() * twist.w() + p * p);
+        if (n < 1e-12) return q; // a half turn of pure swing: no twist to remove
+        twist = new Quat(twist.w() / n, twist.x() / n, twist.y() / n, twist.z() / n);
+        return q.mul(twist.conjugate()).normalize();
     }
 
     /**
@@ -338,11 +376,11 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
     }
 
     /** Static rule: the point (CoM, or its capture point) must stay inside the feet that would remain planted. */
-    private boolean canLift(int leg, Vec3 com) {
+    private boolean canLift(int leg, Vec3 com, double margin) {
         List<Vec3> feet = new ArrayList<>();
         for (int i = 0; i < legs.size(); i++) if (i != leg && legs.get(i).stance) feet.add(legs.get(i).planted);
         if (feet.size() < 3) return feet.size() >= 1 && legs.size() <= 2; // bipeds are dynamic anyway
-        return new SupportPolygon(feet).margin(com) >= params.minMargin();
+        return new SupportPolygon(feet).margin(com) >= margin;
     }
 
     /** Where the foot point really is, from physics; null if its body is gone. */
@@ -398,6 +436,15 @@ public final class WalkerBrain implements PhysicsWorld.StepController {
         }
     }
 
-    /** Servo limit for a drive: its rating, but no more than the machine needs (sliders carry force: rating only). */
-    private double effort(Drive d) { return d.type() == JointType.SLIDER ? d.maxEffort() : Math.min(d.maxEffort(), budget); }
+    /**
+     * Servo limit for a drive: no more than the machine needs, and never more than {@link #RATING_SHARE} of the joint's
+     * rating, so the brain cannot drive its own joints into the strain meter's snap zone (only outside loads can).
+     */
+    private double effort(Drive d) {
+        double rated = d.maxEffort() * RATING_SHARE;
+        return d.type() == JointType.SLIDER ? rated : Math.min(rated, budget);
+    }
+
+    /** Share of a joint's rating the brain's servos may use. */
+    static final double RATING_SHARE = 0.7;
 }

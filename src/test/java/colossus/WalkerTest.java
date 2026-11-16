@@ -7,12 +7,14 @@ import colossus.brain.walker.LegIk;
 import colossus.brain.walker.Limb;
 import colossus.brain.walker.LimbDiscovery;
 import colossus.brain.walker.WalkerBrain;
+import colossus.brain.walker.WalkerBrainAccess;
 import colossus.AssembledColossusTest.Sim;
 import colossus.kinetics.ComponentScaling;
 import colossus.physics.PhysicsWorld;
 import colossus.physics.api.BodyState;
 import colossus.physics.api.TerrainQuery;
 import colossus.physics.math.Vec3;
+import colossus.physics.math.Quat;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -282,5 +284,15 @@ public class WalkerTest {
             assertEquals("hip and knee in the chain", 2, l.chain().size());
             assertEquals("foot 1.5 m below the ankle", -1.5, l.footBelowAnkle().y(), 1e-9);
         }
+    }
+
+    /** Ankle targets carry no twist about the ankle's through axis (a universal joint cannot twist). */
+    @Test public void swingOnlyRemovesTwist() {
+        Quat swing = Quat.axisAngle(Vec3.X, 0.4);
+        Quat twist = Quat.axisAngle(Vec3.Y, 0.7);
+        Quat q = swing.mul(twist);
+        Quat s = WalkerBrainAccess.swingOnly(q, Vec3.Y);
+        assertEquals("twist gone", 0, s.mul(swing.conjugate()).angle(), 1e-9);
+        assertEquals("pure swing kept", 0, WalkerBrainAccess.swingOnly(swing, Vec3.Y).mul(swing.conjugate()).angle(), 1e-9);
     }
 }

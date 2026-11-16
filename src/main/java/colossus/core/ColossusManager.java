@@ -205,6 +205,12 @@ public final class ColossusManager {
         return true;
     }
 
+    /** The walker brain of a Colossus, or null (read-only use: status, tests). */
+    public WalkerBrain walker(UUID id) {
+        Live l = live.get(id);
+        return l == null ? null : l.walker;
+    }
+
     /** Number of legs the walker brain drives (0 if none). */
     public int legCount(UUID id) {
         Live l = live.get(id);
