@@ -260,14 +260,6 @@ save(js, B, 'jump_drive_side')
 jt = base(hx(0x3a2f52), 734); bevel(jt, hx(0x3a2f52)); circle(jt, 8, 8, 5, hx(0x1a1426))
 for (x, y) in ((9, 3), (8, 4), (7, 5), (6, 6), (7, 7), (8, 7), (9, 7), (8, 8), (7, 9), (6, 10), (5, 11)): px(jt, x, y, hx(0xffe14a))
 save(jt, B, 'jump_drive_top')
-sf = base(hx(0x2e3640), 735); bevel(sf, hx(0x2e3640)); rect(sf, 2, 2, 13, 13, hx(0x061810))
-for gx in range(3, 13, 3):
-    for gy in range(3, 13): px(sf, gx, gy, hx(0x0f3a1e))
-for gy in range(3, 13, 3):
-    for gx in range(3, 13): px(sf, gx, gy, hx(0x0f3a1e))
-for (x, y) in ((5, 9), (6, 9), (5, 10), (6, 10), (9, 5), (10, 5), (9, 6), (10, 6)): px(sf, x, y, hx(0x9dffbf))   # two footprints
-for (x, y) in ((9, 9), (10, 9), (9, 10), (10, 10)): px(sf, x, y, hx(0xffd45c))                                  # the next step
-save(sf, B, 'step_controller_front')
 gr = base(hx(0xc9a24a), 736, 0.06)
 for x in range(16): px(gr, x, 7, hx(0xf2d27a)); px(gr, x, 8, hx(0x8a6a2a))
 save(gr, B, 'gyro_ring')

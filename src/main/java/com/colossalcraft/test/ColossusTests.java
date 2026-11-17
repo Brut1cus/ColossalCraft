@@ -260,8 +260,8 @@ public class ColossusTests {
         for (int x = 5; x <= 9; x++) for (int z = 5; z <= 9; z++) h.setBlock(x, 6, z, Blocks.OAK_PLANKS);
         h.setBlock(7, 7, 7, ModRegistry.HULL_CORE.get());
         h.setBlock(7, 7, 8, ModRegistry.PILOT_SEAT.get().defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, Direction.NORTH));
-        h.setBlock(6, 7, 7, ModRegistry.EMBER_BOILER.get());
-        CompoundTag t = new CompoundTag(); t.putLong("Energy", 900_000);
+        h.setBlock(6, 7, 7, ModRegistry.FLUX_ACCUMULATOR.get()); // enough power for full-speed steps and smart footing
+        CompoundTag t = new CompoundTag(); t.putLong("Energy", 4_000_000);
         h.getBlockEntity(new BlockPos(6, 7, 7)).loadWithComponents(t, h.getLevel().registryAccess());
         if (coreGyro) h.setBlock(8, 7, 7, ModRegistry.SMALL_GYRO.get());
         h.setBlock(7, 7, 6, ModRegistry.LOCOMOTION_CONTROLLER.get());
@@ -685,7 +685,8 @@ public class ColossusTests {
             h.setBlock(x, 8, 7, hipJ);
             for (int y = 9; y <= 10; y++) for (int z = 7; z <= 8; z++) h.setBlock(x, y, z, mot); // a 2x2 hip motor (4x torque) above the hip
             h.setBlock(x, 7, 7, Blocks.OAK_LOG); h.setBlock(x, 6, 7, Blocks.OAK_LOG); // thigh
-            h.setBlock(x, 5, 7, kneeJ); h.setBlock(x, 6, 6, Blocks.STONE_BRICKS); h.setBlock(x, 5, 6, mot); // knee + motor on a bracket
+            h.setBlock(x, 5, 7, kneeJ);
+            for (int y = 5; y <= 6; y++) for (int z = 5; z <= 6; z++) h.setBlock(x, y, z, mot); // a 2x2 knee motor on the thigh (4x torque: holds it up straight)
             h.setBlock(x, 4, 7, Blocks.OAK_LOG); h.setBlock(x, 3, 7, Blocks.OAK_LOG); // shin
             h.setBlock(x, 2, 7, ankles ? ball : Blocks.STONE_BRICKS.defaultBlockState());
             for (int z = 6; z <= 8; z++) h.setBlock(x, 1, z, Blocks.STONE_BRICKS);    // foot
@@ -725,13 +726,15 @@ public class ColossusTests {
         h.assertTrue(r.model.legChains.size() == 2, "expected 2 legs, got " + r.model.legChains.size());
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7)), null), "assemble failed");
         double[] start = new double[3]; double[] jitter = {0}; net.minecraft.world.phys.Vec3[] lastV = {null};
-        double[] slide = {0}; int[] bothUp = {0}; double[] maxTurn = {0}; int[] flips = {0}; double[][] lastA = {null}; net.minecraft.world.phys.Vec3[][] lastF = {null}; WalkerController.State[][] lastS = {null};
+        double[] slide = {0}; int[] bothUp = {0}; double[] maxAcc = {0}; int[] waits = {0}; double[] maxTurn = {0}; int[] flips = {0}; double[][] lastA = {null}; net.minecraft.world.phys.Vec3[][] lastF = {null}; WalkerController.State[][] lastS = {null};
         h.runAfterDelay(30, () -> { ColossusEntity c = find(h); start[0] = c.getZ(); start[1] = c.getY(); c.autopilot = true; c.setInput(1, 0, false, false); lastV[0] = c.vel; });
         for (int t = 31; t <= 200; t++) { int tt = t; h.runAfterDelay(t, () -> {
             ColossusEntity c = find(h);
             if (c.getZ() - start[0] < -4.5) c.setInput(0, 0, false, false); // stop before the edge of the test area, then stand
             net.minecraft.world.phys.Vec3 dv = c.vel.subtract(lastV[0]); lastV[0] = c.vel;
             jitter[0] += dv.length();
+            maxAcc[0] = Math.max(maxAcc[0], Math.sqrt(dv.x * dv.x + dv.z * dv.z) * 20);
+            if (c.walker.status.contains("shifting")) waits[0]++;
             var w = c.walker;
             if (lastF[0] != null) for (int i = 0; i < w.foot.length; i++)
                 if (w.state[i] == WalkerController.State.STANCE && lastS[0][i] == WalkerController.State.STANCE) slide[0] = Math.max(slide[0], w.foot[i].subtract(lastF[0][i]).length());
@@ -752,6 +755,8 @@ public class ColossusTests {
             ColossusEntity c = find(h);
             ColossalCraft.LOG.info("[test] big mech dz={} dy={} jitter(sum |dv|)={} tilt={} maxStanceSlide={} bothUpTicks={}", c.getZ() - start[0], c.getY() - start[1], jitter[0], c.tilt, slide[0], bothUp[0]);
             h.assertTrue(slide[0] < 0.02, "a planted foot slid " + slide[0]);
+            ColossalCraft.LOG.info("[test] big mech smoothness: max horizontal accel {} m/s2, ticks spent waiting for balance {}", maxAcc[0], waits[0]);
+            h.assertTrue(maxAcc[0] <= 2.6, "the body lurched: " + maxAcc[0] + " m/s2");
             ColossalCraft.LOG.info("[test] big mech IK maxTurn/tick={} kneeFlips={}", maxTurn[0], flips[0]);
             h.assertTrue(maxTurn[0] <= 0.6001, "a joint jumped " + maxTurn[0] + " rad in one tick");
             h.assertTrue(flips[0] == 0, "a knee snapped to the other side " + flips[0] + " times");
@@ -923,9 +928,9 @@ public class ColossusTests {
     }
 
     @GameTest(template = "empty16", timeoutTicks = 220)
-    public static void stepControllerAvoidsDangerousGround(GameTestHelper h) {
+    public static void smartFootingAvoidsDangerousGround(GameTestHelper h) {
         walker(h, false, true);
-        h.setBlock(8, 7, 8, ModRegistry.STEP_CONTROLLER.get());
+        // smart footing is on by default (Locomotion Controller)
         h.setBlock(6, 7, 7, ModRegistry.FLUX_ACCUMULATOR.get()); // enough power for the controller and full-speed steps
         CompoundTag fe = new CompoundTag(); fe.putLong("Energy", 4_000_000);
         h.getBlockEntity(new BlockPos(6, 7, 7)).loadWithComponents(fe, h.getLevel().registryAccess());
@@ -946,7 +951,7 @@ public class ColossusTests {
         h.runAfterDelay(205, () -> {
             ColossusEntity c = find(h);
             ColossalCraft.LOG.info("[test] step planner dz={} burned={} planned={} status={}", c.getZ() - z0[0], burned[0], planned[0], c.walker.status);
-            h.assertTrue(planned[0], "the Step Controller should be planning (powered)");
+            h.assertTrue(planned[0], "smart footing should be planning (powered)");
             h.assertTrue(!burned[0], "a foot was planted on magma");
             h.assertTrue(c.getZ() - z0[0] < -3, "should still walk past the magma, dz=" + (c.getZ() - z0[0]));
             h.succeed();
@@ -989,7 +994,10 @@ public class ColossusTests {
 
     @GameTest(template = "empty16")
     public static void stepSpeedIsCappedByPower(GameTestHelper h) {
-        walker(h, false, true); // an Ember Boiler: little power
+        walker(h, false, true);
+        h.setBlock(6, 7, 7, ModRegistry.EMBER_BOILER.get()); // an Ember Boiler: little power
+        CompoundTag eb = new CompoundTag(); eb.putLong("Energy", 900_000);
+        h.getBlockEntity(new BlockPos(6, 7, 7)).loadWithComponents(eb, h.getLevel().registryAccess());
         StructureModel weak = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
         h.setBlock(6, 7, 7, ModRegistry.FLUX_ACCUMULATOR.get());
         CompoundTag fe = new CompoundTag(); fe.putLong("Energy", 4_000_000);
@@ -998,6 +1006,51 @@ public class ColossusTests {
         ColossalCraft.LOG.info("[test] power cap weak={} strong={} legs={} CJ/t", weak.powerSpeedCap(), strong.powerSpeedCap(), weak.legMotorPower());
         h.assertTrue(weak.powerSpeedCap() < strong.powerSpeedCap(), "more engine output should allow faster steps");
         h.assertTrue(weak.stepSpeed(false) <= weak.powerSpeedCap() + 1e-9, "step rate must not go past the power cap");
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 160)
+    public static void poweredBallHipsWalkAndRoll(GameTestHelper h) {
+        walker(h, false, true);
+        for (int x : new int[]{6, 8}) h.setBlock(x, 5, 7, ModRegistry.POWERED_BALL_JOINT.get()); // powered ball hips instead of bearings
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        hc.joints = new CompoundTag();
+        for (StructureModel.Joint j : r.model.joints) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.LEG); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        h.assertTrue(m.legChains.size() == 2 && m.joints.stream().allMatch(j -> j.universal), "powered ball hips set to Leg should be two-way leg joints: legs " + m.legChains.size());
+        // a foot wanted one block out to the side: the powered hip tilts the whole leg sideways to reach it
+        StructureModel.LegChain L = m.legChains.get(0);
+        var f = net.minecraft.world.phys.Vec3.atLowerCornerOf(m.forward.getNormal());
+        var right = new net.minecraft.world.phys.Vec3(-f.z, 0, f.x);
+        WalkerController.hipRoll(m, L, L.foot().add(right), 10);
+        double hipRoll = m.ikRoll[L.joints().get(0)], hipH = m.joints.get(L.joints().get(0)).pivot.y - L.foot().y;
+        ColossalCraft.LOG.info("[test] powered hip roll {} rad for 1 block sideways (leg {} high)", hipRoll, hipH);
+        h.assertTrue(Math.abs(Math.abs(hipRoll) - Math.atan2(1, hipH)) < 0.05, "the hip should roll about atan(1/height), got " + hipRoll);
+        m.ikRoll[L.joints().get(0)] = 0;
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] z0 = {0}, roll = {0};
+        h.runAfterDelay(20, () -> { ColossusEntity c = find(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        for (int t = 21; t <= 140; t++) { int tt = t; h.runAfterDelay(t, () -> { ColossusEntity c = find(h); if (tt == 90) c.setInput(1, 1, false, false); /* walk on, then turn: feet land off to the side */ for (double v : c.model.ikRoll) roll[0] = Math.max(roll[0], Math.abs(v)); }); }
+        h.runAfterDelay(142, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] powered hips dz={} maxRoll={} tilt={}", c.getZ() - z0[0], roll[0], c.tilt);
+            h.assertTrue(c.tilt == 0 && Math.abs(c.getZ() - z0[0]) + Math.abs(c.getX() - h.absolutePos(new BlockPos(7, 7, 7)).getX()) > 1, "should walk on powered ball hips, dz=" + (c.getZ() - z0[0]));
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16")
+    public static void stackedBallAndSocketPair(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        // placed the plain way: a ball half, then a socket on top of it (no facing set by hand)
+        h.setBlock(7, 4, 7, ModRegistry.BALL_HALF.get());
+        h.setBlock(7, 5, 7, ModRegistry.SOCKET.get());
+        h.setBlock(7, 3, 7, Blocks.STONE_BRICKS);
+        h.assertTrue(h.getBlockState(new BlockPos(7, 4, 7)).getValue(com.colossalcraft.block.SimpleParts.UP), "the ball half should turn its dome up into the socket");
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        h.assertTrue(m.joints.size() == 1 && m.joints.get(0).ball && m.joints.get(0).k == 2, "a 1x1 ball half + socket should be one ball joint, got " + m.joints.size());
         h.succeed();
     }
 }

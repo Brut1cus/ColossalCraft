@@ -289,14 +289,14 @@ public final class StructureScan {
                 c.putBoolean("LegHip", true); c.putDouble("Grip", L.mu()); c.putDouble("Push", L.hipTorque() / Math.max(0.5, L.length()));
                 c.putDouble("Carry", L.vCap()); c.putDouble("LegLen", L.length()); c.putInt("LegJoints", L.joints().size());
             }
-            c.putInt("Blades", j.blades); c.putBoolean("Ball", j.ball); { Object[] ro = m.role(j); c.putString("Role", (String) ro[0]); c.putInt("RecMode", (Integer) ro[1]); } c.putInt("Group", j.group);
+            c.putInt("Blades", j.blades); c.putBoolean("Ball", j.ball); c.putBoolean("Powered", j.powered); { Object[] ro = m.role(j); c.putString("Role", (String) ro[0]); c.putInt("RecMode", (Integer) ro[1]); } c.putInt("Group", j.group);
             c.putIntArray("Keys", j.keys.clone()); c.putInt("Phase", j.phase); c.putInt("SpeedX", (int) Math.round(j.speedFactor * 100)); c.putBoolean("Loop", j.loop);
             ListTag ch = new ListTag(); for (int cs : j.childSegs) { CompoundTag x = new CompoundTag(); x.putInt("S", cs); ch.add(x); } c.put("Children", ch);
             js.add(c);
         }
         t.put("Joints", js);
         t.put("LocoCfg", r.jointCfg.getCompound(StructureModel.LOCO).copy());
-        t.putInt("IKMode", m.ikMode); t.putInt("GaitMode", m.gaitMode); t.putInt("JumpDrives", m.jumpDrives); t.putInt("LocoControllers", m.locoControllers); t.putInt("StepControllers", m.stepControllers);
+        t.putInt("IKMode", m.ikMode); t.putInt("GaitMode", m.gaitMode); t.putInt("JumpDrives", m.jumpDrives); t.putInt("LocoControllers", m.locoControllers); t.putBoolean("Smart", m.smartFooting);
         t.putInt("Legs", m.legChains.size());
         if (r.entity != null) t.putFloat("JumpLevel", r.entity.jumpLevel());
         t.putDouble("GaitSpeed", m.gaitSpeed); t.putDouble("GaitScale", m.gaitScale());

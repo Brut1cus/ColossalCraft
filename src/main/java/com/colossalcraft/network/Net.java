@@ -213,7 +213,7 @@ public final class Net {
             if (sp.distanceToSqr(Vec3.atCenterOf(a.pos())) > 100 || !(sp.level().getBlockEntity(a.pos()) instanceof HullCoreBlockEntity hc)) return;
             StructureScan.Result r = StructureScan.scan(sp.level(), a.pos());
             switch (a.action()) {
-                case 11, 12, 13 -> { hc.joints = applyLoco(hc.joints, a); hc.setChanged(); }
+                case 11, 12, 13, 17 -> { hc.joints = applyLoco(hc.joints, a); hc.setChanged(); }
                 case 1, 2, 6, 7, 8, 10, 15 -> {
                     if (a.joint() >= 0 && a.joint() < r.model.joints.size()) {
                         String key = StructureModel.jointKey(r.model.joints.get(a.joint()).key);
@@ -236,6 +236,7 @@ public final class Net {
             case 11 -> l.putInt("IK", Math.floorMod(a.value(), StructureModel.IK_MODES.length));
             case 12 -> l.putInt("Gait", Math.floorMod(a.value(), StructureModel.GAIT_MODES.length));
             case 13 -> l.putInt("K" + a.joint(), a.value());
+            case 17 -> l.putBoolean("Smart", !(!l.contains("Smart") || l.getBoolean("Smart"))); // smart footing on/off (on by default)
             default -> {}
         }
         cfg.put(StructureModel.LOCO, l); return cfg;
@@ -277,7 +278,7 @@ public final class Net {
     private static void onBuiltAction(ServerPlayer sp, HullAction a) {
         ColossusEntity c = colossusNear(sp, a.entity()); if (c == null) return;
         switch (a.action()) {
-            case 11, 12, 13 -> c.setJointCfg(applyLoco(c.jointCfg, a));
+            case 11, 12, 13, 17 -> c.setJointCfg(applyLoco(c.jointCfg, a));
             case 1, 2, 6, 7, 8, 10, 15 -> {
                 if (a.joint() >= 0 && a.joint() < c.model.joints.size()) {
                     String key = StructureModel.jointKey(c.model.joints.get(a.joint()).key);

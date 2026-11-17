@@ -66,7 +66,7 @@ public final class StepPlanner {
         t.put("Feet", feet); t.put("Next", next);
         t.putFloat("FX", (float) (fl.x * cs - fl.z * sn)); t.putFloat("FZ", (float) (fl.x * sn + fl.z * cs));
         t.putBoolean("Built", true); t.putInt("E", c.getId());
-        t.putInt("Ctrls", m.stepControllers); t.putBoolean("Pw", w.planner); t.putInt("Legs", m.legChains.size());
+        t.putBoolean("Smart", m.smartFooting); t.putBoolean("Pw", w.planner); t.putInt("Legs", m.legChains.size());
         t.putString("Status", w.status);
         PacketDistributor.sendToPlayer(sp, new Net.StepData(t));
     }
@@ -74,7 +74,7 @@ public final class StepPlanner {
     /** Not built yet: the ground around it, its body and where its feet stand. */
     public static void sendParked(ServerPlayer sp, BlockPos controller) {
         BlockPos heart = Net.findHeart(sp.level(), controller);
-        if (heart == null) { sp.displayClientMessage(Component.literal("This Step Controller isn't connected to a Hull Core."), true); return; }
+        if (heart == null) return;
         StructureScan.Result r = StructureScan.scan(sp.level(), heart);
         StructureModel m = r.model;
         List<Vec3> body = new ArrayList<>();
@@ -95,7 +95,7 @@ public final class StepPlanner {
         t.put("Feet", feet); t.put("Next", new ListTag());
         t.putFloat("FX", (float) f.x); t.putFloat("FZ", (float) f.z);
         t.putBoolean("Built", false); t.putLong("Pos", controller.asLong());
-        t.putInt("Ctrls", m.stepControllers); t.putBoolean("Pw", false); t.putInt("Legs", m.legChains.size());
+        t.putBoolean("Smart", m.smartFooting); t.putBoolean("Pw", false); t.putInt("Legs", m.legChains.size());
         t.putString("Status", "");
         PacketDistributor.sendToPlayer(sp, new Net.StepData(t));
     }

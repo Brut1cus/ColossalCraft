@@ -95,12 +95,29 @@ public final class SimpleParts {
         public BallPartBlock(JointShape sh, Properties p) { super(sh, p); registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y).setValue(SIZE, 1).setValue(GU, 0).setValue(GV, 0).setValue(LONE, false).setValue(UP, true)); }
         @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIZE, GU, GV, LONE, UP); }
         @Override public BlockState getStateForPlacement(BlockPlaceContext c) {
-            // placed on top of something: dome/cup points up; placed under something: points down
-            return defaultBlockState().setValue(UP, c.getClickedFace() != Direction.DOWN).setValue(LONE, c.isSecondaryUseActive());
+            // faces its partner (a socket for a ball half, a ball half for a socket) above or below; otherwise away from what it was placed on
+            BlockState s0 = defaultBlockState().setValue(UP, c.getClickedFace() != Direction.DOWN).setValue(LONE, c.isSecondaryUseActive());
+            Boolean f = facing(c.getLevel(), c.getClickedPos());
+            return f == null ? s0 : s0.setValue(UP, f);
+        }
+        /** Up (true) / down (false) towards a partner block, or null if there's none above or below. */
+        private Boolean facing(BlockGetter l, BlockPos p) {
+            JointShape other = shape == JointShape.BALL_HALF ? JointShape.SOCKET : JointShape.BALL_HALF;
+            if (l.getBlockState(p.above()).getBlock() instanceof BallPartBlock b && b.shape == other) return true;
+            if (l.getBlockState(p.below()).getBlock() instanceof BallPartBlock b && b.shape == other) return false;
+            return null;
+        }
+        @Override protected BlockState updateShape(BlockState s, Direction d, BlockState ns, net.minecraft.world.level.LevelAccessor l, BlockPos p, BlockPos np) {
+            if (d.getAxis() != Direction.Axis.Y) return s;
+            Boolean f = facing(l, p);
+            return f == null ? s : s.setValue(UP, f); // a partner was placed next to it: turn to face it
         }
         public Direction.Axis[] plane(BlockState s) { return new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z}; }
         @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return Shapes.block(); }
-        @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) { super.onPlace(s, l, p, old, m); Grid.placed(l, p, old.getBlock() != this); }
+        @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) {
+            super.onPlace(s, l, p, old, m);
+            Grid.placed(l, p, old.getBlock() != this || old.getValue(UP) != s.getValue(UP)); // turned round: its square may change
+        }
         @Override protected void onRemove(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState now, boolean m) { boolean gone = now.getBlock() != this; Grid.removed(l, p, s, gone); super.onRemove(s, l, p, now, m); }
         @Override protected BlockState rotate(BlockState s, Rotation r) { return s; }
     }
@@ -283,19 +300,6 @@ public final class SimpleParts {
         @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(FACING, c.getHorizontalDirection().getOpposite()); }
         @Override protected net.minecraft.world.InteractionResult useWithoutItem(BlockState s, net.minecraft.world.level.Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
             if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer sp) com.colossalcraft.network.Net.openLocoParked(sp, pos);
-            return net.minecraft.world.InteractionResult.sidedSuccess(level.isClientSide);
-        }
-    }
-
-    /** Step Controller: scans the ground ahead and picks where each foot lands (uses power). Right-click: top-down step planner. */
-    public static class StepControllerBlock extends HorizontalDirectionalBlock {
-        public static final double POWER = 25; // CJ per tick while a walker stands or walks
-        public StepControllerBlock(Properties p) { super(p); registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH)); }
-        @Override protected com.mojang.serialization.MapCodec<? extends HorizontalDirectionalBlock> codec() { return null; }
-        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(FACING); }
-        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(FACING, c.getHorizontalDirection().getOpposite()); }
-        @Override protected net.minecraft.world.InteractionResult useWithoutItem(BlockState s, net.minecraft.world.level.Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
-            if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer sp) com.colossalcraft.colossus.StepPlanner.sendParked(sp, pos);
             return net.minecraft.world.InteractionResult.sidedSuccess(level.isClientSide);
         }
     }

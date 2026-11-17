@@ -45,7 +45,6 @@
     "colossalcraft:gantry_hoist",
     "colossalcraft:locomotion_controller",
     "colossalcraft:jump_drive",
-    "colossalcraft:step_controller",
     {
       "id": "colossalcraft:kinetic_dynamo",
       "required": false

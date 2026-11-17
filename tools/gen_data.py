@@ -493,9 +493,7 @@ item_from_block('locomotion_controller')
 w(f'{A}/models/block/jump_drive.json', {'parent': 'minecraft:block/cube_column', 'textures': {'end': tex('jump_drive_top'), 'side': tex('jump_drive_side')}})
 w(f'{A}/blockstates/jump_drive.json', {'variants': {'': {'model': f'{NS}:block/jump_drive'}}})
 item_from_block('jump_drive'); blocks.append('jump_drive'); NAMES['jump_drive'] = 'Jump Drive'
-orientable('step_controller', 'step_controller_front', 'locomotion_controller_side', 'locomotion_controller_side', 'Step Controller')
-item_from_block('step_controller')
-for b in ('locomotion_controller', 'jump_drive', 'step_controller'):
+for b in ('locomotion_controller', 'jump_drive'):
     w(f'{D}/loot_table/blocks/{b}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{b}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
 lang = json.load(open(f'{A}/lang/en_us.json'))
 for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]
@@ -503,7 +501,6 @@ lang['key.colossalcraft.loco'] = 'Colossus: Open Locomotion Controller'; lang['k
 w(f'{A}/lang/en_us.json', lang)
 w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in blocks if b not in ('sky_sail', 'kinetic_dynamo', 'gantry_scaffold')] + [{'id': f'{NS}:kinetic_dynamo', 'required': False}]})
 shaped('locomotion_controller', ['SCS', 'RMR', 'SRS'], {'S': S, 'C': 'minecraft:comparator', 'R': 'minecraft:redstone', 'M': 'motor'})
-shaped('step_controller', ['SOS', 'CEC', 'SRS'], {'S': S, 'O': 'minecraft:observer', 'C': 'minecraft:compass', 'E': 'minecraft:ender_eye', 'R': 'minecraft:redstone'})
 shaped('jump_drive', ['SPS', 'RBR', 'SPS'], {'S': S, 'P': 'minecraft:piston', 'R': 'minecraft:redstone_block', 'B': 'minecraft:slime_block'})
 w(f'{D}/tags/block/natural_ground.json', {'values': ['#minecraft:dirt', '#minecraft:sand', '#minecraft:base_stone_overworld', '#minecraft:base_stone_nether',
     'minecraft:gravel', 'minecraft:snow', 'minecraft:snow_block', 'minecraft:powder_snow', 'minecraft:ice', 'minecraft:packed_ice', 'minecraft:blue_ice',

@@ -44,7 +44,6 @@ public final class ClientHooks {
             if (!attack) {
                 if (b instanceof com.colossalcraft.block.HullCoreBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 0)); return true; }
                 if (b instanceof com.colossalcraft.block.SimpleParts.LocomotionControllerBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 2)); return true; }
-                if (b instanceof com.colossalcraft.block.SimpleParts.StepControllerBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.StepRequest(c.getId(), 0)); return true; }
                 if (b instanceof com.colossalcraft.block.SimpleParts.PilotSeatBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 1)); return true; }
             }
             net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ColossusBlock(c.getId(), hit.asLong(), face.get3DDataValue(), attack ? 1 : 0));
@@ -56,8 +55,7 @@ public final class ClientHooks {
     /** Step Controller map arrived: open the screen, or refresh it if it's open. */
     public static void stepData(CompoundTag data) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen instanceof StepScreen s) s.update(data);
-        else if (mc.screen == null) mc.setScreen(new StepScreen(data));
+        if (mc.screen instanceof HullCoreScreen s) s.footingMap(data); // the Locomotion Controller's Footing tab
     }
 
     public static void colossusBlocks(int id, CompoundTag data) {

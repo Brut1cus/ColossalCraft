@@ -74,12 +74,12 @@ A walker stands on its feet and is placed from the lowest point up. Nothing "hol
 
 1. **Contact:** a foot that touches the ground is *planted*, and its world position is locked. It plants on the highest open ground under any of its sole blocks (never inside a wall).
 2. **Gait clock:** each leg group lifts when its turn in the step cycle comes (set by the gait in the Locomotion Controller). A group only lifts once the weight is over the other feet; until then the clock waits and the body leans over.
-3. **Body:** moves forward at the gait's own speed (stride ÷ stance time), leans sideways just far enough over the feet carrying the weight (a gyro lets it lean less), and speeds up or slows down only as fast as grip and hip motors allow. Its **height comes from the planted feet**: up a step, down a slope. Knee legs crouch with raise/lower; weak knees sag.
+3. **Body:** eases in and out of motion (the stick ramps over about 0.6 s, acceleration is capped at 2.5 m/s² and changes gradually), moves forward at the gait's own speed (stride ÷ stance time), leans early over the feet that carry the next step, leans sideways just far enough over the feet carrying the weight (a gyro lets it lean less), and speeds up or slows down only as fast as grip and hip motors allow. Its **height comes from the planted feet**: up a step, down a slope. Knee legs crouch with raise/lower; weak knees sag.
 4. **Grip:** about 1.0 on normal ground, 0.03-0.05 on ice. On ice the walker can't speed up quickly and the HUD shows SLIP. A stiff (knee-less) leg slides if it leans past its grip.
 5. **IK** bends each leg to its foot. Knees always bend to the same side (forward, or back for digitigrade), so they can't flip over, and joints turn smoothly: a leg in the air at most about 460°/s. If any leg block would end up inside the ground, that foot is raised.
 6. **Steps** land on the real ground (up a step, down a slope) and lift high enough to clear what's in between. A wall or a drop of more than 1.5 blocks makes the foot step in place.
 7. **Balance (equilibrium):** standing still, the body always settles its weight over the middle of its feet. If something pushes the weight outside the feet (an overhang, a hit), it takes a **catch step** under it, like a person. Only if that fails does it tip. Powered Ball Joints at the ankles let it balance further out, like a gyro.
-8. **Step speed is limited by power:** the leg motors use their full power at 0.5 steps a second, more when faster. The walker steps no faster than the engines can feed (after gyros, Step Controllers and powered ball joints), and the Gait tab shows the cap.
+8. **Step speed is limited by power:** the leg motors use their full power at 0.5 steps a second, more when faster. The walker steps no faster than the engines can feed (after gyros, smart footing and powered ball joints), and the Gait tab shows the cap.
 
 Set each **hip** (and any **knee**) joint to **Leg**, with a foot under it. Left/right step groups are automatic. The Swing setting is the joint's angle limit. The HUD shows each foot: DOWN, STEP, SLIP.
 
@@ -116,14 +116,18 @@ You don't have to park to use or change it:
 - **Explosions** blow off weak blocks (like terrain) and damage joints. A joint that takes too much breaks, and what it held falls off as a wreck. Stronger and bigger joints take more.
 - Other mods' machines (for example Create's) are carried along but only run once parked.
 
-## Step Controller
-A block that looks at the ground before each step and picks where the foot lands. It uses **25 CJ/t** while the walker stands or walks; without power it does nothing and steps go where the gait says.
-- For each step it checks a small grid of spots around where the foot should go. Every sole block must have ground under it (not over an edge), the soles must be nearly level, and the rise or drop must be one the leg can take. Lava, fire, magma, cactus, campfires, berry bushes and powder snow are refused. Water and slippery ground count against a spot, and so does distance from the wanted spot. It also keeps clear of the other feet.
-- If nothing good is near, it tries a half-length step. If that fails too, the foot steps in place.
-- **Right-click** it (parked or built) for a **top-down map**: ground height in shades of green, water, slippery and dangerous ground, walls, the body's outline, feet (solid = planted, hollow = stepping), the next step for each foot (yellow box, red X = no good footing) and the heading. It refreshes twice a second, only while open.
+## Smart footing (Locomotion Controller, Footing tab)
+Smart footing is **on by default** and uses **25 CJ/t** while a walker stands or walks. Before every step the legs look at the ground and put the foot on safe, level footing: every sole block has ground under it (not over an edge), the soles are nearly level, the rise or drop is one the leg can take, and lava, fire, magma, cactus, campfires, berry bushes and powder snow are refused. Water and slippery ground count against a spot. If there's no good spot nearby the foot takes a short step, or steps in place. Turn it off on the **Footing** tab to save power (feet then land wherever the gait says).
 
-## Ball Joint
-A small joint that keeps the part below it **level with the ground** (feet stay flat while the leg swings). It turns freely within its Limit in any direction; set Limit ±5° for a tight foot. Needs no motor. Put one between the shin and the foot. The **Powered Ball Joint** also tilts the foot to match a slope and pushes back to help the walker balance (it uses some power). For big walkers build a **Ball Half + Socket** assembly (see above).
+The **Footing** tab shows a top-down map of what the feet see: ground height in shades of green, water, slippery ground, danger and walls, the body's outline, the feet (solid = planted, hollow = stepping), where each foot steps next (yellow, red = no safe spot) and the heading. It refreshes twice a second, only while the tab is open. (This replaces the old Step Controller block.)
+
+## Ball joints: ankles, hips and shoulders
+- **Ball Joint** (plain): keeps the part below it **level** (a flat foot). Needs no motor and has no mode. Put one between the shin and the foot.
+- **Powered Ball Joint** (or a Ball Half + Socket assembly with a Servo Motor touching it) has three modes, set in the Joints tab:
+  - **Ankle (Locked):** keeps the foot flat and tilts it to match a slope; helps the walker balance.
+  - **Hip (Leg):** a two-way leg joint. The IK swings the leg forward/back *and* sideways, so the body can lean over a foot without the feet sliding. Use it as the top joint of a leg (a knee bearing below it is fine). No extra motor needed.
+  - **Shoulder (Sway):** swings an arm in time with the steps (left and right opposite), and rests when standing.
+- **Ball Half + Socket:** stack a Ball Half and a Socket (or matching n x n squares of each). They turn to face each other by themselves and become one ball joint.
 
 ## Jump Drive
 A capacitor. It charges slowly from your engines (400 CJ/tick, holds 600k) and dumps it all at once when you press the jump key. It overpowers the servos: the legs go limp and the whole Colossus is launched up. More drives = more charge. The HUD shows JUMP DRIVE %.

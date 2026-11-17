@@ -117,7 +117,9 @@ public final class DevShots {
             case 135 -> shot("2c_gait");
             case 136 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(2); }
             case 138 -> shot("2d_keys");
-            case 139 -> mc.setScreen(null);
+            case 139 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(3); }
+            case 148 -> shot("2e_footing");
+            case 149 -> mc.setScreen(null);
             case 140 -> server(sp -> { sp.getAbilities().flying = false; sp.onUpdateAbilities(); BlockPos p = base.offset(1, 8, 1); sp.connection.teleport(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, 135f, 20f); });
             case 145 -> { ColossalCraft.LOG.info("[devshots] before build player y={}", mc.player.getY()); server(sp -> ColossusEntity.assemble(sp.serverLevel(), base.offset(0, 8, 0), sp)); }
             case 150, 155, 159 -> ColossalCraft.LOG.info("[devshots] after build t={} player y={} onGround={}", t, mc.player.getY(), mc.player.onGround());
@@ -141,9 +143,6 @@ public final class DevShots {
             case 264 -> mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
             case 275 -> shot("6_walking_front");
             case 277 -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
-            case 280 -> { ColossusEntity c = colossus(); if (c != null) net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.StepRequest(c.getId(), 0)); }
-            case 292 -> shot("8_step_planner");
-            case 294 -> mc.setScreen(null);
             case 295 -> server(sp -> { ColossusEntity c = colossus(); if (c == null) return; c.allowDismount = true; sp.stopRiding(); c.allowDismount = false;
                 net.minecraft.world.phys.Vec3 a = c.blockWorldCenter(new BlockPos(-1, -6, 0)), eye = a.add(-2.2, 0.6, -1.6), d = a.subtract(eye);
                 sp.getAbilities().flying = true; sp.onUpdateAbilities();
@@ -182,7 +181,6 @@ public final class DevShots {
         lv.setBlockAndUpdate(b.offset(-1, 7, 0), ModRegistry.EMBER_BOILER.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(1, 7, 0), ModRegistry.SMALL_GYRO.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(1, 7, 1), ModRegistry.LOCOMOTION_CONTROLLER.get().defaultBlockState());
-        lv.setBlockAndUpdate(b.offset(-1, 7, 1), ModRegistry.STEP_CONTROLLER.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(-2, 7, -2), ModRegistry.STEAM_VENT.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(2, 7, -2), ModRegistry.BLAZE_JET.get().defaultBlockState());
         lv.setBlockAndUpdate(b.offset(2, 7, 2), Blocks.CHEST.defaultBlockState());

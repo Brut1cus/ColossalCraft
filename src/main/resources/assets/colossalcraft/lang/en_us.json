@@ -67,7 +67,6 @@
   "block.colossalcraft.gantry_hoist": "Gantry Hoist",
   "block.colossalcraft.locomotion_controller": "Locomotion Controller",
   "block.colossalcraft.jump_drive": "Jump Drive",
-  "block.colossalcraft.step_controller": "Step Controller",
   "key.colossalcraft.loco": "Colossus: Open Locomotion Controller",
   "key.colossalcraft.jump": "Colossus: Jump Drive (default)"
 }

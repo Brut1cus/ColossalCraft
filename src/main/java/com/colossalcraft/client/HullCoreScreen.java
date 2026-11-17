@@ -34,7 +34,7 @@ public class HullCoreScreen extends Screen {
             "Turns all the time while powered: propellers, wheels, turrets.",
             "Slow idle motion: tails, antennae, heads.",
             "Follows the keyframes you set in the Animate tab."};
-    private static final String[] HULL_TABS = {"Overview", "Power", "Help"}, LOCO_TABS = {"Joints", "Gait", "Keys"};
+    private static final String[] HULL_TABS = {"Overview", "Power", "Help"}, LOCO_TABS = {"Joints", "Gait", "Keys", "Footing"};
     private boolean loco() { return data.getBoolean("Loco"); }
     private String[] tabs() { return loco() ? LOCO_TABS : HULL_TABS; }
     private String cur() { return tabs()[Math.max(0, Math.min(tab, tabs().length - 1))]; }
@@ -113,6 +113,12 @@ public class HullCoreScreen extends Screen {
 
         if (cur().equals("Gait")) gaitWidgets(l + NAV + 8, t + 30);
         if (cur().equals("Keys")) keyWidgets(l + NAV + 8, t + 30);
+        if (cur().equals("Footing")) {
+            boolean on = data.getBoolean("Smart");
+            Button fb = Button.builder(Component.literal("Smart footing: " + (on ? "ON" : "OFF")), z -> send(17, -1, 0)).bounds(l + NAV + 8, t + 40, 150, 16).build();
+            fb.setTooltip(Tooltip.create(Component.literal("ON: before every step the legs look at the ground and put each foot on safe, level footing (uses " + (int) com.colossalcraft.colossus.StructureModel.SMART_FOOTING_POWER + " CJ/t). OFF: feet land wherever the gait says.")));
+            addRenderableWidget(fb);
+        }
         if (cur().equals("Joints")) {
             jointWidgets(l + NAV + 8 + 168, t + 30);
         }
@@ -126,12 +132,16 @@ public class HullCoreScreen extends Screen {
         CompoundTag j = joint(selected);
         if (j == null) return;
         int mode = j.getInt("Mode"); if (mode == 2) mode = 1; if (mode == 5) mode = 0;
-        int idx = 0; for (int i = 0; i < MODE_CYCLE.length; i++) if (MODE_CYCLE[i] == mode) idx = i;
-        int next = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length];
+        boolean poweredBall = j.getBoolean("Ball") && j.getBoolean("Powered");
+        int[] cyc = poweredBall ? new int[]{0, 1, 4} : MODE_CYCLE; // powered ball: ankle (Locked), hip (Leg), shoulder (Sway)
+        int idx = 0; for (int i = 0; i < cyc.length; i++) if (cyc[i] == mode) idx = i;
+        int next = cyc[(idx + 1) % cyc.length];
         int by = top() + H - 52, w = (W - NAV - 8 - 174) / 2 - 2;
-        boolean ball = j.getBoolean("Ball");
+        boolean ball = j.getBoolean("Ball") && !poweredBall;
         Button mb = Button.builder(Component.literal(ball ? "Mode: auto" : "Mode: " + MODE_NAMES[mode]), z -> send(1, selected, next)).bounds(x, by, w, 14).build();
-        mb.setTooltip(Tooltip.create(Component.literal(ball ? "Ball joints level the part below them on their own: no mode to set."
+        if (poweredBall) mb = Button.builder(Component.literal("Mode: " + (mode == 1 ? "Hip (Leg)" : mode == 4 ? "Shoulder (Sway)" : "Ankle (Locked)")), z -> send(1, selected, next)).bounds(x, by, w, 14).build();
+        mb.setTooltip(Tooltip.create(Component.literal(poweredBall ? "Powered ball joint. Ankle (Locked): keeps the foot flat and tilts it to slopes. Hip (Leg): the leg swings forward/back and sideways under IK. Shoulder (Sway): swings an arm in time with the steps."
+                : ball ? "Ball joints level the part below them on their own: no mode to set."
                 : MODE_HELP[mode] + "  (click for " + MODE_NAMES[next] + ")\n\nLocked: rigid, never moves.\nLeg: hips and knees of walking legs.\nSpin: keeps turning (rotors, wheels).\nSway: gentle idle motion.")));
         mb.active = !ball;
         addRenderableWidget(mb);
@@ -353,6 +363,57 @@ public class HullCoreScreen extends Screen {
         }
     }
 
+    // ------------------------------------------------------------------ Footing tab (smart footing + a top-down map of what the feet see)
+    private CompoundTag foot = new CompoundTag();
+    private int footAge;
+    public void footingMap(CompoundTag d) { foot = d; }
+    @Override public void tick() {
+        super.tick();
+        if (!loco() || !cur().equals("Footing") || footAge++ % 10 != 0) return;
+        net.neoforged.neoforge.network.PacketDistributor.sendToServer(built() ? new com.colossalcraft.network.Net.StepRequest(entity(), 0) : new com.colossalcraft.network.Net.StepRequest(-1, pos.asLong()));
+    }
+    private static final int[] GROUND = {0xFF0A2012, 0xFF10331C, 0xFF184A28, 0xFF226436, 0xFF2E8046};
+    private void footing(GuiGraphics g, int x, int y) {
+        g.drawString(font, "FOOTING", x, y, DIM, false);
+        int helpX = x + 158, helpW = W - NAV - 16 - 158, hy = y + 10;
+        for (var hl : font.split(Component.literal("Before each step the legs check the ground and put the foot on safe, level footing: no lava, fire, cactus or edges, not too high or low. No good spot: a short step, or wait."), helpW)) { g.drawString(font, hl, helpX, hy, DIM, false); hy += 10; }
+        int cell = 6, R = foot.getInt("R"), size = 2 * R + 1, ox = x, oy = y + 32;
+        byte[] h = foot.getByteArray("H"), k = foot.getByteArray("K");
+        int mapH = Math.min(size * cell, top() + H - 40 - oy);
+        if (h.length != size * size || size <= 1) { g.drawString(font, "Looking at the ground...", ox, oy + 4, DIM, false); return; }
+        g.enableScissor(ox, oy, ox + size * cell, oy + mapH);
+        for (int z = 0; z < size; z++) for (int xx = 0; xx < size; xx++) {
+            int i = z * size + xx, col; byte hv = h[i];
+            if (hv == 127) col = 0xFF000000; else if (hv == 126) col = 0xFF56645A;
+            else if (k[i] == 2) col = 0xFF6A1414; else if (k[i] == 1) col = 0xFF0E2C3A; else if (k[i] == 3) col = 0xFF27443F;
+            else col = GROUND[Math.max(0, Math.min(4, 2 + (int) Math.floor(hv / 2.0)))];
+            g.fill(ox + xx * cell, oy + z * cell, ox + xx * cell + cell - 1, oy + z * cell + cell - 1, col);
+        }
+        for (int i : foot.getIntArray("Body")) { int bx = ox + (i % size) * cell, by = oy + (i / size) * cell; rect(g, bx, by, bx + cell - 1, by + cell - 1, 0xFF4E8A63); }
+        int cx0 = foot.getInt("X") - R, cz0 = foot.getInt("Z") - R;
+        for (Tag tg : foot.getList("Feet", Tag.TAG_COMPOUND)) { CompoundTag f = (CompoundTag) tg;
+            int sx = ox + (int) Math.round((f.getFloat("X") - cx0) * cell), sy = oy + (int) Math.round((f.getFloat("Z") - cz0) * cell);
+            if (f.getByte("S") == 0) g.fill(sx - 2, sy - 2, sx + 3, sy + 3, TXT); else rect(g, sx - 2, sy - 2, sx + 3, sy + 3, TXT); }
+        for (Tag tg : foot.getList("Next", Tag.TAG_COMPOUND)) { CompoundTag f = (CompoundTag) tg;
+            int sx = ox + (int) Math.round((f.getFloat("X") - cx0) * cell), sy = oy + (int) Math.round((f.getFloat("Z") - cz0) * cell);
+            rect(g, sx - 3, sy - 3, sx + 4, sy + 4, f.getBoolean("Ok") ? 0xFFFFD45C : ERR); }
+        int mc = ox + R * cell + cell / 2; float fx = foot.getFloat("FX"), fz = foot.getFloat("FZ");
+        line(g, mc, oy + R * cell + cell / 2, mc + fx * 2.5 * cell, oy + R * cell + cell / 2 + fz * 2.5 * cell, 0xFFFFD45C);
+        g.disableScissor();
+        // legend + status
+        int lx = ox + size * cell + 8, ly = Math.max(oy + 28, hy + 6);
+        boolean on = data.getBoolean("Smart"), pw = foot.getBoolean("Pw");
+        g.drawString(font, !built() ? (on ? "Plans steps once built" : "Off") : !on ? "Off: feet land where the gait says" : pw ? "Planning each step" : "No power for it", lx, ly, !on ? DIM : pw || !built() ? OK : WARN, false); ly += 14;
+        g.fill(lx, ly + 1, lx + 6, ly + 7, GROUND[1]); g.fill(lx + 7, ly + 1, lx + 13, ly + 7, GROUND[3]); g.drawString(font, "low / high ground", lx + 16, ly, DIM, false); ly += 9;
+        int[] lg = {0xFF0E2C3A, 0xFF27443F, 0xFF6A1414, 0xFF56645A};
+        String[] ln = {"water", "slippery", "danger", "wall"};
+        for (int i = 0; i < ln.length; i++) { g.fill(lx, ly + 1, lx + 6, ly + 7, lg[i]); g.drawString(font, ln[i], lx + 9, ly, DIM, false); ly += 9; }
+        ly += 2;
+        g.fill(lx, ly + 1, lx + 6, ly + 7, TXT); g.drawString(font, "foot down", lx + 9, ly, TXT, false); ly += 9;
+        rect(g, lx, ly + 1, lx + 7, ly + 8, 0xFFFFD45C); g.drawString(font, "where it steps next", lx + 9, ly, TXT, false); ly += 9;
+        rect(g, lx, ly + 1, lx + 7, ly + 8, ERR); g.drawString(font, "no safe spot", lx + 9, ly, TXT, false);
+    }
+
     private static String keyName(int code) { return InputConstantsName.of(code); }
 
     private void keyWidgets(int x, int y) {
@@ -458,6 +519,7 @@ public class HullCoreScreen extends Screen {
             case "Joints" -> joints(g, cx, cy, mx, my);
             case "Gait" -> gait(g, cx, cy);
             case "Keys" -> keys(g, cx, cy);
+            case "Footing" -> footing(g, cx, cy);
             case "Power" -> power(g, cx, cy);
             case "Help" -> help(g, cx, cy);
             default -> {}

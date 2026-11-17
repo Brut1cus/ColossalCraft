@@ -257,6 +257,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
                 for (int i = 0; i < model.ikAngles.length; i++) model.ikAngles[i] = i < bits.length ? Float.intBitsToFloat(bits[i]) : Double.NaN;
             }
             model.ikT = 1;
+            int[] rl = ik.getIntArray("RL");
+            for (int i = 0; i < model.ikRoll.length; i++) model.ikRoll[i] = i < rl.length ? Float.intBitsToFloat(rl[i]) : 0;
+            model.walkClock = ik.getDouble("WC"); model.walkAmount = ik.getDouble("WA");
             int[] bt = ik.getIntArray("BT");
             for (int i = 0; i < model.ballPitch.length; i++) { model.ballPitch[i] = 2 * i + 1 < bt.length ? Float.intBitsToFloat(bt[2 * i]) : 0; model.ballRoll[i] = 2 * i + 1 < bt.length ? Float.intBitsToFloat(bt[2 * i + 1]) : 0; }
             art = model.transforms(walkPhase, walkBlend, spin, tickCount);
@@ -367,7 +370,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         draw += Math.abs(inTurn) * model.gyroPower;
         if (model.joints.stream().anyMatch(j -> j.mode == StructureModel.SPIN && j.active())) draw += model.walkPower() * 0.2;
         if (model.legged) draw += model.gyroPower; // gyros hold a walker up all the time
-        if (model.legged && model.stepControllers > 0) draw += model.stepControllers * com.colossalcraft.block.SimpleParts.StepControllerBlock.POWER;
+        if (model.legged && model.smartFooting && model.locoControllers > 0) draw += StructureModel.SMART_FOOTING_POWER;
 
         double avail = model.infinite ? model.output : (energy > 0 ? model.output : 0);
         double ratio = draw <= 0 ? 1 : Math.min(1, avail / draw);
@@ -412,7 +415,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         // ---- walking: the physics walker moves the Hull only through what its planted feet push against the ground
         if (useWalker) {
             Vec3 ext = thrust.scale(ratio).add(0, buoy + lift, 0);
-            walker.planner = model.stepControllers > 0 && ratio > 0.2;
+            walker.planner = model.smartFooting && model.locoControllers > 0 && ratio > 0.2;
             walker.step(this, ext, ratio, inFwd, inSprint, inUp ? 1 : inDown ? -1 : 0);
             if (walker.unbalanced) stable = false; // weight left the feet: it tips
             walkBlend = 0;
@@ -463,6 +466,10 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         if (useWalker) { // powered ankles: foot tilt for clients
             boolean any = false; for (int i = 0; i < model.ballPitch.length; i++) any |= model.ballPitch[i] != 0 || model.ballRoll[i] != 0;
             if (any) { int[] bt = new int[model.ballPitch.length * 2]; for (int i = 0; i < model.ballPitch.length; i++) { bt[2 * i] = Float.floatToIntBits((float) model.ballPitch[i]); bt[2 * i + 1] = Float.floatToIntBits((float) model.ballRoll[i]); } ik.putIntArray("BT", bt); }
+        }
+        if (useWalker) { // powered hips: sideways angles; shoulders: the step clock
+            int[] rl = new int[model.ikRoll.length]; for (int i = 0; i < rl.length; i++) rl[i] = Float.floatToIntBits((float) model.ikRoll[i]);
+            ik.putIntArray("RL", rl); ik.putDouble("WC", model.walkClock); ik.putDouble("WA", model.walkAmount);
         }
         boolean firing = false; for (byte b : thrOut) firing |= b != 0;
         if (firing) ik.putByteArray("T", thrOut.clone());
