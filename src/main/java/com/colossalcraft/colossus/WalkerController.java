@@ -466,7 +466,7 @@ public class WalkerController {
                 double hr = groundFrom(c.level(), p.x + rW.x * 0.8, top, p.z + rW.z * 0.8, 4), hl = groundFrom(c.level(), p.x - rW.x * 0.8, top, p.z - rW.z * 0.8, 4);
                 if (!Double.isNaN(hf) && !Double.isNaN(hb)) tp = Math.atan2(hf - hb, 1.6);
                 if (!Double.isNaN(hr) && !Double.isNaN(hl)) tr = Math.atan2(hl - hr, 1.6);
-                double lim = Math.toRadians(Math.max(5, Math.min(90, aj.amp * 2)));
+                double lim = aj.limRad();
                 tp = Math.max(-lim, Math.min(lim, tp)); tr = Math.max(-lim, Math.min(lim, tr));
             }
             m.ballPitch[aj.id] += (tp - m.ballPitch[aj.id]) * 0.3; m.ballRoll[aj.id] += (tr - m.ballRoll[aj.id]) * 0.3;
@@ -701,7 +701,7 @@ public class WalkerController {
                     solve(m, below(m, L), ut, rest, digi);
                     System.arraycopy(rest, 0, ang, 1, rest.length);
                 } else solve(m, L, new Vec3(t.x, t.y, t.z), ang, digi);
-                for (int k = 0; k < ang.length; k++) { double prev = m.ikPrev[L.joints().get(k)]; m.ikAngles[L.joints().get(k)] = Double.isNaN(prev) ? ang[k] : smooth(prev, ang[k], state[i] == State.STANCE ? MAX_TURN_PLANTED : MAX_TURN); }
+                for (int k = 0; k < ang.length; k++) { double prev = m.ikPrev[L.joints().get(k)]; m.ikAngles[L.joints().get(k)] = m.joints.get(L.joints().get(k)).clampAngle(Double.isNaN(prev) ? ang[k] : smooth(prev, ang[k], state[i] == State.STANCE ? MAX_TURN_PLANTED : MAX_TURN)); }
             }
             if (!any) break;
         }
@@ -739,7 +739,7 @@ public class WalkerController {
                 System.arraycopy(rest, 0, ang, 1, rest.length);
             } else solve(m, L, new Vec3(t.x, t.y, t.z), ang, digi);
             boolean free = i >= state.length || state[i] != State.STANCE; // a planted leg must follow its foot exactly
-            for (int k = 0; k < ang.length; k++) m.ikAngles[L.joints().get(k)] = smooth(before[k], ang[k], free ? MAX_TURN : MAX_TURN_PLANTED);
+            for (int k = 0; k < ang.length; k++) m.ikAngles[L.joints().get(k)] = m.joints.get(L.joints().get(k)).clampAngle(smooth(before[k], ang[k], free ? MAX_TURN : MAX_TURN_PLANTED));
         }
     }
     /** A leg in the air turns continuously: at most this far per tick (about 460 degrees a second), never a jump. */
@@ -789,14 +789,14 @@ public class WalkerController {
         StructureModel.Joint hj = m.joints.get(L.joints().get(0));
         if (!hj.universal || hj.id >= m.ikRoll.length) return t;
         // a powered ball hip also twists about the vertical so a planted foot keeps its heading while the body turns
-        double lim0 = Math.toRadians(Math.max(5, Math.min(90, hj.amp * 2)));
+        double lim0 = hj.limRad();
         double yw = smooth(Double.isNaN(m.ikYaw[hj.id]) ? 0 : m.ikYaw[hj.id], Math.max(-lim0, Math.min(lim0, twist)), maxTurn);
         m.ikYaw[hj.id] = yw;
         { double c0 = Math.cos(-yw), s0 = Math.sin(-yw); Vec3 d0 = t.subtract(hj.pivot); t = hj.pivot.add(d0.x * c0 + d0.z * s0, d0.y, -d0.x * s0 + d0.z * c0); }
         Vec3 f = Vec3.atLowerCornerOf(m.forward.getNormal()), r = new Vec3(-f.z, 0, f.x), d = t.subtract(hj.pivot);
         double lat = d.dot(r) - L.foot().subtract(hj.pivot).dot(r); // sideways offset compared with the built leg
         double roll = -Math.atan2(lat, Math.max(0.3, -d.y));
-        double lim = Math.toRadians(Math.max(5, Math.min(90, hj.amp * 2)));
+        double lim = hj.limRad();
         roll = Math.max(-lim, Math.min(lim, roll));
         double prev = Double.isNaN(m.ikRoll[hj.id]) ? 0 : m.ikRoll[hj.id];
         roll = smooth(prev, roll, maxTurn);

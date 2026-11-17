@@ -126,7 +126,7 @@ public class HullCoreScreen extends Screen {
 
     private static final int[] MODE_CYCLE = {0, 1, 3, 4};
     /** Where the range-of-motion value is drawn next to its arrows (set by jointWidgets). */
-    private int romX = -1, romY, romW; private String romText = "", romTipText = "";
+    private int romX = -1, romY, romW; private String romText = "", romTipText = ""; private boolean romWarn;
 
     /** Only two small controls: what the joint does, and how far it may turn. */
     private void jointWidgets(int x, int y) {
@@ -149,14 +149,16 @@ public class HullCoreScreen extends Screen {
         addRenderableWidget(mb);
         // range of motion: the value is shown in the panel; up/down arrows change it (shift = bigger steps), never past the joint's cap
         int amp = j.getInt("Amp"), capAmp = Math.max(1, j.getInt("RomCap") / 2);
+        int fold = j.contains("Fold") ? j.getInt("Fold") : 180;
         String romTip = "Range of motion: how far this joint may turn either way (legs bend within this). Shift-click for steps of 10\u00B0."
+                + (fold < 180 ? " Its limb hits the rest of the Colossus after \u00B1" + fold + "\u00B0, so it never folds further than that (yellow = set past that)." : " It can fold all the way round without hitting anything.")
                 + (j.getBoolean("Ball") ? " This ball joint's shape allows up to \u00B1" + capAmp * 2 + "\u00B0 (a cube turns \u00B190\u00B0, a flat 2x1x2 \u00B145\u00B0)." : "");
         Button up = Button.builder(Component.literal("\u25B2"), z -> send(2, selected, Math.min(capAmp, amp + (hasShiftDown() ? 5 : 1)))).bounds(x + w + 4 + w - 28, by, 13, 14).build();
         Button dn = Button.builder(Component.literal("\u25BC"), z -> send(2, selected, Math.max(1, amp - (hasShiftDown() ? 5 : 1)))).bounds(x + w + 4 + w - 14, by, 13, 14).build();
         up.active = amp < capAmp; dn.active = amp > 1;
         up.setTooltip(Tooltip.create(Component.literal(romTip))); dn.setTooltip(Tooltip.create(Component.literal(romTip)));
         addRenderableWidget(up); addRenderableWidget(dn);
-        romX = x + w + 4; romY = by; romW = w - 30; romText = "ROM \u00B1" + amp * 2 + "\u00B0" + (amp >= capAmp ? " max" : ""); romTipText = romTip;
+        romX = x + w + 4; romY = by; romW = w - 30; romText = "\u00B1" + amp * 2 + "\u00B0"; romWarn = amp * 2 > fold; romTipText = romTip;
         if (data.getInt("GaitMode") == 4 && j.getBoolean("LegHip")) {
             int grp = j.getInt("Group");
             Button gb = Button.builder(Component.literal("Step group " + (grp + 1)), z -> send(15, selected, grp + 1)).bounds(x, by - 16, w * 2 + 4, 14).build();
@@ -307,9 +309,8 @@ public class HullCoreScreen extends Screen {
             for (int c : sideC) { int sx = (int) Math.round(ox + ua(c) * sc), sy = (int) Math.round(oy - ub(c) * sc); if (sx > qx - hc && sx < qx + pw + hc && sy > qy - hc && sy < qy + phh + hc) g.fill(sx - hc, sy - hc, sx + hc, sy + hc, BP_GRID2); }
             // solve the leg in 2D for this moment of its step
             double[] tgt = {p[k - 2][0] + fm[i][0], p[k - 2][1] + fm[i][1]};
-            double[][] chain = new double[k - 1][]; for (int j = 0; j < k - 1; j++) chain[j] = p[j].clone();
-            fabrik2(chain, tgt, data.getInt("GaitMode") == com.colossalcraft.colossus.StructureModel.GAIT_DIGI ? -1 : 1);
             int links = k - 2; // joints in the chain; chain[links] is the ankle/foot point
+            double[][] chain = solveLeg(i, p, k, tgt, data.getInt("GaitMode") == com.colossalcraft.colossus.StructureModel.GAIT_DIGI ? -1 : 1, lt.getIntArray("LimLo"), lt.getIntArray("LimHi"));
             double[] delta = new double[links];
             for (int j = 0; j < links; j++) delta[j] = Math.atan2(chain[j + 1][1] - chain[j][1], chain[j + 1][0] - chain[j][0]) - Math.atan2(p[j + 1][1] - p[j][1], p[j + 1][0] - p[j][0]);
             boolean near = pl.getCompound(0).getFloat("S") >= 0;
@@ -363,15 +364,52 @@ public class HullCoreScreen extends Screen {
         int n = (int) Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)));
         for (int i = 0; i <= n; i++) { double t = n == 0 ? 0 : (double) i / n; int x = (int) Math.round(x0 + (x1 - x0) * t), y = (int) Math.round(y0 + (y1 - y0) * t); g.fill(x, y, x + 1, y + 1, col); }
     }
-    /** 2D FABRIK: chain[0] stays fixed, the last point reaches for the target. */
-    private static void fabrik2(double[][] c, double[] t, int kneeDir) {
+    /** Last solved pose of each leg in the preview: the next frame starts from it, so knees never jump to the other side. */
+    private final Map<Integer, double[][]> legPose = new HashMap<>();
+    /**
+     * One leg of the preview, solved the way the walker solves it: reach for the foot target starting from last frame's pose,
+     * knees bent to the gait's side, then every joint held inside its real limit (range of motion, no folding into the Colossus).
+     * p = rest points (hip ... ankle, foot); returns the joint points hip ... ankle.
+     */
+    private double[][] solveLeg(int leg, double[][] p, int k, double[] tgt, int kneeDir, int[] loTenths, int[] hiTenths) {
+        int n = k - 1, links = n - 1;
+        double[][] c = legPose.get(leg);
+        if (c == null || c.length != n || Math.abs(c[0][0] - p[0][0]) > 1e-6 || Math.abs(c[0][1] - p[0][1]) > 1e-6) {
+            c = new double[n][]; for (int j = 0; j < n; j++) c[j] = p[j].clone();
+            for (int j = 1; j < n - 1; j++) c[j][0] += kneeDir * 0.12 * Math.hypot(p[j][0] - p[j - 1][0], p[j][1] - p[j - 1][1]); // start with the knees bent the right way
+        } else { double[][] cc = new double[n][]; for (int j = 0; j < n; j++) cc[j] = c[j].clone(); c = cc; }
+        fabrik2(c, tgt);
+        if (n == 3) { // hip, knee, ankle: keep the knee on its side of the hip-ankle line (a straight leg may pass through, never flip)
+            double ex = c[2][0] - c[0][0], ey = c[2][1] - c[0][1], kx = c[1][0] - c[0][0], ky = c[1][1] - c[0][1];
+            double cr = ex * ky - ey * kx, el = Math.max(1e-9, ex * ex + ey * ey);
+            if (cr * kneeDir < -1e-4 * el) { double t = (kx * ex + ky * ey) / el, fx = c[0][0] + ex * t, fy = c[0][1] + ey * t; c[1] = new double[]{2 * fx - c[1][0], 2 * fy - c[1][1]}; }
+        }
+        // joint angles against the rest pose, each held inside its limit; then the pose is rebuilt from the hip down
+        double[] restA = new double[links], len = new double[links];
+        for (int j = 0; j < links; j++) { restA[j] = Math.atan2(p[j + 1][1] - p[j][1], p[j + 1][0] - p[j][0]); len[j] = Math.hypot(p[j + 1][0] - p[j][0], p[j + 1][1] - p[j][1]); }
+        double prevDelta = 0;
+        double[][] out = new double[n][]; out[0] = p[0].clone();
+        for (int j = 0; j < links; j++) {
+            double d = wrap(Math.atan2(c[j + 1][1] - c[j][1], c[j + 1][0] - c[j][0]) - restA[j]);
+            double rel = wrap(d - prevDelta);
+            double lo = j < loTenths.length ? Math.toRadians(loTenths[j] / 10.0) : Math.PI, hi = j < hiTenths.length ? Math.toRadians(hiTenths[j] / 10.0) : Math.PI;
+            rel = Math.max(-lo, Math.min(hi, rel));
+            prevDelta += rel;
+            double a = restA[j] + prevDelta;
+            out[j + 1] = new double[]{out[j][0] + Math.cos(a) * len[j], out[j][1] + Math.sin(a) * len[j]};
+        }
+        legPose.put(leg, out);
+        return out;
+    }
+    private static double wrap(double a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
+    /** 2D FABRIK: chain[0] stays fixed, the last point reaches for the target (starting from the pose it is given). */
+    private static void fabrik2(double[][] c, double[] t) {
         int k = c.length; if (k < 2) return;
         double[] len = new double[k - 1]; double total = 0;
         for (int i = 0; i < k - 1; i++) { len[i] = Math.hypot(c[i + 1][0] - c[i][0], c[i + 1][1] - c[i][1]); total += len[i]; }
         double[] base = c[0].clone();
         double dd = Math.hypot(t[0] - base[0], t[1] - base[1]);
         if (dd > total) t = new double[]{base[0] + (t[0] - base[0]) / dd * total * 0.999, base[1] + (t[1] - base[1]) / dd * total * 0.999};
-        for (int i = 1; i < k - 1; i++) c[i][0] += kneeDir * 0.12 * len[i - 1]; // knees bend forward (back for digitigrade)
         for (int it = 0; it < 10; it++) {
             c[k - 1] = t.clone();
             for (int i = k - 2; i >= 0; i--) { double dx = c[i][0] - c[i + 1][0], dy = c[i][1] - c[i + 1][1], d = Math.max(1e-9, Math.hypot(dx, dy)); c[i] = new double[]{c[i + 1][0] + dx / d * len[i], c[i + 1][1] + dy / d * len[i]}; }
@@ -732,7 +770,7 @@ public class HullCoreScreen extends Screen {
         if (list("Joints").isEmpty()) g.drawString(font, "No joints yet: place Bearing Joints between parts.", x, y + 14, WARN, false);
         CompoundTag j = joint(selected);
         if (j == null) return;
-        if (romX >= 0) { g.fill(romX, romY, romX + romW, romY + 14, 0xFF14281A); g.drawString(font, font.plainSubstrByWidth(romText, romW - 4), romX + 3, romY + 3, romText.endsWith("max") ? WARN : TXT, false); tips.add(new Tip(romX, romY, romX + romW, romY + 14, romTipText)); }
+        if (romX >= 0) { g.fill(romX, romY, romX + romW, romY + 14, 0xFF14281A); g.drawString(font, romText, romX + 3, romY + 3, romWarn ? WARN : TXT, false); tips.add(new Tip(romX, romY, romX + romW, romY + 14, romTipText)); }
         int dx = x + 168, dw = W - NAV - 8 - 174;
         g.drawString(font, "J" + j.getInt("Id") + "  " + j.getString("Tier"), dx, y, HEAD, false);
         String gears = j.getString("Gears");

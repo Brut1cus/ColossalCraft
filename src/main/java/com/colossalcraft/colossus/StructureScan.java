@@ -175,6 +175,18 @@ public final class StructureScan {
             for (Vec3 p : pts) { Vec3 d = p.subtract(m.com); CompoundTag pt = new CompoundTag(); pt.putFloat("F", (float) d.dot(f)); pt.putFloat("S", (float) d.dot(rt)); pt.putFloat("U", (float) d.y); pl.add(pt); }
             lt.put("P", pl); lt.putInt("Group", L.group()); lt.putFloat("Len", (float) L.length()); lt.putBoolean("Ankle", L.ankle() != null);
             lt.putFloat("Lim", (float) L.limits()[0]);
+            int[] lims = new int[L.limits().length]; for (int i = 0; i < lims.length; i++) lims[i] = (int) Math.round(Math.toDegrees(L.limits()[i]) * 10);
+            lt.putIntArray("Lims", lims); // each leg joint's real turn limit (range of motion, and no folding into the Colossus), tenths of a degree
+            // one-sided limits in the side view's own turning sense (counter-clockwise = positive): range of motion and how far each side folds
+            int[] lo = new int[L.joints().size()], hi = new int[L.joints().size()];
+            Vec3 fu = f.cross(new Vec3(0, 1, 0));
+            for (int i = 0; i < lo.length; i++) {
+                StructureModel.Joint j = m.joints.get(L.joints().get(i));
+                double rom = Math.toRadians(Math.max(2, Math.min(180, j.amp * 2))), pos = Math.min(rom, j.foldPos), neg = Math.min(rom, j.foldNeg);
+                boolean same = StructureModel.axisVec(j.axis).dot(fu) >= 0;
+                hi[i] = (int) Math.round(Math.toDegrees(same ? pos : neg) * 10); lo[i] = (int) Math.round(Math.toDegrees(same ? neg : pos) * 10);
+            }
+            lt.putIntArray("LimLo", lo); lt.putIntArray("LimHi", hi);
             // the leg's blocks in side view, each tagged with the leg joint that moves it (-1 = below the ball ankle: stays level)
             List<Integer> cells = new ArrayList<>();
             int cur = L.footSeg(), guard = 0;
@@ -278,7 +290,7 @@ public final class StructureScan {
             c.putInt("Id", j.id); c.putInt("Parent", j.parentSeg); c.putString("Tier", j.label()); c.putInt("K", j.k); c.putDouble("Area", j.area); c.putString("Axis", j.axis.getName());
             c.putDouble("Sub", j.subMass); c.putDouble("Ratio", j.staticRatio); c.putDouble("FCap", j.forceCap); c.putDouble("MCap", j.momentCap);
             c.putDouble("Torque", j.motorTorque); c.putDouble("Req", j.reqTorque); c.putDouble("Stand", j.standMass); c.putDouble("StandTq", j.standTorque); c.putDouble("StandRatio", j.standRatio); c.putDouble("Share", j.footShare); c.putInt("Motors", j.motors);
-            c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putInt("RomCap", j.ball ? j.romCap : 120); c.putInt("Height", j.height); c.putBoolean("Stalled", j.stalled());
+            c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putInt("RomCap", j.ball ? j.romCap : 180); c.putInt("Fold", (int) Math.round(Math.toDegrees(j.fold))); c.putInt("Height", j.height); c.putBoolean("Stalled", j.stalled());
             BlockPos lp = BlockPos.of(j.key);
             BlockPos wp = r.entity != null ? BlockPos.containing(r.entity.blockWorldCenter(lp)) : r.origin.offset(lp);
             c.putInt("X", wp.getX()); c.putInt("Y", wp.getY()); c.putInt("Z", wp.getZ());

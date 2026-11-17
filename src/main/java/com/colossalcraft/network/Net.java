@@ -266,7 +266,7 @@ public final class Net {
         c = c.copy();
         switch (a.action()) {
             case 1 -> c.putByte("Mode", (byte) Math.max(0, Math.min(StructureModel.MODES.length - 1, a.value())));
-            case 2 -> c.putInt("Amp", Math.max(1, Math.min(60, a.value())));
+            case 2 -> c.putInt("Amp", Math.max(1, Math.min(90, a.value())));
             case 6 -> {
                 int idx = a.value() >> 16, ang = Math.max(-180, Math.min(180, (a.value() & 0xFFFF) - 180));
                 int[] k = Arrays.copyOf(c.getIntArray("Keys"), StructureModel.KEYS);

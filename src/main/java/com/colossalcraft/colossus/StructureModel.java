@@ -78,7 +78,13 @@ public class StructureModel {
         public Direction.Axis axis; public long key;
         public String label() { return (size > 1 || height > 1 ? (ball ? size + "x" + height + "x" + size + " " : size + "x" + size + " ") : "") + shape.title; }
         /** Ball joints: layers high (1..size), and how far it can turn either way at most (degrees). Others: the limit cap. */
-        public int height = 1, romCap = 120;
+        public int height = 1, romCap = 180;
+        /** How far it can fold either way before its limb hits the rest of the Colossus (radians). */
+        public double fold = Math.PI, foldPos = Math.PI, foldNeg = Math.PI;
+        /** The joint angle held inside its range of motion and inside each fold side (knees fold one way only as far as they fit). */
+        public double clampAngle(double a) { double rom = Math.toRadians(Math.max(2, Math.min(180, amp * 2))); return Math.max(-Math.min(rom, foldNeg), Math.min(Math.min(rom, foldPos), a)); }
+        /** Turn limit either way (radians): the range of motion set in the Joints tab, but never into the Colossus itself. */
+        public double limRad() { return Math.min(Math.toRadians(Math.max(2, Math.min(180, amp * 2))), fold); }
         public final List<BlockPos> blocks = new ArrayList<>();
         public final List<Integer> childSegs = new ArrayList<>();
         public Vec3 pivot = Vec3.ZERO, subCom = Vec3.ZERO;
@@ -500,8 +506,40 @@ public class StructureModel {
             j.wheelGround = j.axis != Direction.Axis.Y && low <= localBounds.minY + 0.01;
             wheels++;
         }
+        foldLimits();
         standLoads();
         footing();
+    }
+    /** How far each leg joint can fold before its limb hits another part of the Colossus (checked in 5 degree steps, both ways). */
+    private void foldLimits() {
+        for (Joint j : joints) {
+            if (j.childSegs.isEmpty() || !(isLegMode(j.mode) || j.ball)) continue;
+            Set<BlockPos> sub = new HashSet<>();
+            ArrayDeque<Integer> q = new ArrayDeque<>(j.childSegs);
+            while (!q.isEmpty() && sub.size() < 3000) { Seg sg = segs.get(q.poll()); sub.addAll(sg.blocks); for (int cj : sg.childJoints) q.addAll(joints.get(cj).childSegs); }
+            Set<BlockPos> own = new HashSet<>(j.blocks);
+            Direction.Axis[] axes = j.ball && !j.universal ? new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z} : new Direction.Axis[]{j.axis};
+            double fold = Math.PI; double[] side = {Math.PI, Math.PI}; // [negative turn, positive turn]
+            for (Direction.Axis ax : axes) for (int sgn = -1; sgn <= 1; sgn += 2) {
+                Vec3 a = axisVec(ax); double safe = Math.PI;
+                steps:
+                for (int deg = 5; deg <= 180; deg += 5) {
+                    double t = Math.toRadians(deg) * sgn, c = Math.cos(t), sn = Math.sin(t);
+                    for (BlockPos b : sub) {
+                        Vec3 r = Vec3.atCenterOf(b).subtract(j.pivot);
+                        Vec3 rr = r.scale(c).add(a.cross(r).scale(sn)).add(a.scale(a.dot(r) * (1 - c))); // Rodrigues
+                        BlockPos hit = BlockPos.containing(j.pivot.add(rr));
+                        if (solid.contains(hit) && !sub.contains(hit) && !own.contains(hit)) { safe = Math.toRadians(deg - 5); break steps; }
+                    }
+                }
+                fold = Math.min(fold, safe);
+                side[sgn < 0 ? 0 : 1] = Math.min(side[sgn < 0 ? 0 : 1], safe);
+            }
+            double min = Math.toRadians(5);
+            if (axes.length > 1) { j.foldNeg = j.foldPos = Math.max(min, fold); } // a free ball: the same either way
+            else { j.foldNeg = Math.max(min, side[0]); j.foldPos = Math.max(min, side[1]); }
+            j.fold = Math.max(j.foldNeg, j.foldPos);
+        }
     }
     /** Spin joints with no blades: they turn with the Spin keys and drive on the ground like wheels. */
     public int wheels;
@@ -651,7 +689,7 @@ public class StructureModel {
             double len = foot.distanceTo(hipJ.pivot);
             double vCap = Double.MAX_VALUE, knee = 0; double[] lim = new double[chain.size()];
             for (int i = 0; i < chain.size(); i++) {
-                Joint j = joints.get(chain.get(i)); vCap = Math.min(vCap, j.forceCap); lim[i] = Math.toRadians(Math.max(5, Math.min(90, j.amp * 2)));
+                Joint j = joints.get(chain.get(i)); vCap = Math.min(vCap, j.forceCap); lim[i] = j.limRad();
                 if (i > 0) knee += j.motorTorque;
             }
             legChains.add(new LegChain(chain, fs, body, hipJ.pivot, foot, len, chain.size() > 1 ? len * 0.55 : len * 0.97, hipJ.motorTorque, vCap, mu / n,
@@ -838,7 +876,7 @@ public class StructureModel {
                     Vec3 f = Vec3.atLowerCornerOf(forward.getNormal()), r = new Vec3(-f.z, 0, f.x);
                     q.mul(new org.joml.Quaterniond().rotateAxis(ballPitch[j.id], r.x, r.y, r.z).rotateAxis(ballRoll[j.id], f.x, f.y, f.z));
                 }
-                double angQ = 2 * Math.acos(Math.min(1, Math.abs(q.w))), lim = Math.toRadians(Math.max(5, Math.min(90, j.amp * 2)));
+                double angQ = 2 * Math.acos(Math.min(1, Math.abs(q.w))), lim = j.limRad();
                 if (angQ > lim) q = new org.joml.Quaterniond().slerp(q, lim / angQ);
                 out[s.id] = new Matrix4d(parent).translate(j.pivot.x, j.pivot.y, j.pivot.z).rotate(q).translate(-j.pivot.x, -j.pivot.y, -j.pivot.z);
                 continue;

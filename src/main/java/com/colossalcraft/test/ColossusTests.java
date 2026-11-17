@@ -1047,6 +1047,23 @@ public class ColossusTests {
     }
 
     @GameTest(template = "empty16")
+    public static void legsFoldUntilTheyHitTheBody(GameTestHelper h) {
+        walker(h, false, true);
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        StructureModel m0 = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        for (StructureModel.Joint j : m0.joints) { CompoundTag c = hc.joints.getCompound(StructureModel.jointKey(j.key)).copy(); c.putInt("Amp", 90); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        StructureModel.LegChain L = m.legChains.get(0);
+        StructureModel.Joint hip = m.joints.get(L.joints().get(0));
+        ColossalCraft.LOG.info("[test] hip amp {} fold {} deg, limit {} deg", hip.amp, Math.toDegrees(hip.fold), Math.toDegrees(L.limits()[0]));
+        h.assertTrue(hip.amp == 90, "range should go to +-180, amp " + hip.amp);
+        h.assertTrue(hip.fold < Math.PI - 1e-6 && hip.fold > Math.toRadians(20), "a hip under the deck should stop before folding into it, fold " + Math.toDegrees(hip.fold));
+        h.assertTrue(Math.abs(L.limits()[0] - hip.fold) < 1e-9, "the leg limit should be the fold limit when the range is wider");
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16")
     public static void ballJointsFormBoxes(GameTestHelper h) {
         floor(h); ship(h, 0);
         var ball = ModRegistry.BALL_JOINT.get().defaultBlockState();
@@ -1130,7 +1147,8 @@ public class ColossusTests {
         for (int x = 9; x <= 12; x++) for (int z = 0; z <= 4; z++) h.setBlock(x, 1, z, Blocks.STONE); // the right side of the path is a block higher (a gap so it is not part of the mech)
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7)), null), "assemble failed");
         double[] z0 = {0}, gap = {0}, roll = {0}; int[] lifted = {0};
-        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false);
+            for (var L : c.model.legChains) ColossalCraft.LOG.info("[test] uneven leg limits {} folds {}", java.util.Arrays.toString(java.util.Arrays.stream(L.limits()).map(Math::toDegrees).toArray()), L.joints().stream().map(j -> Math.toDegrees(c.model.joints.get(j).fold)).toList()); });
         for (int t = 31; t <= 230; t++) h.runAfterDelay(t, () -> {
             ColossusEntity c = find(h);
             if (c.getZ() - z0[0] < -3.0) c.setInput(0, 0, false, false);
