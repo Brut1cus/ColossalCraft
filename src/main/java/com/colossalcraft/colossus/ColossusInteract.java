@@ -138,6 +138,76 @@ public final class ColossusInteract {
         c.editBlocks(Map.of(), Map.of(), del);
     }
 
+    /** Break a Colossus block now: drops (with a chest's contents), sound, tool wear; the other half of a door goes too. */
+    private static void destroy(ServerPlayer sp, ColossusEntity c, BlockPos p, BlockState st) {
+        ServerLevel lv = sp.serverLevel();
+        BlockPos wp = BlockPos.containing(c.blockWorldCenter(p));
+        c.mining.remove(p);
+        List<BlockPos> del = new java.util.ArrayList<>(List.of(p));
+        BlockPos other = otherHalf(c, p, st); if (other != null) del.add(other);
+        c.dropBlock(other != null && st.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER ? other : p, sp);
+        lv.levelEvent(null, 2001, wp, net.minecraft.world.level.block.Block.getId(st)); // break sound and bits, at the Colossus
+        if (!sp.isCreative()) sp.getMainHandItem().hurtAndBreak(1, sp, EquipmentSlot.MAINHAND);
+        c.editBlocks(Map.of(), Map.of(), del);
+    }
+
+    // ---------------------------------------------------------------- normal use / mine packets aimed at a Colossus' dock blocks
+    /** The Colossus a dock place belongs to, if the player is in its world and near enough. */
+    private static ColossusEntity shipOwner(ServerPlayer sp, BlockPos dockPos) {
+        if (!ColossusDock.isShipPos(dockPos)) return null;
+        ColossusEntity c = ColossusDock.owner(dockPos);
+        return c == null || c.isRemoved() || c.level() != sp.level() || c.model == null ? null : c;
+    }
+    /** Right-click on a Colossus block (the client sees it as its dock block). Returns true if handled. */
+    public static boolean packetUse(ServerPlayer sp, net.minecraft.network.protocol.game.ServerboundUseItemOnPacket pk) {
+        BlockHitResult hr = pk.getHitResult(); BlockPos dp = hr.getBlockPos();
+        if (!ColossusDock.isShipPos(dp)) return false;
+        sp.connection.ackBlockChangesUpTo(pk.getSequence());
+        ColossusEntity c = shipOwner(sp, dp);
+        if (c == null) { ColossusDock.resend(sp, dp); return true; }
+        BlockPos p = dp.subtract(ColossusDock.origin(c.dockSlot));
+        BlockState st = c.blocks.get(p);
+        boolean near = st != null && sp.getEyePosition().distanceTo(c.blockWorldCenter(p)) <= sp.blockInteractionRange() + 2;
+        if (near && pk.getHand() == InteractionHand.MAIN_HAND) {
+            sp.resetLastActionTime();
+            Vec3 at = hr.getLocation().subtract(Vec3.atLowerCornerOf(dp));
+            useInDock(sp, c, p, st, hr.getDirection(), new Vec3(clamp01(at.x), clamp01(at.y), clamp01(at.z)));
+        }
+        ColossusDock.resend(sp, dp); ColossusDock.resend(sp, dp.relative(hr.getDirection()));
+        return true;
+    }
+    private static double clamp01(double v) { return Math.max(0, Math.min(1, v)); }
+    /** Mining a Colossus block (start, finish, stop), timed like normal mining. Returns true if handled. */
+    public static boolean packetMine(ServerPlayer sp, net.minecraft.network.protocol.game.ServerboundPlayerActionPacket pk) {
+        var a = pk.getAction();
+        if (a != net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK && a != net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK
+                && a != net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK) return false;
+        BlockPos dp = pk.getPos();
+        if (!ColossusDock.isShipPos(dp)) return false;
+        sp.connection.ackBlockChangesUpTo(pk.getSequence());
+        ColossusEntity c = shipOwner(sp, dp);
+        if (c == null) { ColossusDock.resend(sp, dp); return true; }
+        BlockPos p = dp.subtract(ColossusDock.origin(c.dockSlot));
+        BlockState st = c.blocks.get(p);
+        if (st == null || sp.getEyePosition().distanceTo(c.blockWorldCenter(p)) > sp.blockInteractionRange() + 2) { ColossusDock.resend(sp, dp); return true; }
+        sp.resetLastActionTime();
+        if (a == net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK) { c.mining.remove(p); return true; }
+        if (st.getBlock() instanceof HullCoreBlock) { sp.displayClientMessage(Component.literal("Park the Colossus first to remove its Hull Core."), true); ColossusDock.resend(sp, dp); return true; }
+        ServerLevel d = ColossusDock.level(sp.server);
+        float per = d == null ? 1 : st.getDestroyProgress(sp, d, dp); // the same mining speed as on the ground
+        long now = sp.serverLevel().getGameTime();
+        boolean go;
+        if (a == net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK) {
+            go = sp.isCreative() || per >= 1;
+            if (!go) { c.mining.put(p, (double) now); sp.serverLevel().playSound(null, BlockPos.containing(c.blockWorldCenter(p)), st.getSoundType().getHitSound(), SoundSource.BLOCKS, 0.7f, 0.8f); }
+        } else {
+            Double t0 = c.mining.get(p);
+            go = t0 != null && (now - t0 + 1) * per >= 0.7;
+        }
+        if (go && (per > 0 || sp.isCreative())) destroy(sp, c, p, st); else if (a != net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK) ColossusDock.resend(sp, dp);
+        return true;
+    }
+
     /** The other half of a door on the Colossus, if any. */
     private static BlockPos otherHalf(ColossusEntity c, BlockPos p, BlockState st) {
         if (!st.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)) return null;

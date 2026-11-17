@@ -128,6 +128,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private boolean bodyOnly;
     private static final EntityDataAccessor<CompoundTag> IK = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.COMPOUND_TAG);
     private static final EntityDataAccessor<Float> JUMP = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Integer> DOCK = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.INT);
+    /** Its dock place, as the client knows it (-1 = none): the client keeps those dock chunks, so its blocks are real blocks there. */
+    public int syncedDock() { return entityData.get(DOCK); }
     /** Jump Drive charge 0..1, or -1 when there is none. */
     public float jumpLevel() { return entityData.get(JUMP); }
     public String walkerStatus() { return entityData.get(IK).getString("S"); }
@@ -154,7 +157,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder b) {
-        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f).define(PITCH, 0f).define(ROLL, 0f).define(HELD, java.util.Optional.empty()).define(IK, new CompoundTag()).define(JUMP, -1f);
+        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f).define(PITCH, 0f).define(ROLL, 0f).define(HELD, java.util.Optional.empty()).define(IK, new CompoundTag()).define(JUMP, -1f).define(DOCK, -1);
     }
     public boolean hover() { return entityData.get(HOVER); }
     public float syncedEnergy() { return entityData.get(ENERGY); }
@@ -289,6 +292,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             return;
         }
         if (!docked) docked = ColossusDock.attach(this);
+        if (entityData.get(DOCK) != dockSlot) entityData.set(DOCK, dockSlot);
         Matrix4d[] before = segWorlds(position(), yaw, tilt, art);
         Vec3 p0 = position();
         physics();
@@ -433,7 +437,14 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         double I = M * (r * r + 1) / 3;
         if (useWalker) { // a walker turns as fast as its steps can follow, easing in and out
             double want = -inTurn * walker.turnRateMax * Math.max(0.2, ratio);
-            yawRate += Math.max(-1.2 * dt, Math.min(1.2 * dt, want - yawRate));
+            walker.turnWant = want;
+            // the legs turn it: the planted feet push against the ground (friction torque), and the body can only turn as far as
+            // the planted feet can twist under it; the feet step round to let it turn further
+            double fricT = 0; for (int i = 0; i < model.legChains.size(); i++) { Vec3 d = model.legChains.get(i).foot().subtract(model.com); fricT += 0.8 * M * StructureModel.G / Math.max(1, model.legChains.size()) * Math.max(0.5, Math.sqrt(d.x * d.x + d.z * d.z)); }
+            double aYaw = Math.min(1.2, fricT / I);
+            double[] lim = walker.yawRateLimits(this, dt, aYaw);
+            double target = Math.max(lim[0], Math.min(lim[1], want));
+            yawRate += Math.max(-aYaw * dt, Math.min(aYaw * dt, target - yawRate));
         } else {
             yawRate += (-inTurn * turnTorque * ratio - torqueY * ratio) / I * dt;
             yawRate = Math.max(-1.5, Math.min(1.5, yawRate)) * (inTurn == 0 && Math.abs(torqueY) < 1 ? 0.8 : 0.95);
@@ -1176,7 +1187,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             CompoundTag tag = e.getValue().copy();
             Block blk = blocks.get(e.getKey()).getBlock();
             if ((blk instanceof PowerBlock || blk instanceof com.colossalcraft.block.ColossalBattery) && tag.contains("Energy")) tag.putLong("Energy", (long) (tag.getLong("Energy") * ratio));
-            if (be instanceof HullCoreBlockEntity) { tag.put("Joints", jointCfg.copy()); tag.putBoolean("Hover", hover()); }
+            if (be instanceof HullCoreBlockEntity) { tag.put("Joints", StructureModel.rotateCfg(jointCfg, model, rot)); /* settings follow their joints when parked facing another way */ tag.putBoolean("Hover", hover()); }
             tag.putInt("x", t.getX()); tag.putInt("y", t.getY()); tag.putInt("z", t.getZ());
             try { be.loadWithComponents(tag, lv.registryAccess()); be.setChanged(); } catch (Exception ignored) {}
             com.colossalcraft.compat.Compat.onLand(lv, t, be);

@@ -47,6 +47,8 @@ public class StructureModel {
     /** Gait shape (Locomotion Controller): stride as a share of the legs' reach, step height as a share of leg length,
      *  stance share of each cycle (0 = the gait type's default). */
     public double gaitStride = 0.45, gaitLift = 0.2, gaitDutyCfg = 0;
+    /** Hull height (Locomotion Controller): the hips' height above the feet as a share of the legs' standing height. */
+    public double gaitHeight = 0.95;
     /** Share of each step cycle a foot is on the ground. */
     public double duty() {
         if (gaitDutyCfg > 0) return gaitDutyCfg;
@@ -212,6 +214,20 @@ public class StructureModel {
     }
 
     public static String jointKey(long k) { return Long.toString(k); }
+    /** Joint settings are kept by each joint's first block (relative to the Hull Core). Parking turned the build round: move them with it. */
+    public static CompoundTag rotateCfg(CompoundTag cfg, StructureModel m, net.minecraft.world.level.block.Rotation rot) {
+        if (rot == net.minecraft.world.level.block.Rotation.NONE) return cfg.copy();
+        CompoundTag out = new CompoundTag();
+        for (String k : cfg.getAllKeys()) { boolean joint; try { Long.parseLong(k); joint = true; } catch (NumberFormatException e) { joint = false; } if (!joint) out.put(k, cfg.get(k).copy()); }
+        for (Joint j : m.joints) {
+            String old = jointKey(j.key);
+            if (!cfg.contains(old)) continue;
+            BlockPos first = null;
+            for (BlockPos p : j.blocks) { BlockPos q = p.rotate(rot); if (first == null || q.compareTo(first) < 0) first = q; }
+            out.put(jointKey(first.asLong()), cfg.getCompound(old).copy());
+        }
+        return out;
+    }
 
     private void build(CompoundTag cfg) {
         // ---- mass, solids, bounds ----
@@ -382,6 +398,7 @@ public class StructureModel {
             if (gc.contains("Speed")) gaitSpeed = Math.max(0.05, gc.getInt("Speed") / 100.0);
             if (gc.contains("Stride")) gaitStride = Math.max(0.2, Math.min(1.0, gc.getInt("Stride") / 100.0));
             if (gc.contains("Lift")) gaitLift = Math.max(0.05, Math.min(0.5, gc.getInt("Lift") / 100.0));
+            if (gc.contains("Height")) gaitHeight = Math.max(0.5, Math.min(1.0, gc.getInt("Height") / 100.0));
             if (gc.contains("Duty")) gaitDutyCfg = gc.getInt("Duty") <= 0 ? 0 : Math.max(0.5, Math.min(0.9, gc.getInt("Duty") / 100.0));
         }
         CompoundTag lcfg = cfg.getCompound(LOCO);

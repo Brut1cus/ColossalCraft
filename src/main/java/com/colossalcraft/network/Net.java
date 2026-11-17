@@ -257,6 +257,7 @@ public final class Net {
             case 0 -> g.putInt("Stride", Math.max(20, Math.min(100, value)));
             case 1 -> g.putInt("Lift", Math.max(5, Math.min(50, value)));
             case 2 -> g.putInt("Duty", value < 50 ? 0 : Math.min(90, value));
+            case 3 -> g.putInt("Height", Math.max(50, Math.min(100, value)));
             default -> {}
         }
         return g;

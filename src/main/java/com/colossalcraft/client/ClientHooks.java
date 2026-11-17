@@ -46,6 +46,18 @@ public final class ClientHooks {
         net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ColossusBlock(c.getId(), hit.asLong(), packed, attack ? 1 : 0));
         return true;
     }
+    /** Right-click on a Hull Core, Locomotion Controller or Pilot Throne of a built Colossus (not sneaking): its screen or seat. */
+    public static boolean trySpecial() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.player.isSecondaryUseActive()) return false;
+        Hit h = ColossusLook.current(); if (h == null) return false;
+        var b = h.c().blocks.get(h.pos()); if (b == null) return false;
+        int what = b.getBlock() instanceof com.colossalcraft.block.HullCoreBlock ? 0 : b.getBlock() instanceof com.colossalcraft.block.SimpleParts.LocomotionControllerBlock ? 2
+                : b.getBlock() instanceof com.colossalcraft.block.SimpleParts.PilotSeatBlock ? 1 : -1;
+        if (what < 0) return false;
+        net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(h.c().getId(), what));
+        return true;
+    }
     private static int clamp16(double v) { return (int) Math.max(0, Math.min(16, Math.round(v * 16))); }
 
     /** The Colossus block the player looks at (nearest of all Colossi, and nearer than the world block behind it), or null. */

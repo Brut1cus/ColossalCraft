@@ -186,6 +186,8 @@ public class HullCoreScreen extends Screen {
         stepper(x, y + 46, z -> send(16, 1, lf - 5), z -> send(16, 1, lf + 5), "Step height: how high a foot lifts, as a share of the leg's length. Higher clears steps and rough ground.");
         stepper(x + 160, y + 46, z -> send(16, 2, auto ? du - 5 : du - 5 < 50 ? 0 : du - 5), z -> send(16, 2, Math.max(50, du) + 5),
                 "Stance: share of each step a foot stays down. More = steadier, slower. Below 50% goes back to the gait type's default.");
+        int ht = (int) Math.round(data.getDouble("GaitHeight") * 100);
+        stepper(x, y + 62, z -> send(16, 3, ht - 5), z -> send(16, 3, ht + 5), "Hull height: how high the hips stand, as a share of the legs' standing height. 100% = legs nearly straight. Weak knees keep it higher; raise/lower while piloting shifts it a little.");
     }
     private void stepper(int x, int y, Button.OnPress minus, Button.OnPress plus, String tip) {
         Button a = Button.builder(Component.literal("-"), minus).bounds(x + 120, y, 16, 13).build(); a.setTooltip(Tooltip.create(Component.literal(tip)));
@@ -223,8 +225,10 @@ public class HullCoreScreen extends Screen {
         g.drawString(font, String.format("Stride %.0f%% (%.1f b)", strideF * 100, stride), x + 160, y + 33, TXT, false);
         g.drawString(font, String.format("Lift %.0f%% (%.1f b)", liftF * 100, liftF * legLen), x, y + 49, TXT, false);
         g.drawString(font, String.format("Stance %.0f%%%s", duty * 100, data.getBoolean("GaitDutyAuto") ? " auto" : ""), x + 160, y + 49, TXT, false);
+        double hullH = data.contains("GaitHeight") ? data.getDouble("GaitHeight") : 0.95;
+        g.drawString(font, String.format("Hull height %.0f%%", hullH * 100), x, y + 65, TXT, false);
 
-        int py = y + 64, ph = top() + H - 40 - py, fullW = W - NAV - 16;
+        int py = y + 80, ph = top() + H - 40 - py, fullW = W - NAV - 16;
         int lw = 104, rx = x + lw + 4, rw = fullW - lw - 4;
         if (legs.isEmpty()) { bp(g, x, py, fullW, ph); g.drawString(font, "No legs: set hips/knees to Leg.", x + 6, py + 6, BP_LINE, false); return; }
         int groups = 1; for (Tag tg : legs) groups = Math.max(groups, ((CompoundTag) tg).getInt("Group") + 1);
@@ -299,7 +303,8 @@ public class HullCoreScreen extends Screen {
             double[][] p = new double[k][2];
             for (int j = 0; j < k; j++) { CompoundTag pt = pl.getCompound(j); p[j][0] = pt.getFloat("F"); p[j][1] = pt.getFloat("U"); }
             // panel frame: the hip near the top middle, the ground line at the bottom
-            double ox = qx + pw / 2.0 - p[0][0] * sc, groundU = p[k - 1][1], oy = qy + phh - 6 + groundU * sc;
+            double drop = (1 - hullH) * (p[0][1] - p[k - 1][1]); // a lower hull: the ground comes up towards the hip
+            double ox = qx + pw / 2.0 - p[0][0] * sc, groundU = p[k - 1][1] + drop, oy = qy + phh - 6 + groundU * sc;
             g.enableScissor(qx, qy, qx + pw, qy + phh);
             int gy = (int) Math.round(oy - groundU * sc);
             g.fill(qx + 1, gy, qx + pw - 1, gy + 1, BP_LINE);
@@ -308,7 +313,7 @@ public class HullCoreScreen extends Screen {
             int hc = Math.max(1, (int) Math.floor(sc * 0.5));
             for (int c : sideC) { int sx = (int) Math.round(ox + ua(c) * sc), sy = (int) Math.round(oy - ub(c) * sc); if (sx > qx - hc && sx < qx + pw + hc && sy > qy - hc && sy < qy + phh + hc) g.fill(sx - hc, sy - hc, sx + hc, sy + hc, BP_GRID2); }
             // solve the leg in 2D for this moment of its step
-            double[] tgt = {p[k - 2][0] + fm[i][0], p[k - 2][1] + fm[i][1]};
+            double[] tgt = {p[k - 2][0] + fm[i][0], p[k - 2][1] + fm[i][1] + drop};
             int links = k - 2; // joints in the chain; chain[links] is the ankle/foot point
             double[][] chain = solveLeg(i, p, k, tgt, data.getInt("GaitMode") == com.colossalcraft.colossus.StructureModel.GAIT_DIGI ? -1 : 1, lt.getIntArray("LimLo"), lt.getIntArray("LimHi"));
             double[] delta = new double[links];

@@ -313,7 +313,7 @@ public final class StructureScan {
         if (r.entity != null) t.putFloat("JumpLevel", r.entity.jumpLevel());
         t.putDouble("GaitSpeed", m.gaitSpeed); t.putDouble("GaitScale", m.gaitScale());
         t.putDouble("PowerCap", m.powerSpeedCap()); t.putInt("Thrusters", m.thrusters);
-        t.putDouble("GaitStride", m.gaitStride); t.putDouble("GaitLift", m.gaitLift); t.putDouble("GaitDuty", m.duty()); t.putBoolean("GaitDutyAuto", m.gaitDutyCfg <= 0);
+        t.putDouble("GaitHeight", m.gaitHeight); t.putDouble("GaitStride", m.gaitStride); t.putDouble("GaitLift", m.gaitLift); t.putDouble("GaitDuty", m.duty()); t.putBoolean("GaitDutyAuto", m.gaitDutyCfg <= 0);
         t.put("LegGeo", legGeo(m));
         t.putDouble("CoreGyro", m.coreGyro); t.putBoolean("Balanced", m.balanced()); t.putDouble("BalanceOff", m.balanceOffset.length());
         t.putDouble("CX", m.com.x); t.putDouble("CY", m.com.y); t.putDouble("CZ", m.com.z);

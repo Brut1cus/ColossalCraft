@@ -1063,6 +1063,30 @@ public class ColossusTests {
         h.succeed();
     }
 
+    @GameTest(template = "empty16", timeoutTicks = 100)
+    public static void settingsSurviveParkingTurned(GameTestHelper h) {
+        walker(h, false, true);
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        StructureModel m0 = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        for (StructureModel.Joint j : m0.joints) { CompoundTag c = hc.joints.getCompound(StructureModel.jointKey(j.key)).copy(); c.putInt("Amp", 33); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+        int legs0 = m0.legChains.size();
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(20, () -> {
+            ColossusEntity c = find(h);
+            c.yaw = c.prevYaw = Math.PI / 2; // it turned a quarter round before parking
+            h.assertTrue(c.disassemble(null), "park failed");
+            BlockPos heart = null;
+            for (int x = 0; x < 16 && heart == null; x++) for (int y = 0; y < 16 && heart == null; y++) for (int z = 0; z < 16; z++) if (h.getBlockState(new BlockPos(x, y, z)).is(ModRegistry.HULL_CORE.get())) { heart = new BlockPos(x, y, z); break; }
+            h.assertTrue(heart != null, "no Hull Core after parking");
+            StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(heart)).model;
+            long kept = m.joints.stream().filter(j -> j.amp == 33).count();
+            ColossalCraft.LOG.info("[test] parked turned: {} of {} joints kept their settings, legs {}", kept, m.joints.size(), m.legChains.size());
+            h.assertTrue(kept == m.joints.size() && m.legChains.size() == legs0, "joint settings were lost when parked facing another way: " + kept + "/" + m.joints.size());
+            h.succeed();
+        });
+    }
+
     @GameTest(template = "empty16")
     public static void ballJointsFormBoxes(GameTestHelper h) {
         floor(h); ship(h, 0);
@@ -1169,12 +1193,14 @@ public class ColossusTests {
     public static void walkerTurnsSmoothly(GameTestHelper h) {
         walker(h, false, true);
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
-        double[] y0 = {0}, lastRate = {0}, jerk = {0};
-        h.runAfterDelay(20, () -> { ColossusEntity c = find(h); y0[0] = c.yaw; c.autopilot = true; c.setInput(0, 1, false, false); });
-        for (int t = 21; t <= 140; t++) h.runAfterDelay(t, () -> { ColossusEntity c = find(h); jerk[0] = Math.max(jerk[0], Math.abs(c.yawRate - lastRate[0])); lastRate[0] = c.yawRate; });
+        double[] y0 = {0}, lastRate = {0}, jerk = {0}, over = {0}; int[] s0 = {0};
+        h.runAfterDelay(20, () -> { ColossusEntity c = find(h); y0[0] = c.yaw; s0[0] = c.walker.steps; c.autopilot = true; c.setInput(0, 1, false, false); });
+        for (int t = 21; t <= 140; t++) h.runAfterDelay(t, () -> { ColossusEntity c = find(h); jerk[0] = Math.max(jerk[0], Math.abs(c.yawRate - lastRate[0])); lastRate[0] = c.yawRate; over[0] = Math.max(over[0], c.walker.maxTwist(c)); });
         h.runAfterDelay(142, () -> {
             ColossusEntity c = find(h);
-            ColossalCraft.LOG.info("[test] turning: turned {} rad, max yaw-rate change {} per tick, tilt {}", c.yaw - y0[0], jerk[0], c.tilt);
+            ColossalCraft.LOG.info("[test] turning: turned {} rad, max yaw-rate change {} per tick, tilt {}, steps {}, past twist limit {}", c.yaw - y0[0], jerk[0], c.tilt, c.walker.steps - s0[0], over[0]);
+            h.assertTrue(c.walker.steps - s0[0] >= 3, "turning should be done by stepping round, steps " + (c.walker.steps - s0[0]));
+            h.assertTrue(over[0] < 0.05, "the body must not turn further over a planted foot than the leg allows: " + over[0]);
             h.assertTrue(Math.abs(c.yaw - y0[0]) > 0.3, "should turn in place, turned " + (c.yaw - y0[0]));
             h.assertTrue(jerk[0] <= 1.2 * 0.05 + 1e-6, "the turn should ease in, not jerk: " + jerk[0]);
             h.assertTrue(c.tilt == 0, "fell over while turning");

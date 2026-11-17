@@ -43,7 +43,9 @@ public final class ColossusDock {
     /** Set when the Colossus sets its blocks in the dock itself: those changes are not sent back. */
     private static int writing;
     private static final Map<Integer, ColossusEntity> LIVE = new HashMap<>();
-    private static final Map<Integer, Set<BlockPos>> PENDING = new HashMap<>(), PENDING_BE = new HashMap<>();
+    private static final Map<Integer, Set<BlockPos>> PENDING = new HashMap<>(), PENDING_BE = new HashMap<>(), CLIENT_DIRTY = new HashMap<>(), CLIENT_BE = new HashMap<>();
+    /** Players who have this slot's dock chunks (they can see and use its blocks as real blocks). */
+    private static final Map<Integer, Set<UUID>> WATCHERS = new HashMap<>();
     static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS;
 
     public static boolean isDock(Level l) { return l != null && !l.isClientSide && l.dimension() == KEY; }
@@ -55,6 +57,9 @@ public final class ColossusDock {
         return sx >= PER_ROW ? -1 : sz * PER_ROW + sx;
     }
     public static BlockPos toDock(ColossusEntity c, BlockPos local) { return origin(c.dockSlot).offset(local); }
+    /** Is this chunk in the dock area (where clients keep Colossus blocks)? */
+    public static boolean isShipChunk(int cx, int cz) { int b = (BASE - SPACING / 2) >> 4; return cx >= b && cz >= b && cx < b + (PER_ROW * SPACING >> 4); }
+    public static boolean isShipPos(BlockPos p) { return isShipChunk(p.getX() >> 4, p.getZ() >> 4); }
     /** The Colossus whose slot holds this dock place, or null. */
     public static ColossusEntity owner(BlockPos dockPos) { int s = slotOf(dockPos); return s < 0 ? null : LIVE.get(s); }
 
@@ -111,6 +116,7 @@ public final class ColossusDock {
         if (c.dockSlot < 0 || LIVE.get(c.dockSlot) != c) return;
         ServerLevel d = level(c.level().getServer());
         if (d != null) forceChunks(d, c, false);
+        forgetAll(c);
         LIVE.remove(c.dockSlot);
     }
     /** The Colossus is gone for good (parked, broken up, killed): clear its dock place. */
@@ -126,8 +132,9 @@ public final class ColossusDock {
             forceChunks(d, c, false);
             slots(d).free(c.dockSlot);
         }
+        forgetAll(c);
         LIVE.remove(c.dockSlot);
-        PENDING.remove(c.dockSlot); PENDING_BE.remove(c.dockSlot);
+        PENDING.remove(c.dockSlot); PENDING_BE.remove(c.dockSlot); CLIENT_DIRTY.remove(c.dockSlot); CLIENT_BE.remove(c.dockSlot);
         c.dockSlot = -1;
     }
     private static void forceChunks(ServerLevel d, ColossusEntity c, boolean on) {
@@ -143,10 +150,15 @@ public final class ColossusDock {
     static void growChunks(ServerLevel d, ColossusEntity c, Collection<BlockPos> added) {
         if (c.dockChunks == null) return;
         BlockPos o = origin(c.dockSlot);
+        boolean grew = false;
         for (BlockPos p : added) {
             int cx = (o.getX() + p.getX()) >> 4, cz = (o.getZ() + p.getZ()) >> 4;
-            if (cx < c.dockChunks[0] || cx > c.dockChunks[2] || cz < c.dockChunks[1] || cz > c.dockChunks[3]) { d.setChunkForced(cx, cz, true); }
+            if (cx < c.dockChunks[0] || cx > c.dockChunks[2] || cz < c.dockChunks[1] || cz > c.dockChunks[3]) {
+                d.setChunkForced(cx, cz, true);
+                c.dockChunks = new int[]{Math.min(cx, c.dockChunks[0]), Math.min(cz, c.dockChunks[1]), Math.max(cx, c.dockChunks[2]), Math.max(cz, c.dockChunks[3])}; grew = true;
+            }
         }
+        if (grew) { forgetAll(c); syncWatchers(c, d); } // send the bigger area again
     }
     private static void loadBe(ServerLevel d, BlockEntity be, BlockPos dp, CompoundTag tag) {
         CompoundTag t = tag.copy(); t.putInt("x", dp.getX()); t.putInt("y", dp.getY()); t.putInt("z", dp.getZ());
@@ -182,12 +194,16 @@ public final class ColossusDock {
     // ------------------------------------------------------------ dock -> Colossus
     /** Called for every block change in the dock (from a mixin on Level.setBlock). */
     public static void changed(BlockPos dockPos) {
-        if (writing > 0) return;
         int s = slotOf(dockPos);
-        if (s >= 0 && LIVE.containsKey(s)) PENDING.computeIfAbsent(s, k -> new HashSet<>()).add(dockPos.immutable());
+        if (s < 0 || !LIVE.containsKey(s)) return;
+        if (WATCHERS.containsKey(s)) CLIENT_DIRTY.computeIfAbsent(s, k -> new HashSet<>()).add(dockPos.immutable()); // players' copies follow every change
+        if (writing > 0) return;
+        PENDING.computeIfAbsent(s, k -> new HashSet<>()).add(dockPos.immutable());
     }
     /** A block entity in the dock changed (its contents, its machine state). */
     public static void beChanged(BlockPos dockPos) {
+        int s0 = slotOf(dockPos);
+        if (s0 >= 0 && WATCHERS.containsKey(s0)) CLIENT_BE.computeIfAbsent(s0, k -> new HashSet<>()).add(dockPos.immutable());
         if (writing > 0) return;
         int s = slotOf(dockPos);
         if (s >= 0 && LIVE.containsKey(s)) PENDING_BE.computeIfAbsent(s, k -> new HashSet<>()).add(dockPos.immutable());
@@ -222,6 +238,57 @@ public final class ColossusDock {
             set.put(p, c.blocks.get(p)); setBes.put(p, tag);
         }
         if (!set.isEmpty() || !del.isEmpty()) c.editFromDock(set, setBes, del);
+        sendChanges(c, d, bes);
+        if (c.tickCount % 10 == 0) syncWatchers(c, d);
+    }
+
+    // ------------------------------------------------------------ players' copies of the dock (so the client world has these blocks)
+    private static boolean sameHeight(Level a, Level b) { return a.getMinBuildHeight() == b.getMinBuildHeight() && a.getHeight() == b.getHeight(); }
+    private static List<net.minecraft.world.level.ChunkPos> chunksOf(ColossusEntity c) {
+        List<net.minecraft.world.level.ChunkPos> l = new ArrayList<>();
+        if (c.dockChunks == null) return l;
+        for (int x = c.dockChunks[0]; x <= c.dockChunks[2]; x++) for (int z = c.dockChunks[1]; z <= c.dockChunks[3]; z++) l.add(new net.minecraft.world.level.ChunkPos(x, z));
+        return l;
+    }
+    /** Players come near: send them the dock chunks. Players leave: tell them to forget. */
+    static void syncWatchers(ColossusEntity c, ServerLevel d) {
+        Set<UUID> w = WATCHERS.computeIfAbsent(c.dockSlot, k -> new HashSet<>());
+        double range = 96 + (c.model == null ? 0 : c.model.radius);
+        Set<UUID> near = new HashSet<>();
+        for (net.minecraft.server.level.ServerPlayer p : ((ServerLevel) c.level()).players()) if (p.distanceToSqr(c) < range * range && sameHeight(p.level(), d)) near.add(p.getUUID());
+        for (UUID u : near) if (!w.contains(u)) {
+            net.minecraft.server.level.ServerPlayer p = c.level().getServer().getPlayerList().getPlayer(u);
+            if (p == null) continue;
+            for (net.minecraft.world.level.ChunkPos cp : chunksOf(c)) p.connection.send(new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(d.getChunk(cp.x, cp.z), d.getLightEngine(), null, null));
+            w.add(u);
+        }
+        for (UUID u : new ArrayList<>(w)) if (!near.contains(u)) {
+            net.minecraft.server.level.ServerPlayer p = c.level().getServer().getPlayerList().getPlayer(u);
+            if (p != null) for (net.minecraft.world.level.ChunkPos cp : chunksOf(c)) p.connection.send(new net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket(cp));
+            w.remove(u);
+        }
+    }
+    private static void forgetAll(ColossusEntity c) {
+        Set<UUID> w = WATCHERS.remove(c.dockSlot);
+        if (w == null || c.level().getServer() == null) return;
+        for (UUID u : w) { net.minecraft.server.level.ServerPlayer p = c.level().getServer().getPlayerList().getPlayer(u); if (p != null) for (net.minecraft.world.level.ChunkPos cp : chunksOf(c)) p.connection.send(new net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket(cp)); }
+    }
+    /** Block and block entity changes in the dock go to the players who have its chunks. */
+    static void sendChanges(ColossusEntity c, ServerLevel d, boolean bes) {
+        Set<UUID> w = WATCHERS.get(c.dockSlot);
+        if (w == null || w.isEmpty()) { CLIENT_DIRTY.remove(c.dockSlot); return; }
+        Set<BlockPos> ch = CLIENT_DIRTY.remove(c.dockSlot);
+        Set<BlockPos> bch = bes ? CLIENT_BE.remove(c.dockSlot) : null;
+        if (ch == null && bch == null) return;
+        List<net.minecraft.network.protocol.Packet<?>> out = new ArrayList<>();
+        if (ch != null) for (BlockPos p : ch) out.add(new net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket(d, p));
+        if (bch != null) for (BlockPos p : bch) { BlockEntity be = d.getBlockEntity(p); var pk = be == null ? null : be.getUpdatePacket(); if (pk != null) out.add(pk); }
+        for (UUID u : w) { net.minecraft.server.level.ServerPlayer p = c.level().getServer().getPlayerList().getPlayer(u); if (p != null) for (var pk : out) p.connection.send(pk); }
+    }
+    /** Send one dock block's real state to a player (after a refused or predicted change). */
+    public static void resend(net.minecraft.server.level.ServerPlayer p, BlockPos dockPos) {
+        ServerLevel d = level(p.server);
+        if (d != null) p.connection.send(new net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket(d, dockPos));
     }
     private static boolean touches(ColossusEntity c, BlockPos p) {
         for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) if (c.blocks.containsKey(p.relative(dir))) return true;

@@ -134,18 +134,27 @@ public final class DevShots {
                 sp.getAbilities().flying = true; sp.onUpdateAbilities();
                 sp.connection.teleport(eye.x, eye.y - 1.62, eye.z, (float) Math.toDegrees(Math.atan2(-d.x, d.z)), (float) Math.toDegrees(-Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z))));
             });
+            case 183 -> server(sp -> { ColossusEntity c = colossus(); if (c == null) return; lookAtBlock(sp, c, new BlockPos(2, 0, 2), 1); });
+            case 184 -> { var hr = mc.hitResult; ColossusEntity c = colossus();
+                ColossalCraft.LOG.info("[devshots] client dock={} hitResult={} at {} state={}", c == null ? null : c.syncedDock(), hr == null ? null : hr.getType(),
+                        hr instanceof net.minecraft.world.phys.BlockHitResult b ? b.getBlockPos() : null, hr instanceof net.minecraft.world.phys.BlockHitResult b ? mc.level.getBlockState(b.getBlockPos()) : null); }
             case 185 -> server(sp -> { ColossusEntity c = colossus(); if (c == null) return;
                 var d = com.colossalcraft.colossus.ColossusDock.level(sp.server);
-                ColossalCraft.LOG.info("[devshots] dock present={} slot={} dockChest={}", d != null, c.dockSlot, d == null ? null : d.getBlockState(com.colossalcraft.colossus.ColossusDock.toDock(c, new BlockPos(2, 0, 2))));
-                com.colossalcraft.colossus.ColossusInteract.handle(sp, new Net.ColossusBlock(c.getId(), new BlockPos(2, 0, 2).asLong(), Direction.UP.get3DDataValue(), 0));
-                ColossalCraft.LOG.info("[devshots] chest on colossus opened={}", sp.containerMenu);
-                sp.closeContainer();
+                ColossalCraft.LOG.info("[devshots] dock present={} slot={}", d != null, c.dockSlot);
                 if (d != null) d.setBlockAndUpdate(com.colossalcraft.colossus.ColossusDock.toDock(c, new BlockPos(0, 1, 0)), Blocks.GLOWSTONE.defaultBlockState()); });
+            case 186 -> { ColossalCraft.LOG.info("[devshots] aiming at {}", mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b0 ? mc.level.getBlockState(b0.getBlockPos()) : mc.hitResult);
+                if (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b && com.colossalcraft.colossus.ColossusDock.isShipPos(b.getBlockPos()))
+                ColossalCraft.LOG.info("[devshots] right-click chest through the game: {}", mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, b)); }
             case 187 -> server(sp -> { ColossusEntity c = colossus(); if (c == null) return;
-                ColossalCraft.LOG.info("[devshots] dock->colossus block came back={}", c.blocks.get(new BlockPos(0, 1, 0)));
+                ColossalCraft.LOG.info("[devshots] dock->colossus block came back={} serverMenu={}", c.blocks.get(new BlockPos(0, 1, 0)), sp.containerMenu.getClass().getSimpleName());
                 var d = com.colossalcraft.colossus.ColossusDock.level(sp.server);
                 if (d != null) d.setBlockAndUpdate(com.colossalcraft.colossus.ColossusDock.toDock(c, new BlockPos(0, 1, 0)), Blocks.AIR.defaultBlockState()); });
-            case 189 -> { var lk = ClientHooks.look(); ColossalCraft.LOG.info("[devshots] looking at colossus block={}", lk == null ? null : lk.c().blocks.get(lk.pos())); }
+            case 188 -> { ColossalCraft.LOG.info("[devshots] client screen after right-click={}", mc.screen == null ? null : mc.screen.getClass().getSimpleName()); mc.player.closeContainer();
+                if (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b && com.colossalcraft.colossus.ColossusDock.isShipPos(b.getBlockPos())) mc.gameMode.startDestroyBlock(b.getBlockPos(), b.getDirection()); }
+            case 189 -> server(sp -> { ColossusEntity c = colossus(); if (c == null) return;
+                ColossalCraft.LOG.info("[devshots] chest after mining it on the Colossus={} (creative={})", c.blocks.get(new BlockPos(2, 0, 2)), sp.isCreative());
+                lookAtBlock(sp, c, BlockPos.ZERO, -1); });
+            case 190 -> { var lk = ClientHooks.look(); ColossalCraft.LOG.info("[devshots] looking at colossus block={}", lk == null ? null : lk.c().blocks.get(lk.pos())); }
             case 191 -> shot("3b_look_label");
             case 192 -> ColossalCraft.LOG.info("[devshots] click hull core handled={}", ClientHooks.tryClickColossus());
             case 200 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
@@ -170,6 +179,12 @@ public final class DevShots {
         if (t > 212 && t < 300) server(sp -> { ColossusEntity c = colossus(); if (c != null) c.setInput(1f, 0f, false, false); if (c != null && t % 10 == 0) ColossalCraft.LOG.info("[devshots] feet {} pos {} tilt {}", c.walker.status, c.position(), c.tilt); if (c != null && t % 20 == 0) ColossalCraft.LOG.info("[devshots] walk t={} pos={} ground={} phase={}", t, c.position(), c.onGroundC, c.walkPhase); });
     }
 
+    private static void lookAtBlock(ServerPlayer sp, ColossusEntity c, BlockPos local, int side) {
+        net.minecraft.world.phys.Vec3 hc = c.blockWorldCenter(local);
+        net.minecraft.world.phys.Vec3 eye = hc.add(2.6 * side, 1.4, 2.6 * side), d = hc.subtract(eye);
+        sp.getAbilities().flying = true; sp.onUpdateAbilities();
+        sp.connection.teleport(eye.x, eye.y - 1.62, eye.z, (float) Math.toDegrees(Math.atan2(-d.x, d.z)), (float) Math.toDegrees(-Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z))));
+    }
     /** Two-legged test walker. Legs hang from iron bearing joints (X axis) driven by iron motors. */
     private static void build(ServerLevel lv, BlockPos ground) {
         for (int side : new int[]{-1, 1}) { lv.setBlockAndUpdate(ground.offset(side, 0, 0), ModRegistry.GANTRY_SCAFFOLD.get().defaultBlockState()); lv.setBlockAndUpdate(ground.offset(side, 0, -1), ModRegistry.GANTRY_SCAFFOLD.get().defaultBlockState()); }

@@ -144,6 +144,45 @@ public class WalkerController {
     public double turnRateMax = 0.3;
     /** Body yaw when each foot was planted: hip twist joints keep a planted foot pointing that way while the body turns. */
     private double[] footYaw = new double[0];
+    /** Turn rate the pilot asks for (radians per second). The body only turns as far as its planted feet let it (see {@link #yawRateLimits}). */
+    public double turnWant;
+    /** How far the body may turn over a planted foot of leg i (radians): a hip twist joint turns the leg as far as its range lets it;
+     *  a plain leg can only pivot its foot on the ground a little. */
+    public double twistCap(StructureModel m, int i) {
+        StructureModel.LegChain L = m.legChains.get(i);
+        StructureModel.Joint hj = m.joints.get(L.joints().get(0));
+        if (twistHip(m, L) || hj.universal) return Math.min(0.7, hj.limRad());
+        return 0.2;
+    }
+    /**
+     * Turning by walking: the body can only turn while every planted foot stays where it is, so each planted foot's twist limit
+     * bounds the turn. Feet then step round one at a time (each landing pre-turned into the turn) to let the body turn further.
+     * Returns the allowed {lowest, highest} turn rate for this tick; no limit while nothing is planted.
+     */
+    public double[] yawRateLimits(ColossusEntity c, double dt, double accel) {
+        double lo = Double.NEGATIVE_INFINITY, hi = Double.POSITIVE_INFINITY; boolean any = false;
+        for (int i = 0; i < state.length && i < c.model.legChains.size(); i++) {
+            if (state[i] != State.STANCE) continue;
+            any = true;
+            double cap = twistCap(c.model, i), d = wrap(c.yaw - footYaw[i]);
+            double up = cap - d, down = cap + d; // room left each way
+            // slow down in time to stop at the limit (like a body braking over its foot), never a sudden halt
+            hi = Math.min(hi, up > 0 ? Math.min(up / dt, Math.sqrt(2 * accel * up)) : up / dt * 0.3);
+            lo = Math.max(lo, down > 0 ? -Math.min(down / dt, Math.sqrt(2 * accel * down)) : -down / dt * 0.3);
+        }
+        if (!any) return new double[]{lo, hi};
+        if (lo > hi) { double mid = (lo + hi) / 2; lo = hi = mid; }
+        return new double[]{lo, hi};
+    }
+    /** Largest twist between the body and any planted foot (radians), and how many steps have been taken (for tests). */
+    public double maxTwist(ColossusEntity c) { double w = 0; for (int i = 0; i < state.length; i++) if (state[i] == State.STANCE) w = Math.max(w, Math.abs(wrap(c.yaw - footYaw[i])) - twistCap(c.model, i)); return w; }
+    public int steps;
+    /** A foot lands: it points a little into the turn, so the body can keep turning over it. */
+    private void land(ColossusEntity c, int i) {
+        double lead = turnWant * 0.35;
+        double cap = twistCap(c.model, i);
+        footYaw[i] = c.yaw + Math.max(-cap * 0.8, Math.min(cap * 0.8, lead));
+    }
     private double inSmooth, ySmooth = Double.NaN;
     private Vec3 lastAccel = Vec3.ZERO;
     /** Comfortable limits for the body: acceleration (m/s^2) and how fast acceleration may change (m/s^3). */
@@ -226,7 +265,7 @@ public class WalkerController {
                 foot[i] = p;
                 if (t >= 1) {
                     double gy = soleGround(c, i, p.add(0, 0.5, 0));
-                    if (!Double.isNaN(gy)) { foot[i] = new Vec3(p.x, gy, p.z); state[i] = State.STANCE; footYaw[i] = c.yaw; }
+                    if (!Double.isNaN(gy)) { foot[i] = new Vec3(p.x, gy, p.z); state[i] = State.STANCE; land(c, i); }
                     else { swingTo[i] = swingTo[i].subtract(0, 0.3, 0); swingFrom[i] = foot[i]; swingT[i] = 0.7; }
                 }
             }
@@ -234,11 +273,12 @@ public class WalkerController {
 
         // ---- 2. gait clock: runs while walking or turning, while a foot is up, or until the feet are back under the hips
         boolean anySwing = false; for (State s : state) anySwing |= s == State.SWING;
-        boolean moving = Math.abs(in) > 0.01 || Math.abs(yawRate) > 0.05;
+        boolean moving = Math.abs(in) > 0.01 || Math.abs(yawRate) > 0.05 || Math.abs(turnWant) > 0.05; // asked to turn: step, so the body can turn
+        double turnPlan = Math.abs(turnWant) > Math.abs(yawRate) ? turnWant : yawRate; // where the feet should go: the turn asked for
         boolean[] off = new boolean[n]; boolean square = false;
         for (int i = 0; i < n; i++) if (state[i] == State.STANCE) {
             Vec3 d = foot[i].subtract(neutral[i]);
-            off[i] = Math.sqrt(d.x * d.x + d.z * d.z) > 0.3 * stride + 0.25;
+            off[i] = Math.sqrt(d.x * d.x + d.z * d.z) > 0.3 * stride + 0.25 || Math.abs(wrap(c.yaw - footYaw[i])) > 0.6 * twistCap(m, i); // twisted far: step round
             square |= off[i];
         }
         waitingGroup = -1;
@@ -275,7 +315,7 @@ public class WalkerController {
                 List<Vec3> others = new ArrayList<>(); boolean othersDown = true;
                 for (int i = 0; i < n; i++) if (m.legChains.get(i).group() != G) { if (state[i] == State.STANCE) others.add(foot[i]); else othersDown = false; }
                 if (!othersDown || others.isEmpty() || !insideSupport(others, com, liftR)) { waitingGroup = G; next = clock; break; } // hold the clock: lean first
-                for (int i : lift) startSwing(c, i, nominalTo(i, neutral[i], vCmd, duty * cycle * 0.5 + swingDur * 0.5, yawRate, com, reachH, stride), H[i]);
+                for (int i : lift) startSwing(c, i, nominalTo(i, neutral[i], vCmd, duty * cycle * 0.5 + swingDur * 0.5, turnPlan, com, reachH, stride), H[i]);
             }
             clock = next;
         }
@@ -284,7 +324,7 @@ public class WalkerController {
         if (planner && c.tickCount % 5 == 0) for (int i = 0; i < n; i++) {
             if (state[i] == State.SWING) { next[i] = swingTo[i]; nextOk[i] = true; continue; }
             if (state[i] != State.STANCE) { next[i] = null; continue; }
-            Vec3 nom = nominalTo(i, neutral[i], vCmd, duty * cycle * 0.5 + swingDur * 0.5, yawRate, com, reachH, stride);
+            Vec3 nom = nominalTo(i, neutral[i], vCmd, duty * cycle * 0.5 + swingDur * 0.5, turnPlan, com, reachH, stride);
             Vec3 f = pickFoothold(c, i, nom, avoidFor(i));
             next[i] = f != null ? f : nom; nextOk[i] = f != null;
         }
@@ -348,7 +388,12 @@ public class WalkerController {
             double mu = Math.min(L.mu(), groundMu(level, foot[i]));
             double h = Math.max(0.5, H[i].y - foot[i].y);
             double fric = mu * load; fricSum += fric; capSum += Math.min(fric, L.hipTorque() * ratio / h);
-            if (L.joints().size() > 1) { knees = true; kneeCap += L.kneeTorque() * ratio / Math.max(0.3, 0.35 * L.length()); minR = Math.min(minR, minReach(m, L) / maxReach(m, L)); }
+            if (L.joints().size() > 1) {
+                knees = true; minR = Math.min(minR, minReach(m, L) / maxReach(m, L));
+                // the more a knee bends, the more it must hold: how bent can this one be and still carry its share?
+                double hold = L.kneeTorque() * ratio / Math.max(1, load * 0.5 * L.length());
+                kneeCap = Math.max(kneeCap, hold >= 1 ? 0 : Math.sqrt(1 - hold * hold)); // lowest height share it can hold
+            }
         }
         Vec3 dv = vDes.subtract(vh);
         double aMax = Math.min(capSum / M, A_COMFORT);
@@ -364,8 +409,9 @@ public class WalkerController {
         for (int i : planted) slipping[i] = slip;
         // height: each planted foot holds the body up at its built height (knee legs crouch with raise/lower);
         // weak knees let it sag, never below what the knees can fold to
-        double hk = knees ? height : 1;
-        if (knees) { double s = Math.max(0, Math.min(1, kneeCap / (M * g))); hk = minR + (hk - minR) * s; }
+        // the hull stands at the Locomotion Controller's height (raise/lower move it), never lower than the knees can hold
+        // (weak knees keep the legs straighter) and never lower than the legs can fold
+        double hk = knees ? Math.min(1, Math.max(Math.max(minR, kneeCap), m.gaitHeight * height)) : 1;
         // From the feet up: each planted leg wants its hip at its standing height above its own foot. The body stays level
         // if the legs can take up the difference (knees bend, legs stretch); only what they can't take up tilts the body.
         int np = planted.size();
@@ -501,7 +547,7 @@ public class WalkerController {
         double now = hipW.distanceTo(effectorWorld(c, i));
         double room = L.joints().size() > 1 ? 0.8 * Math.max(0, now - minReach(m, L)) : 0.3;
         swingLift[i] = Math.max(0.2, Math.min(swingLift[i], room - Math.max(0, to.y - foot[i].y)));
-        swingFrom[i] = foot[i]; swingTo[i] = to; swingT[i] = 0; state[i] = State.SWING;
+        swingFrom[i] = foot[i]; swingTo[i] = to; swingT[i] = 0; state[i] = State.SWING; steps++;
     }
 
     /** Where the gait wants foot i to land: under where its hip will be halfway through the next stance, turned with the body. */

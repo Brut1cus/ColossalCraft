@@ -18,7 +18,8 @@ public class SeatEntity extends Entity {
     public static void sit(Level level, BlockPos pos, Player p) {
         if (!level.getEntitiesOfClass(SeatEntity.class, new net.minecraft.world.phys.AABB(pos)).isEmpty()) return;
         SeatEntity s = new SeatEntity(ModRegistry.SEAT.get(), level);
-        s.setPos(pos.getX() + .5, pos.getY() + SEAT_HEIGHT, pos.getZ() + .5);
+        s.setPos(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5); // inside the chair block, so it knows its chair
+
         level.addFreshEntity(s);
         p.startRiding(s, true);
     }
@@ -29,8 +30,9 @@ public class SeatEntity extends Entity {
         super.tick();
         if (!level().isClientSide && (getPassengers().isEmpty() || !(level().getBlockState(blockPosition()).getBlock() instanceof SimpleParts.PilotSeatBlock))) discard();
     }
-    @Override protected void positionRider(Entity p, MoveFunction f) { if (hasPassenger(p)) f.accept(p, getX(), getY(), getZ()); }
-    @Override public Vec3 getDismountLocationForPassenger(LivingEntity p) { return position().add(0, 1, 0); }
+    @Override protected void positionRider(Entity p, MoveFunction f) { if (hasPassenger(p)) f.accept(p, getX(), Math.floor(getY()) + SEAT_HEIGHT, getZ()); }
+    /** Getting up: stand on top of the chair (never inside the block under it). */
+    @Override public Vec3 getDismountLocationForPassenger(LivingEntity p) { return new Vec3(getX(), Math.floor(getY()) + 1.05, getZ()); }
     @Override protected void defineSynchedData(SynchedEntityData.Builder b) {}
     @Override protected void readAdditionalSaveData(CompoundTag t) {}
     @Override protected void addAdditionalSaveData(CompoundTag t) {}

@@ -90,6 +90,10 @@ public final class ClientEvents {
         /** Right-clicking a Hull Core or Pilot Throne on a built Colossus. */
         @SubscribeEvent public static void click(InputEvent.InteractionKeyMappingTriggered e) {
             if (e.getHand() != net.minecraft.world.InteractionHand.MAIN_HAND) return;
+            if (ColossusLook.onDockBlock()) { // a real block in the client's world: the game uses or mines it; only the Colossus' own controls are ours
+                if (e.isUseItem() && ClientHooks.trySpecial()) { e.setCanceled(true); e.setSwingHand(true); }
+                return;
+            }
             if ((e.isUseItem() && ClientHooks.tryColossus(false)) || (e.isAttack() && ClientHooks.tryColossus(true))) { e.setCanceled(true); e.setSwingHand(true); }
         }
 

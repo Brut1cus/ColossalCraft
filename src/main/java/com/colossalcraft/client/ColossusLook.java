@@ -32,10 +32,24 @@ public final class ColossusLook {
     private ColossusLook() {}
     /** What the player looks at this frame (worked out once per frame). */
     private static ClientHooks.Hit hit;
-    @SubscribeEvent
-    public static void frame(RenderFrameEvent.Pre e) {
+    /**
+     * Right after the game finds what the crosshair points at: if a block on a Colossus is nearer, point at it instead,
+     * as its real block in the dock (the client has those chunks). Then F3, block-info mods, mining, using and picking
+     * it all go through the normal game code.
+     */
+    public static void pickOverride() {
         Minecraft mc = Minecraft.getInstance();
         hit = mc.player == null || mc.level == null || mc.player.getVehicle() instanceof ColossusEntity ? null : ClientHooks.look();
+        if (hit == null || hit.c().syncedDock() < 0) return;
+        BlockPos dp = com.colossalcraft.colossus.ColossusDock.origin(hit.c().syncedDock()).offset(hit.pos());
+        if (mc.level.getBlockState(dp).isAir()) return; // its chunk hasn't arrived yet
+        mc.hitResult = new net.minecraft.world.phys.BlockHitResult(Vec3.atLowerCornerOf(dp).add(hit.at()), hit.face(), dp, false);
+        mc.crosshairPickEntity = null;
+    }
+    /** Is the crosshair on a Colossus block that the client sees as its dock block? */
+    public static boolean onDockBlock() {
+        Minecraft mc = Minecraft.getInstance();
+        return hit != null && mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult b && com.colossalcraft.colossus.ColossusDock.isShipPos(b.getBlockPos());
     }
     public static ClientHooks.Hit current() { return hit; }
 
@@ -71,7 +85,7 @@ public final class ColossusLook {
     public static void pick(InputEvent.InteractionKeyMappingTriggered e) {
         if (!e.isPickBlock()) return;
         ClientHooks.Hit h = current();
-        if (h == null) return;
+        if (h == null || onDockBlock()) return; // a dock block: the game picks it itself
         e.setCanceled(true);
         Minecraft mc = Minecraft.getInstance();
         BlockState st = h.c().blocks.get(h.pos());
@@ -93,6 +107,7 @@ public final class ColossusLook {
     public static void label(net.minecraft.client.gui.GuiGraphics g) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.options.hideGui || mc.screen != null) return;
+        if (onDockBlock() && (ModList.get().isLoaded("jade") || ModList.get().isLoaded("wthit"))) return; // they show it already
         ClientHooks.Hit h = current();
         if (h == null) return;
         BlockState st = h.c().blocks.get(h.pos());
