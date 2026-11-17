@@ -29,6 +29,10 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.item.context.UseOnContext;
 
 import java.util.HashMap;
 import java.util.List;
@@ -36,7 +40,8 @@ import java.util.Map;
 
 /**
  * Using and editing blocks on a built Colossus, while it moves.
- * Right-click: doors, trapdoors, fence gates and levers toggle; chests, barrels, hoppers, dispensers, crafting tables and engines open;
+ * Right-click goes to the real block in the dock (see {@link ColossusDock}), so every block works as it does on the ground.
+ * Without a dock (fallback): doors, trapdoors, fence gates and levers toggle; chests, barrels, hoppers, dispensers, crafting tables and engines open;
  * with a block in hand (or sneaking) a block is placed against the clicked face. Left-click mines the block (instant in creative).
  * Containers and engines work on a live copy of their block entity that is saved back into the Colossus.
  */
@@ -49,8 +54,63 @@ public final class ColossusInteract {
         BlockState st = c.blocks.get(p);
         if (st == null) return;
         if (sp.getEyePosition().distanceTo(c.blockWorldCenter(p)) > sp.blockInteractionRange() + 2) return;
+        Direction face = Direction.from3DDataValue(a.face() & 7);
+        Vec3 at = (a.face() & 8) != 0 ? new Vec3(((a.face() >> 4) & 31) / 16.0, ((a.face() >> 9) & 31) / 16.0, ((a.face() >> 14) & 31) / 16.0)
+                : new Vec3(.5 + face.getStepX() * .5, .5 + face.getStepY() * .5, .5 + face.getStepZ() * .5);
         if (a.action() == 1) hit(sp, c, p, st);
-        else use(sp, c, p, st, Direction.from3DDataValue(a.face()));
+        else if (c.dockSlot >= 0 && ColossusDock.level(sp.server) != null) useInDock(sp, c, p, st, face, at);
+        else use(sp, c, p, st, face);
+    }
+
+    // ---------------------------------------------------------------- right-click through the dock: the real block does what it does
+    private static void useInDock(ServerPlayer sp, ColossusEntity c, BlockPos p, BlockState st, Direction face, Vec3 at) {
+        ServerLevel d = ColossusDock.level(sp.server);
+        BlockPos dp = ColossusDock.toDock(c, p);
+        if (d.getBlockState(dp) != st) { ColossusDock.attach(c); } // out of step: write it again
+        ItemStack held = sp.getMainHandItem();
+        // engines keep their own screen (the Colossus runs them)
+        if ((!sp.isSecondaryUseActive() || held.isEmpty()) && c.liveBe(p) instanceof PowerBlockEntity pe && pe.tier() != null) {
+            sp.openMenu(new SimpleMenuProvider((id, inv, pl) -> { EngineMenu m = new EngineMenu(id, inv, pe); m.valid = q -> stillThere(c, p, pe, q); return m; }, st.getBlock().getName()),
+                    buf -> EngineMenu.writeOpen(buf, p, st));
+            return;
+        }
+        if (held.getItem() instanceof BlockItem bi) {
+            if (bi.getBlock() instanceof HullCoreBlock) { sp.displayClientMessage(Component.literal("A Colossus has only one Hull Core."), true); return; }
+            BlockPos q = st.canBeReplaced() ? p : p.relative(face);
+            BlockPos wp = BlockPos.containing(c.blockWorldCenter(p).add(c.toWorld(Vec3.atCenterOf(q), Vec3.ZERO, c.yaw).subtract(c.toWorld(Vec3.atCenterOf(p), Vec3.ZERO, c.yaw))));
+            if (!c.blocks.containsKey(q) && !sp.level().getBlockState(wp).getCollisionShape(sp.level(), wp).isEmpty()) { sp.displayClientMessage(Component.literal("Something in the world is in the way."), true); return; }
+        }
+        BlockHitResult hr = new BlockHitResult(Vec3.atLowerCornerOf(dp).add(at), face, dp, false);
+        float yRot = sp.getYRot(), yHead = sp.getYHeadRot();
+        sp.setYRot(yRot - (float) Math.toDegrees(c.yaw)); sp.setYHeadRot(sp.getYRot()); // look the way the player looks, in the Colossus' own frame
+        InteractionResult r;
+        try { r = useOn(sp, d, held, hr); }
+        finally { sp.setYRot(yRot); sp.setYHeadRot(yHead); }
+        if (!r.consumesAction()) r = sp.gameMode.useItem(sp, sp.level(), held, InteractionHand.MAIN_HAND);
+        if (r.consumesAction()) sp.swing(InteractionHand.MAIN_HAND, true);
+        ColossusDock.flush(c, true);
+    }
+    /** Like using an item on a block in the world, but in the dock (the vanilla path would use the player's own world). */
+    private static InteractionResult useOn(ServerPlayer sp, ServerLevel d, ItemStack stack, BlockHitResult hr) {
+        BlockPos pos = hr.getBlockPos(); BlockState bs = d.getBlockState(pos);
+        UseOnContext ctx = new UseOnContext(d, sp, InteractionHand.MAIN_HAND, stack, hr) {};
+        InteractionResult first = stack.onItemUseFirst(ctx);
+        if (first != InteractionResult.PASS) return first;
+        boolean anyHeld = !sp.getMainHandItem().isEmpty() || !sp.getOffhandItem().isEmpty();
+        boolean bypass = sp.isSecondaryUseActive() && anyHeld && !sp.getMainHandItem().doesSneakBypassUse(d, pos, sp);
+        if (!bypass) {
+            ItemInteractionResult ir = bs.useItemOn(stack, d, sp, InteractionHand.MAIN_HAND, hr);
+            if (ir.consumesAction()) return ir.result();
+            if (ir == ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION) {
+                InteractionResult u = bs.useWithoutItem(d, sp, hr);
+                if (u.consumesAction()) return u;
+            }
+        }
+        if (stack.isEmpty() || sp.getCooldowns().isOnCooldown(stack.getItem())) return InteractionResult.PASS;
+        int n = stack.getCount();
+        InteractionResult res = stack.useOn(ctx);
+        if (sp.isCreative()) stack.setCount(n);
+        return res;
     }
 
     // ---------------------------------------------------------------- mining
@@ -151,7 +211,7 @@ public final class ColossusInteract {
     }
 
     private static boolean stillThere(ColossusEntity c, BlockPos p, BlockEntity be, Player pl) {
-        return !c.isRemoved() && c.liveBes.get(p) == be && c.blocks.containsKey(p) && pl.distanceToSqr(c.blockWorldCenter(p)) < 64;
+        return !c.isRemoved() && c.liveBe(p) == be && c.blocks.containsKey(p) && pl.distanceToSqr(c.blockWorldCenter(p)) < 64;
     }
 
     /** A container riding on a Colossus: edits go to the live block entity and are saved back; it closes if the block goes away. */

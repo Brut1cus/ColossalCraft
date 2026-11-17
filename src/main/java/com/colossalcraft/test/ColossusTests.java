@@ -844,6 +844,73 @@ public class ColossusTests {
         });
     }
 
+    @GameTest(template = "empty16", timeoutTicks = 120)
+    public static void redstoneWorksWhileBuilt(GameTestHelper h) {
+        if (skipWithCreate(h)) return;
+        floor(h); ship(h, 0);
+        h.setBlock(8, 7, 6, Blocks.LEVER.defaultBlockState().setValue(net.minecraft.world.level.block.LeverBlock.FACE, net.minecraft.world.level.block.state.properties.AttachFace.FLOOR));
+        h.setBlock(9, 7, 6, Blocks.REDSTONE_LAMP);
+        h.setBlock(9, 7, 7, Blocks.OAK_TRAPDOOR);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(30, () -> {
+            ColossusEntity c = find(h);
+            var sp = playerAt(h, c, new BlockPos(1, 0, -1));
+            act(sp, c, new BlockPos(1, 0, -1), Direction.UP, 0); // flip the lever: the real lever in the dock powers the real lamp
+            act(sp, c, new BlockPos(2, 0, 0), Direction.UP, 0);  // and open the trapdoor
+        });
+        h.runAfterDelay(40, () -> {
+            ColossusEntity c = find(h);
+            var lit = net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT;
+            boolean dock = com.colossalcraft.colossus.ColossusDock.level(h.getLevel().getServer()) != null; // the test server has no extra dimensions
+            ColossalCraft.LOG.info("[test] dock present: {}", dock);
+            h.assertTrue(c.blocks.get(new BlockPos(1, 0, -1)).getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.POWERED), "lever didn't flip");
+            h.assertTrue(!dock || c.blocks.get(new BlockPos(2, 0, -1)).getValue(lit), "the lamp on the Colossus should light from the lever");
+            h.assertTrue(c.blocks.get(new BlockPos(2, 0, 0)).getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN), "trapdoor didn't open");
+            h.assertTrue(c.disassemble(null), "park failed");
+        });
+        h.runAfterDelay(45, () -> {
+            h.assertTrue(h.getBlockState(new BlockPos(9, 2, 6)).getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT) || h.getBlockState(new BlockPos(9, 2, 6)).is(Blocks.REDSTONE_LAMP), "lamp should be parked");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 200)
+    public static void wheelsDriveWithSpinKeys(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        var bearing = ModRegistry.BEARING.get().defaultBlockState().setValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.LONE, true);
+        var motor = ModRegistry.MOTOR.get().defaultBlockState().setValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.LONE, true);
+        for (int side : new int[]{-1, 1}) for (int z0 : new int[]{5, 9}) {
+            int bx = side < 0 ? 4 : 10, wx = side < 0 ? 3 : 11;
+            h.setBlock(bx, 6, z0, bearing);
+            h.setBlock(bx, 6, z0 == 5 ? 6 : 8, motor);
+            int ax = side < 0 ? 3 : 11; wx = side < 0 ? 2 : 12;
+            h.setBlock(ax, 6, z0, Blocks.OAK_LOG); // axle, then a small "+" wheel
+            for (int y = 5; y <= 7; y++) h.setBlock(wx, y, z0, Blocks.OAK_LOG);
+            h.setBlock(wx, 6, z0 - 1, Blocks.OAK_LOG); h.setBlock(wx, 6, z0 + 1, Blocks.OAK_LOG);
+        }
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        hc.joints = new CompoundTag();
+        for (StructureModel.Joint j : r.model.joints) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.SPIN); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        h.assertTrue(m.wheels == 4 && m.joints.stream().allMatch(j -> j.wheelGround), "four wheels on the ground expected, got " + m.wheels);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] z0 = {0};
+        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); z0[0] = c.getZ(); c.autopilot = true; c.setSpinInput(true, false, false); });
+        h.runAfterDelay(110, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] wheels dz={} rate={} ground={}", c.getZ() - z0[0], c.wheelRate, c.onGroundC);
+            h.assertTrue(z0[0] - c.getZ() > 1.5, "the wheels should drive it forward (north), dz=" + (c.getZ() - z0[0]));
+            c.setSpinInput(false, false, true);
+        });
+        h.runAfterDelay(150, () -> {
+            ColossusEntity c = find(h);
+            h.assertTrue(Math.abs(c.wheelRate) < 0.01 && c.vel.horizontalDistance() < 0.3, "brake should stop it: rate " + c.wheelRate + " v " + c.vel.horizontalDistance());
+            h.succeed();
+        });
+    }
+
     @GameTest(template = "empty16", timeoutTicks = 260)
     public static void minedBlockLetsAPieceFallOff(GameTestHelper h) {
         if (skipWithCreate(h)) return;
@@ -980,15 +1047,19 @@ public class ColossusTests {
     }
 
     @GameTest(template = "empty16")
-    public static void ballAndSocketFormABallJoint(GameTestHelper h) {
+    public static void ballJointsFormBoxes(GameTestHelper h) {
         floor(h); ship(h, 0);
-        var ball = ModRegistry.BALL_HALF.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.UP, true);
-        var sock = ModRegistry.SOCKET.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.UP, false);
-        // under the deck: a 2x2 socket layer (cup down), a 2x2 ball layer below it (dome up), then a foot
-        for (int x = 6; x <= 7; x++) for (int z = 6; z <= 7; z++) { h.setBlock(x, 5, z, sock); h.setBlock(x, 4, z, ball); h.setBlock(x, 3, z, Blocks.STONE_BRICKS); }
+        var ball = ModRegistry.BALL_JOINT.get().defaultBlockState();
+        // under the deck: a 2x2x2 cube of ball joints, then a foot
+        for (int x = 6; x <= 7; x++) for (int z = 6; z <= 7; z++) { h.setBlock(x, 5, z, ball); h.setBlock(x, 4, z, ball); h.setBlock(x, 3, z, Blocks.STONE_BRICKS); }
         StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
-        h.assertTrue(m.joints.size() == 1 && m.joints.get(0).ball && m.joints.get(0).size == 2, "a 2x2x2 ball joint expected: " + m.joints.size() + " joints");
-        h.assertTrue(m.joints.get(0).k == 8 && !m.joints.get(0).childSegs.isEmpty(), "both layers in one joint, holding the foot");
+        h.assertTrue(m.joints.size() == 1 && m.joints.get(0).ball && m.joints.get(0).size == 2 && m.joints.get(0).height == 2, "a 2x2x2 ball joint expected: " + m.joints.size() + " joints");
+        h.assertTrue(m.joints.get(0).k == 8 && !m.joints.get(0).childSegs.isEmpty() && m.joints.get(0).romCap == 90, "one joint of 8 blocks, +-90 range, rom " + m.joints.get(0).romCap);
+        // take the lower layer away: a flat 2x1x2 turns only +-45
+        for (int x = 6; x <= 7; x++) for (int z = 6; z <= 7; z++) h.setBlock(x, 4, z, Blocks.STONE_BRICKS);
+        m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        h.assertTrue(m.joints.size() == 1 && m.joints.get(0).k == 4 && m.joints.get(0).romCap == 45 && m.joints.get(0).amp <= 22, "a flat 2x1x2 ball should be +-45, got " + m.joints.get(0).romCap);
+        h.assertTrue(h.getBlockState(new BlockPos(6, 5, 6)).getValue(com.colossalcraft.block.SimpleParts.HT) == 1, "layer count back to 1");
         h.succeed();
     }
 
@@ -1039,19 +1110,6 @@ public class ColossusTests {
             h.assertTrue(c.tilt == 0 && Math.abs(c.getZ() - z0[0]) + Math.abs(c.getX() - h.absolutePos(new BlockPos(7, 7, 7)).getX()) > 1, "should walk on powered ball hips, dz=" + (c.getZ() - z0[0]));
             h.succeed();
         });
-    }
-
-    @GameTest(template = "empty16")
-    public static void stackedBallAndSocketPair(GameTestHelper h) {
-        floor(h); ship(h, 0);
-        // placed the plain way: a ball half, then a socket on top of it (no facing set by hand)
-        h.setBlock(7, 4, 7, ModRegistry.BALL_HALF.get());
-        h.setBlock(7, 5, 7, ModRegistry.SOCKET.get());
-        h.setBlock(7, 3, 7, Blocks.STONE_BRICKS);
-        h.assertTrue(h.getBlockState(new BlockPos(7, 4, 7)).getValue(com.colossalcraft.block.SimpleParts.UP), "the ball half should turn its dome up into the socket");
-        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
-        h.assertTrue(m.joints.size() == 1 && m.joints.get(0).ball && m.joints.get(0).k == 2, "a 1x1 ball half + socket should be one ball joint, got " + m.joints.size());
-        h.succeed();
     }
 
     /** How far each planted foot really is from where the walker planted it (0 = sole on its spot). */

@@ -38,6 +38,12 @@ public final class Net {
                 ByteBufCodecs.BOOL, PilotInput::sprint, ByteBufCodecs.BOOL, PilotInput::jump, PilotInput::new);
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
+    /** Spin keys while piloting: bit 1 clockwise / forward, 2 counter-clockwise / back, 4 brake. */
+    public record SpinInput(int bits) implements CustomPacketPayload {
+        public static final Type<SpinInput> TYPE = new Type<>(id("spin_input"));
+        public static final StreamCodec<ByteBuf, SpinInput> CODEC = ByteBufCodecs.VAR_INT.map(SpinInput::new, SpinInput::bits);
+        public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
     /** 0 = enter/leave Pilot Throne, 1 = disassemble, 2 = toggle hover */
     public record PilotAction(int action) implements CustomPacketPayload {
         public static final Type<PilotAction> TYPE = new Type<>(id("pilot_action"));
@@ -108,6 +114,7 @@ public final class Net {
         PayloadRegistrar r = e.registrar("1");
         r.playToServer(PilotInput.TYPE, PilotInput.CODEC, Net::onInput);
         r.playToServer(PilotAction.TYPE, PilotAction.CODEC, Net::onPilotAction);
+        r.playToServer(SpinInput.TYPE, SpinInput.CODEC, (p, ctx) -> ctx.enqueueWork(() -> { if (ctx.player().getVehicle() instanceof ColossusEntity c) c.setSpinInput((p.bits() & 1) != 0, (p.bits() & 2) != 0, (p.bits() & 4) != 0); }));
         r.playToServer(HullAction.TYPE, HullAction.CODEC, Net::onHullAction);
         r.playToServer(ClickColossus.TYPE, ClickColossus.CODEC, Net::onClickColossus);
         r.playToClient(ColossusConfig.TYPE, ColossusConfig.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.colossusConfig(p.entity(), p.cfg())));
@@ -259,7 +266,7 @@ public final class Net {
         c = c.copy();
         switch (a.action()) {
             case 1 -> c.putByte("Mode", (byte) Math.max(0, Math.min(StructureModel.MODES.length - 1, a.value())));
-            case 2 -> c.putInt("Amp", Math.max(5, Math.min(120, a.value())));
+            case 2 -> c.putInt("Amp", Math.max(1, Math.min(60, a.value())));
             case 6 -> {
                 int idx = a.value() >> 16, ang = Math.max(-180, Math.min(180, (a.value() & 0xFFFF) - 180));
                 int[] k = Arrays.copyOf(c.getIntArray("Keys"), StructureModel.KEYS);

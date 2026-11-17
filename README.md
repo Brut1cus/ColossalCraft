@@ -22,7 +22,7 @@ The jar ends up in `build/libs/`. Run the in-world tests with `./gradlew runGame
    - **Help**: a short how-to.
    - **BUILD COLOSSUS** makes it move.
 5. Walkers also need a **Locomotion Controller** (anywhere on the build). Right-click it, or press **L** while piloting:
-   - **Joints**: 3D view of the joints. Set each joint's Mode and Limit.
+   - **Joints**: 3D view of the joints. Set each joint's Mode and its range of motion (up/down arrows).
    - **Gait**: IK mode, gait mode, step speed.
    - **Keys**: the keys used to walk, turn, raise, lower, sprint and jump.
 6. **Built:** right-click the Hull Core on the Colossus, or press **G** while piloting. **PARK** turns it back into blocks.
@@ -48,7 +48,7 @@ You can walk around on a Colossus while it moves. A lighter Colossus parked insi
 ## Joints and assemblies (no materials: size is strength)
 Joint blocks split a Colossus into **segments** ("parts" in the Hull Core screen). There are no material tiers: one kind of each part, and **bigger assemblies are stronger**.
 
-**Grid assemblies.** Bearings, Servo Motors, Ball Halves and Sockets placed side by side (across their axis) join like chests into **squares**: 2x2, 3x3, up to 4x4. They tile into the biggest squares that fit. **Sneak while placing** to keep a block on its own (parallel 1x1s). A square shows one big shaft (or ball) across all its blocks.
+**Grid assemblies.** Bearings and Servo Motors placed side by side (across their axis) join like chests into **squares**: 2x2, 3x3, up to 4x4. They tile into the biggest squares that fit. **Sneak while placing** to keep a block on its own (parallel 1x1s). A square shows one big shaft across all its blocks. **Ball Joints** join the same way and also **stack up**: an n x n square up to n layers high becomes one big ball joint (see Ball joints below).
 
 An **n x n assembly is n^n times as strong as a 1x1**: 2x2 = 4x, 3x3 = 27x, 4x4 = 256x. Squares stacked along the axis count a little extra.
 
@@ -57,15 +57,13 @@ An **n x n assembly is n^n times as strong as a 1x1**: 2x2 = 4x, 3x3 = 27x, 4x4 
 | Bearing | holds 120 kN, bends 200 kN·m | the main hinge; grid assembly |
 | Slab Joint / Panel Joint | half a bearing | single blocks; small joints side by side join and add up |
 | Pin Joint | a quarter | thin axle |
-| Ball Joint | like a bearing | 1x1; keeps the part below level |
-| Powered Ball Joint | like a bearing | a ball joint with its own motor: tilts the foot to the slope and helps balance |
-| Ball Half + Socket | like a bearing per n^n | an n x n layer of Ball Halves against an n x n layer of Sockets makes an **n x 2 x n ball joint**; a motor touching it powers it |
+| Ball Joint | like a bearing per n^n | keeps the part below level; joins into n x h x n boxes (one big ball) |
+| Powered Ball Joint | like a bearing per n^n | a ball joint with its own motor: ankle, hip or shoulder; joins into boxes too |
 
-Ball Halves: placed on top of something the dome points up, under something it points down. Sockets the same (cup up / cup down). Put the dome into the cup.
 
-The outer housing of a bearing turns with the part its joint moves; the inner shaft stays with the parent. A ball joint's halves each stay with the part they touch, and the ball swivels between them. In the Joints tab each joint shows its world **X, Y, Z** and its size.
+The outer housing of a bearing turns with the part its joint moves; the inner shaft stays with the parent. A ball joint's two base plates each stay with the part they touch, and the ball swivels between them. In the Joints tab each joint shows its world **X, Y, Z** and its size.
 
-Recipes: Bearing (iron + Colossteel), 3 Bearings → 6 Slab Joints or 6 Panel Joints, 1 → 4 Pin Joints, Bearing + slime ball → Ball Joint, Ball Joint + Servo Motor → Powered Ball Joint, Ball Joint + iron → Ball Halves / Sockets.
+Recipes: Bearing (iron + Colossteel), 3 Bearings → 6 Slab Joints or 6 Panel Joints, 1 → 4 Pin Joints, Bearing + slime ball → Ball Joint, Ball Joint + Servo Motor → Powered Ball Joint.
 
 Load counts gravity plus acceleration. If a joint stays over 100% load, it creaks, sparks and then **snaps**, and everything hanging from it falls off as one **wreck**: it falls, tumbles and turns back into blocks where it lands.
 
@@ -84,7 +82,7 @@ A walker stands on its feet and is placed from the lowest point up. Nothing "hol
 10. **Balance (equilibrium):** standing still, the body always settles its weight over the middle of its feet. If something pushes the weight outside the feet (an overhang, a hit), it takes a **catch step** under it, like a person. Only if that fails does it tip. Powered Ball Joints at the ankles let it balance further out, like a gyro.
 11. **Step speed is limited by power:** the leg motors use their full power at 0.5 steps a second, more when faster. The walker steps no faster than the engines can feed (after gyros, smart footing and powered ball joints), and the Gait tab shows the cap.
 
-Set each **hip** (and any **knee**) joint to **Leg**, with a foot under it. Left/right step groups are automatic. The Swing setting is the joint's angle limit. The HUD shows each foot: DOWN, STEP, SLIP.
+Set each **hip** (and any **knee**) joint to **Leg**, with a foot under it. Left/right step groups are automatic. The range of motion (ROM) is how far the joint may turn. The HUD shows each foot: DOWN, STEP, SLIP.
 
 What it needs: grippy feet, hip motors strong enough to push the Hull, joints strong enough to carry the whole weight on one leg, and a powered gyro in the core part (below).
 
@@ -94,9 +92,10 @@ The Joints tab tells you for each joint (and the scan warns if it's wrong):
 |---|---|
 | Hip (top joint of a leg) | **Leg**, with a Servo Motor |
 | Knee (any joint lower in the leg) | **Leg**, with a Servo Motor |
-| Ankle **Ball Joint** | no mode (shows "auto"). It levels the foot by itself. Set its Limit, e.g. ±5° |
+| Ankle **Ball Joint** | no mode (shows "auto"). It levels the foot by itself. Set its range, e.g. ±10° |
 | Joint that twists a whole leg (vertical axis) | **Locked** |
-| Arms, tails, turrets | **Locked** (rigid), **Spin** (keeps turning) or **Sway** (idle motion) |
+| Arms, tails, turrets | **Locked** (rigid), **Spin** (turns with the Spin keys) or **Sway** (idle motion) |
+| Wheels | **Spin**: turn with the Spin keys and drive along the ground |
 | Rotor with blades | **Spin** |
 
 **Locked** means the joint never moves: the parts on both sides act like one solid piece.
@@ -107,30 +106,35 @@ Joint setup moved here from the Hull Core. One per walker.
 - **Gait modes:** Biped, Digitigrade (knees bend backward), Quadruped (diagonal pairs step together), Spider (alternating legs around the body), **Triped** (three legs, or groups of three, step in turn round the body), **Wave** (one leg at a time: slow and very steady), Custom (pick each joint's step group in the Joints tab).
 - **Keys:** click a key button, press the new key. Esc sets it back to default. Defaults follow your movement keys (WASD, Space, Shift, Ctrl) and R for the Jump Drive.
 - Raise / lower bends the knees (legs with a knee only).
-- **Gait tab:** step speed, **stride** (how far each foot travels, as a share of the leg's reach), **lift** (step height) and **stance** (share of each step a foot stays down; "auto" uses the gait type's default). A blueprint preview shows the **hull from above** (with hips and feet), a **step chart** (bars = foot down), and **each leg from the side** (up to 6), walking with its real blocks: every part turns with its joint, and a foot under a Ball Joint stays level. The speed shown is the speed the walker really walks at.
+- **Gait tab:** step speed, **stride** (how far each foot travels, as a share of the leg's reach), **lift** (step height) and **stance** (share of each step a foot stays down; "auto" uses the gait type's default). A plan preview (greens and yellows, like the Footing map) shows the **hull from above** (with hips and feet), a **step chart** (bars = foot down), and **each leg from the side** (up to 6), walking with its real blocks: every part turns with its joint, and a foot under a Ball Joint stays level. The speed shown is the speed the walker really walks at. With no walking legs the Gait tab is off (wheels and spinners use the Spin keys).
 - The Locomotion Controller only sets up legs. Build/Park are on the Hull Core, and Hover too (shown only when the Colossus has thrusters).
 
 ## Using a built Colossus
 You don't have to park to use or change it:
-- **Right-click** doors, trapdoors, fence gates and levers to toggle them. **Chests, barrels, hoppers, dispensers** and **crafting tables** open. **Engines** open their fuel screen, and fuel you put in burns into the Colossus' power while it runs.
-- **Place blocks** against any face with a block in hand (sneak to place against a door or chest). Not into the ground.
+- **Every block works.** Each built Colossus keeps a real copy of its blocks in a hidden, empty dimension (the *dock*). Right-clicking a block on the Colossus uses that real block, so doors, trapdoors, levers, buttons, chests, furnaces, crafting tables, redstone, crops and other mods' machines (Create too) work just like on the ground, while it moves. Changes go both ways: what you do on the Colossus is written to the dock, and what happens in the dock (a lamp lights, a machine places a block, a chest fills) comes back to the Colossus. Sounds, effects, dropped items and dispenser shots come out at the Colossus.
+- **Engines** open their fuel screen, and fuel you put in burns into the Colossus' power while it runs.
+- **Looking at** a Colossus block gives it the normal black outline and a small label with its name and its mod. **Middle-click** picks it like any block.
+- **Place blocks** against any face with a block in hand, facing the way you look (sneak to place against a door or chest). Not into the ground.
 - **Left-click** to mine a block (like normal mining; instant in creative). The Hull Core can't be removed while built.
 - Anything no longer joined to the main body breaks off as a **wreck**.
 - **Explosions** blow off weak blocks (like terrain) and damage joints. A joint that takes too much breaks, and what it held falls off as a wreck. Stronger and bigger joints take more.
-- Other mods' machines (for example Create's) are carried along but only run once parked.
 
 ## Smart footing (Locomotion Controller, Footing tab)
 Smart footing is **on by default** and uses **25 CJ/t** while a walker stands or walks. Before every step the legs look at the ground and put the foot on safe, level footing: every sole block has ground under it (not over an edge), the soles are nearly level, the rise or drop is one the leg can take, and lava, fire, magma, cactus, campfires, berry bushes and powder snow are refused. Water and slippery ground count against a spot. If there's no good spot nearby the foot takes a short step, or steps in place. Turn it off on the **Footing** tab to save power (feet then land wherever the gait says).
 
-The **Footing** tab shows a top-down map of what the feet see: ground height in shades of green, water, slippery ground, danger and walls, the body's outline, the feet (solid = planted, hollow = stepping), where each foot steps next (yellow, red = no safe spot) and the heading. It refreshes twice a second, only while the tab is open. (This replaces the old Step Controller block.)
+The **Footing** tab shows a small top-down map of what the feet see (17x17 blocks, a few flat colours): lower, level and higher ground, water, danger and walls, the body's outline, the feet (solid = planted, hollow = stepping), where each foot steps next (yellow, red = no safe spot) and the heading. It refreshes once a second, only while the tab is open. (This replaces the old Step Controller block.)
+
+## Wheels and spinners
+Set a joint to **Spin** and it works like a wheel: with no blades on it, it turns only when you press the **Spin keys** (Keys tab: Spin clockwise, Spin counter-clockwise, Brake; by default W, S and X). A Spin joint whose part reaches the ground **drives the Colossus along**: "clockwise" always drives forward, whichever side the wheel is on. Brake stops the wheels and the Colossus; let go and it rolls on. A/D still turn it. With Rotor Blades on it, a Spin joint is a rotor (throttle as before).
 
 ## Ball joints: ankles, hips and shoulders
 - **Ball Joint** (plain): keeps the part below it **level** (a flat foot). Needs no motor and has no mode. Put one between the shin and the foot.
-- **Powered Ball Joint** (or a Ball Half + Socket assembly with a Servo Motor touching it) has three modes, set in the Joints tab:
+- **Big ball joints:** Ball Joints next to each other join into **one** joint: an n x n square, up to n layers high (2x1x2, 2x2x2, 3x2x3 ...). It is drawn as one big ball and carries n^n the load. Its **range of motion** grows with height: **±90° × layers / side**, so a flat 2x1x2 turns ±45° and a 2x2x2 cube ±90° any way. Sneak while placing to keep one on its own.
+- **Range of motion:** in the Joints tab, the up/down arrows set how far a joint may turn either way (shift-click for big steps). It never goes past what the joint's shape allows.
+- **Powered Ball Joint** (or any ball joint with a Servo Motor touching it) has three modes, set in the Joints tab:
   - **Ankle (Locked):** keeps the foot flat and tilts it to match a slope; helps the walker balance.
   - **Hip (Leg):** a three-way leg joint. The IK swings the leg forward/back *and* sideways, and twists it when the body turns, so the body can lean over a foot and turn without the feet sliding. Use it as the top joint of a leg (a knee bearing below it is fine). No extra motor needed.
   - **Shoulder (Sway):** swings an arm in time with the steps (left and right opposite), and rests when standing.
-- **Ball Half + Socket:** stack a Ball Half and a Socket (or matching n x n squares of each). They turn to face each other by themselves and become one ball joint.
 
 ## Jump Drive
 A capacitor. It charges slowly from your engines (400 CJ/tick, holds 600k) and dumps it all at once when you press the jump key. It overpowers the servos: the legs go limp and the whole Colossus is launched up. More drives = more charge. The HUD shows JUMP DRIVE %.
@@ -151,7 +155,7 @@ Each joint shows two estimates:
 - Either bar over 100% means the joint will snap (live, while standing too). Use bigger or stronger joints low on the legs.
 
 ## Joints view (3D schematic)
-The Joints tab (in the Locomotion Controller) is a 3D view of the whole Colossus: left-drag turns it, right-drag moves it, and scroll zooms. The side panel shows the selected joint: position, load, torque, gears and, for legs, foot grip, push and carry limits. Two buttons set the joint's **Mode** (Locked, Leg, Spin, Sway) and its **Limit** (how far it may turn).
+The Joints tab (in the Locomotion Controller) is a 3D view of the whole Colossus: left-drag turns it, right-drag moves it, and scroll zooms. The side panel shows the selected joint: position, load, torque, gears and, for legs, foot grip, push and carry limits. A button sets the joint's **Mode** (Locked, Leg, Spin, Sway); up/down arrows set its **range of motion** (how far it may turn).
 - **green** is the core part, **blue** marks the other parts, **yellow** marks bearings, and **red** marks problems.
 - Click a joint marker to select it.
 - Red X marks show where the build touches natural ground. Build on Gantry Scaffold instead.

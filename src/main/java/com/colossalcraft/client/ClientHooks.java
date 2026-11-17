@@ -32,24 +32,41 @@ public final class ClientHooks {
     public static boolean tryColossus(boolean attack) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player; if (p == null || p.isPassenger()) return false;
+        Hit h = look(); if (h == null) return false;
+        ColossusEntity c = h.c(); BlockPos hit = h.pos(); net.minecraft.core.Direction face = h.face();
+        var b = c.blocks.get(hit).getBlock();
+        if (!attack && !p.isSecondaryUseActive()) {
+            if (b instanceof com.colossalcraft.block.HullCoreBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 0)); return true; }
+            if (b instanceof com.colossalcraft.block.SimpleParts.LocomotionControllerBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 2)); return true; }
+            if (b instanceof com.colossalcraft.block.SimpleParts.PilotSeatBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 1)); return true; }
+        }
+        // where on the block face it was clicked (sixteenths), for slabs, stairs, buttons and the like
+        int hx = clamp16(h.at().x), hy = clamp16(h.at().y), hz = clamp16(h.at().z);
+        int packed = face.get3DDataValue() | 8 | (hx << 4) | (hy << 9) | (hz << 14);
+        net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ColossusBlock(c.getId(), hit.asLong(), packed, attack ? 1 : 0));
+        return true;
+    }
+    private static int clamp16(double v) { return (int) Math.max(0, Math.min(16, Math.round(v * 16))); }
+
+    /** The Colossus block the player looks at (nearest of all Colossi, and nearer than the world block behind it), or null. */
+    public record Hit(ColossusEntity c, BlockPos pos, net.minecraft.core.Direction face, Vec3 at, double dist) {}
+    private static Hit lastHit; private static long lastHitTick = -1; private static float lastHitPt = -1;
+    public static Hit look() {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer p = mc.player; if (p == null || mc.level == null) return null;
         Vec3 eye = p.getEyePosition(), to = eye.add(p.getViewVector(1f).scale(p.blockInteractionRange()));
-        double worldDist = mc.hitResult != null && mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.MISS ? mc.hitResult.getLocation().distanceTo(eye) : Double.MAX_VALUE;
+        double worldDist = mc.hitResult != null && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK ? mc.hitResult.getLocation().distanceTo(eye) : Double.MAX_VALUE;
+        Hit best = null;
         for (ColossusEntity c : com.colossalcraft.colossus.ColossusCollision.all(true)) {
-            if (c.level() != p.level() || c.model == null || !c.getBoundingBox().inflate(6).contains(eye)) continue;
+            if (c.isRemoved() || c.level() != p.level() || c.model == null || c.blocks.isEmpty() || !c.getBoundingBox().inflate(p.blockInteractionRange() + 1).contains(eye)) continue;
             Object[] h = c.raycastHit(eye, to);
             if (h == null) continue;
-            BlockPos hit = (BlockPos) h[0]; net.minecraft.core.Direction face = (net.minecraft.core.Direction) h[1];
-            if (c.blockWorldCenter(hit).distanceTo(eye) > worldDist + 0.7) continue;
-            var b = c.blocks.get(hit).getBlock();
-            if (!attack) {
-                if (b instanceof com.colossalcraft.block.HullCoreBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 0)); return true; }
-                if (b instanceof com.colossalcraft.block.SimpleParts.LocomotionControllerBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 2)); return true; }
-                if (b instanceof com.colossalcraft.block.SimpleParts.PilotSeatBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 1)); return true; }
-            }
-            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ColossusBlock(c.getId(), hit.asLong(), face.get3DDataValue(), attack ? 1 : 0));
-            return true;
+            BlockPos hit = (BlockPos) h[0];
+            double d = c.blockWorldCenter(hit).distanceTo(eye) - 0.5;
+            if (d > worldDist + 0.3) continue;
+            if (best == null || d < best.dist()) best = new Hit(c, hit, (net.minecraft.core.Direction) h[1], (Vec3) h[2], d);
         }
-        return false;
+        return best;
     }
 
     /** Step Controller map arrived: open the screen, or refresh it if it's open. */

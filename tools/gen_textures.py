@@ -68,7 +68,6 @@ for i in range(16): px(bl, i, (i * 5) % 16, hx(0xffffff)); px(bl, (i * 7) % 16, 
 save(bl, B, 'ball')
 so = base(hx(0x3f464d), 42, 0.08); bevel(so, hx(0x3f464d))
 for x in range(16): px(so, x, 2, shade(BRASS, 0.8)); px(so, x, 13, shade(BRASS, 0.8))
-save(so, B, 'socket')
 pb = base(hx(0x2b3138), 43); bevel(pb, hx(0x2b3138))
 for x in range(1, 15, 2): px(pb, x, 7, hx(0x46ff7e)); px(pb, x + 1, 8, hx(0x46ff7e))   # powered: green status band
 save(pb, B, 'powered_ball')

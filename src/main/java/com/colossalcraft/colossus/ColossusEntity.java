@@ -89,6 +89,11 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public double clientSpeed;
     // pilot input
     public float inFwd, inTurn; public boolean inUp, inDown, inSprint, inJump; private int inputAge = 100;
+    /** Spin keys (wheels and spinners): clockwise / forward, counter-clockwise / back, brake. */
+    public boolean inCW, inCCW, inBrake;
+    /** Wheels: shared angle (radians) and turn rate (radians per tick). */
+    public double wheelAngle, prevWheelAngle, wheelRate;
+    public void setSpinInput(boolean cw, boolean ccw, boolean brake) { inCW = cw; inCCW = ccw; inBrake = brake; }
     /** Jump Drive charge (CJ) and whether the jump key was down last tick. */
     public double jumpCharge; private boolean jumpWasDown;
     /** The pilot asked to leave (V key): only then may they dismount (Crouch is used for 'lower'). */
@@ -114,6 +119,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public Matrix4d bake;
     /** Block entities brought to life on the server (engines, opened chests): edited live, saved back into {@link #bes}. */
     public final Map<BlockPos, BlockEntity> liveBes = new HashMap<>();
+    /** Its place in the dock dimension, where its blocks live as real blocks (see {@link ColossusDock}); -1 = none yet. */
+    public int dockSlot = -1; public int[] dockChunks; private boolean docked, fromDock;
     /** Damage each joint has taken (explosions); past its strength the joint breaks. */
     private double[] jointDamage = new double[0];
     /** Mining progress on blocks of this Colossus (survival breaking). */
@@ -271,6 +278,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             int[] rl = ik.getIntArray("RL");
             for (int i = 0; i < model.ikRoll.length; i++) { model.ikRoll[i] = 2 * i + 1 < rl.length ? Float.intBitsToFloat(rl[2 * i]) : 0; model.ikYaw[i] = 2 * i + 1 < rl.length ? Float.intBitsToFloat(rl[2 * i + 1]) : 0; }
             model.walkClock = ik.getDouble("WC"); model.walkAmount = ik.getDouble("WA");
+            prevWheelAngle = wheelAngle; wheelAngle = ik.getDouble("WH"); if (tickCount < 3) prevWheelAngle = wheelAngle; model.wheelAngle = wheelAngle;
             int[] bt = ik.getIntArray("BT");
             for (int i = 0; i < model.ballPitch.length; i++) { model.ballPitch[i] = 2 * i + 1 < bt.length ? Float.intBitsToFloat(bt[2 * i]) : 0; model.ballRoll[i] = 2 * i + 1 < bt.length ? Float.intBitsToFloat(bt[2 * i + 1]) : 0; }
             art = model.transforms(walkPhase, walkBlend, spin, tickCount);
@@ -280,6 +288,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             com.colossalcraft.client.ThrusterEffects.tick(this);
             return;
         }
+        if (!docked) docked = ColossusDock.attach(this);
         Matrix4d[] before = segWorlds(position(), yaw, tilt, art);
         Vec3 p0 = position();
         physics();
@@ -296,6 +305,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         checkJoints(accel);
         if (isRemoved()) return;
         tickLiveBes();
+        if (docked) { ColossusDock.flush(this, tickCount % 10 == 0); if (isRemoved()) return; }
         if (wreck) { // a broken-off piece: once it lies still, it becomes blocks again
             if (onGroundC && vel.lengthSqr() < 0.01) { if (++restTicks > 40) { settle(); return; } } else restTicks = 0;
         }
@@ -312,7 +322,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private void physics() {
         double dt = 0.05, M = model.mass, g = StructureModel.G, scale = Config.MASS_SCALE.get(), LS = Config.LIFT_SCALE.get();
         Player pilot = pilot();
-        if (!autopilot && (pilot == null || ++inputAge > 10)) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; inSprint = false; inJump = false; }
+        if (!autopilot && (pilot == null || ++inputAge > 10)) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; inSprint = false; inJump = false; inCW = false; inCCW = false; inBrake = false; }
         if (heldBy() != null) { heldPhysics(); return; }
 
         // buoyancy
@@ -383,7 +393,20 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         if (model.legged && !model.legChains.isEmpty()) draw += model.legMotorPower() * model.stepSpeed(inSprint) / 0.5 * Math.max(hT, Math.abs(inTurn) * 0.5); // legs: power grows with step rate
         else draw += hT * (walkers ? model.walkPower() : 0);
         double r = Math.max(1, model.radius);
-        double turnTorque = model.gyroCap * 0.6 + (onGroundC ? model.driveForce * r * 0.3 : 0);
+        // wheels on the ground: how hard they can push, and which way
+        double wheelPush = 0, wheelTarget = 0, wheelR = 0; Vec3 wheelDir = Vec3.ZERO; int wheelsDown = 0;
+        if (model.wheels > 0) {
+            for (StructureModel.Joint j : model.joints) {
+                if (j.mode != StructureModel.SPIN || j.blades > 0 || !j.active() || !j.wheelGround || j.wheelRadius <= 0) continue;
+                Vec3 a = StructureModel.axisVec(j.axis), rl = a.cross(new Vec3(0, 1, 0)).scale(j.wheelSign);
+                Vector3d dw = W[Math.max(0, j.parentSeg)].transformDirection(new Vector3d(rl.x, rl.y, rl.z));
+                Vec3 d = new Vec3(dw.x, 0, dw.z); if (d.lengthSqr() < 1e-6) continue;
+                wheelDir = wheelDir.add(d.normalize()); wheelTarget += wheelRate * 20 * j.wheelRadius; wheelR += j.wheelRadius; wheelPush += j.motorTorque / j.wheelRadius; wheelsDown++;
+            }
+            if (wheelsDown > 0) { wheelTarget /= wheelsDown; wheelR /= wheelsDown; wheelDir = wheelDir.lengthSqr() > 1e-6 ? wheelDir.normalize() : Vec3.ZERO; }
+            if ((inCW || inCCW) && wheelsDown > 0) draw += model.walkPower() * 0.3;
+        }
+        double turnTorque = model.gyroCap * 0.6 + (onGroundC ? model.driveForce * r * 0.3 + wheelPush * r * 0.3 : 0);
         draw += Math.abs(inTurn) * model.gyroPower;
         if (model.joints.stream().anyMatch(j -> j.mode == StructureModel.SPIN && j.active())) draw += model.walkPower() * 0.2;
         if (model.legged) draw += model.gyroPower; // gyros hold a walker up all the time
@@ -443,8 +466,15 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             if (walker.unbalanced) stable = false; // weight left the feet: it tips
             walkBlend = 0;
         } else {
+            Vec3 vPre = vel;
             double hd = onGroundC ? 0.85 : subFrac > 0.05 ? 0.93 : 0.985;
             vel = new Vec3(vel.x * hd, vel.y * (subFrac > 0.05 ? 0.9 : 0.995), vel.z * hd);
+            if (onGroundC && wheelsDown > 0 && wheelDir.lengthSqr() > 0) { // wheels roll: along them the ground doesn't drag, the wheels set the speed
+                double va0 = vPre.dot(wheelDir), aMax = inBrake ? 0.8 * StructureModel.G : Math.min(0.8 * StructureModel.G, wheelPush * ratio / M);
+                if (!inCW && !inCCW && !inBrake) aMax = Math.min(aMax, 0.6); // coasting: only rolling drag
+                double va = va0 + Math.max(-aMax * dt, Math.min(aMax * dt, (inBrake ? 0 : wheelTarget) - va0));
+                vel = vel.add(wheelDir.scale(va - vel.dot(wheelDir)));
+            }
         }
         double max = Config.MAX_SPEED.get();
         if (vel.length() > max) vel = vel.normalize().scale(max);
@@ -476,6 +506,18 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         for (StructureModel.Joint j : model.joints) if (j.mode == StructureModel.SPIN && j.active()) spinCap = Math.min(spinCap, Math.toRadians(j.maxSpeed) / 20);
         double targetSpin = (pilot != null || autopilot) && ratio > 0 && energy + (model.infinite ? 1 : 0) > 0 ? Math.max(0.15, rotThr) * spinCap : 0;
         spinRate += (targetSpin - spinRate) * 0.05; spin += spinRate;
+        // wheels and spinners: the Spin keys turn them, brake stops them, otherwise they roll on slowly
+        if (model.wheels > 0) {
+            double wCap = 1.5;
+            for (StructureModel.Joint j : model.joints) if (j.mode == StructureModel.SPIN && j.blades == 0 && j.active()) wCap = Math.min(wCap, Math.toRadians(j.maxSpeed) / 20);
+            double cmd = (inCW ? 1 : 0) - (inCCW ? 1 : 0);
+            boolean on = ratio > 0 && (model.infinite || energy > 0);
+            if (inBrake) wheelRate = Math.abs(wheelRate) < 0.01 ? 0 : wheelRate * 0.7;
+            else if (cmd != 0 && on) wheelRate += Math.max(-wCap * 0.05, Math.min(wCap * 0.05, cmd * wCap * ratio - wheelRate));
+            else if (onGroundC && wheelsDown > 0) wheelRate = vel.dot(wheelDir) / 20 / Math.max(0.5, wheelR); // rolling with the ground
+            else wheelRate *= 0.98;
+            wheelAngle += wheelRate; model.wheelAngle = wheelAngle;
+        }
 
         if (!useWalker) moveWithCollision(vel.scale(dt));
         if (useWalker) { bodyOnly = true; try { rotateWithCollision(yaw + yawRate * dt); } finally { bodyOnly = false; } } // a walker's legs follow its feet; only the body can be blocked
@@ -495,6 +537,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             int[] rl = new int[model.ikRoll.length * 2]; for (int i = 0; i < model.ikRoll.length; i++) { rl[2 * i] = Float.floatToIntBits((float) model.ikRoll[i]); rl[2 * i + 1] = Float.floatToIntBits((float) model.ikYaw[i]); }
             ik.putIntArray("RL", rl); ik.putDouble("WC", model.walkClock); ik.putDouble("WA", model.walkAmount);
         }
+        if (model.wheels > 0) ik.putDouble("WH", wheelAngle);
         boolean firing = false; for (byte b : thrOut) firing |= b != 0;
         if (firing) ik.putByteArray("T", thrOut.clone());
         entityData.set(IK, ik);
@@ -865,8 +908,32 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
      * Change blocks of this Colossus while it stays where it is in the world: set/replace some, remove others.
      * Parts no longer connected to the Hull Core fall off as wrecks. Server: tells the clients too.
      */
+    /** Changes that came from the dock (doors, machines, chests): applied here, not written back. */
+    void editFromDock(Map<BlockPos, BlockState> set, Map<BlockPos, CompoundTag> setBes, Collection<BlockPos> del) {
+        fromDock = true; try { editBlocks(set, setBes, del); } finally { fromDock = false; }
+    }
     public void editBlocks(Map<BlockPos, BlockState> set, Map<BlockPos, CompoundTag> setBes, Collection<BlockPos> del) {
+        boolean structural = !del.isEmpty();
+        for (var e : set.entrySet()) if (blocks.get(e.getKey()) != e.getValue()) { structural = true; break; }
+        if (!structural) { // only block entity data changed (a chest's contents, a machine's state): no rebuild
+            bes.putAll(setBes);
+            if (clientBes != null) for (BlockPos p : setBes.keySet()) clientBes.remove(p);
+            if (!level().isClientSide) {
+                if (docked && !fromDock) ColossusDock.write(this, Map.of(), setBes, List.of());
+                CompoundTag t = new CompoundTag(); t.put("Del", new LongArrayTag(new long[0]));
+                ListTag sl = new ListTag();
+                for (var e : setBes.entrySet()) { if (e.getValue().sizeInBytes() >= 32_768) continue; CompoundTag b = new CompoundTag(); b.putLong("P", e.getKey().asLong()); b.putInt("S", Block.getId(blocks.get(e.getKey()))); b.put("E", e.getValue()); sl.add(b); }
+                t.put("Set", sl);
+                if (!sl.isEmpty()) PacketDistributor.sendToPlayersTrackingEntity(this, new Net.ColossusBlocks(getId(), t));
+            }
+            return;
+        }
         if (!level().isClientSide) set = regridEdit(set, del);
+        if (!level().isClientSide && docked && !fromDock) ColossusDock.write(this, set, setBes, del);
+        else if (!level().isClientSide && docked && fromDock) { // a regrid may have changed neighbours too: those go to the dock
+            Map<BlockPos, BlockState> extra = new HashMap<>(); for (var e : set.entrySet()) extra.put(e.getKey(), e.getValue());
+            ColossusDock.write(this, extra, Map.of(), List.of());
+        }
         Vec3 anchor = toWorld(Vec3.ZERO, position(), yaw);
         for (BlockPos p : del) { blocks.remove(p); bes.remove(p); liveBes.remove(p); mining.remove(p); if (clientBes != null) clientBes.remove(p); }
         for (var e : set.entrySet()) { blocks.put(e.getKey(), e.getValue()); if (!setBes.containsKey(e.getKey())) { bes.remove(e.getKey()); liveBes.remove(e.getKey()); } if (clientBes != null) clientBes.remove(e.getKey()); }
@@ -933,6 +1000,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
 
     /** A piece that broke off: a new rigid Colossus with no Hull Core, posed exactly where its blocks were. */
     private void spawnWreck(Set<BlockPos> part) {
+        for (BlockPos p : part) saveLive(p); // the piece takes its chests' contents with it
         BlockPos root = part.stream().min(Comparator.naturalOrder()).get();
         Integer rootSeg = preSegOf.get(root);
         Matrix4d oldPose = new Matrix4d();
@@ -956,6 +1024,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     /** A wreck that has come to rest turns back into blocks where it lies (blocked spots drop as items). */
     private void settle() {
         if (!(level() instanceof ServerLevel sl)) return;
+        saveAllLive();
         double snapped = Math.round(yaw / (Math.PI / 2)) * (Math.PI / 2);
         int k = Math.floorMod((int) Math.round(yaw / (Math.PI / 2)), 4);
         Rotation rot = new Rotation[]{Rotation.NONE, Rotation.CLOCKWISE_90, Rotation.CLOCKWISE_180, Rotation.COUNTERCLOCKWISE_90}[k];
@@ -977,6 +1046,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     /** The live block entity of a block on this Colossus (made from its saved data the first time it's needed). Server only. */
     @org.jetbrains.annotations.Nullable
     public BlockEntity liveBe(BlockPos p) {
+        if (docked && !level().isClientSide) { BlockEntity d = ColossusDock.be(this, p); if (d != null || dockSlot >= 0) return d; }
         BlockEntity be = liveBes.get(p); if (be != null) return be;
         BlockState st = blocks.get(p);
         if (st == null || !(st.getBlock() instanceof net.minecraft.world.level.block.EntityBlock eb)) return null;
@@ -986,8 +1056,14 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         return be;
     }
     /** Write a live block entity back into the Colossus' saved data. */
-    public void saveLive(BlockPos p) { BlockEntity be = liveBes.get(p); if (be != null && blocks.containsKey(p)) bes.put(p, be.saveWithFullMetadata(level().registryAccess())); }
-    public void saveAllLive() { for (BlockPos p : new ArrayList<>(liveBes.keySet())) saveLive(p); }
+    public void saveLive(BlockPos p) {
+        BlockEntity be = docked && !level().isClientSide ? ColossusDock.be(this, p) : liveBes.get(p);
+        if (be != null && blocks.containsKey(p)) bes.put(p, be.saveWithFullMetadata(level().registryAccess()));
+    }
+    public void saveAllLive() {
+        if (docked && !level().isClientSide) { for (var e : blocks.entrySet()) if (e.getValue().hasBlockEntity()) saveLive(e.getKey()); return; }
+        for (BlockPos p : new ArrayList<>(liveBes.keySet())) saveLive(p);
+    }
     /** Engines keep burning the fuel in their slots while the Colossus runs; what they make goes into its power. */
     private void tickLiveBes() {
         for (var e : blocks.entrySet()) {
@@ -1159,7 +1235,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
                 double[] out = {sb.minX - qx, qx - sb.maxX, sb.minY - qy, qy - sb.maxY, sb.minZ - qz, qz - sb.maxZ};
                 Direction[] dirs = {Direction.WEST, Direction.EAST, Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH};
                 int best = 0; for (int k = 1; k < 6; k++) if (out[k] > out[best]) best = k;
-                return new Object[]{bp, dirs[best]};
+                return new Object[]{bp, dirs[best], new Vec3(l.x - bp.getX(), l.y - bp.getY(), l.z - bp.getZ())};
             }
         }
         return null;
@@ -1193,7 +1269,14 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     @Override public boolean shouldBeSaved() { return !isRemoved(); }
     @Override public boolean shouldRenderAtSqrDistance(double d) { return d < 512 * 512; }
     @Override public void onAddedToLevel() { super.onAddedToLevel(); ColossusCollision.all(level()).add(this); }
-    @Override public void onRemovedFromLevel() { super.onRemovedFromLevel(); ColossusCollision.all(level()).remove(this); }
+    @Override public void onRemovedFromLevel() {
+        super.onRemovedFromLevel(); ColossusCollision.all(level()).remove(this);
+        if (!level().isClientSide && docked) {
+            RemovalReason rr = getRemovalReason();
+            if (rr != null && rr.shouldDestroy()) ColossusDock.release(this); else ColossusDock.detach(this);
+            docked = false;
+        }
+    }
     @Override public void remove(RemovalReason r) { super.remove(r); ColossusCollision.all(level()).remove(this); }
     @Override public void onClientRemoval() { super.onClientRemoval(); ColossusCollision.all(level()).remove(this); }
     @Override public boolean hurt(net.minecraft.world.damagesource.DamageSource s, float a) { return false; }
@@ -1201,7 +1284,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     // ------------------------------------------------------------ save / sync
     @Override protected void addAdditionalSaveData(CompoundTag tag) {
         if (!level().isClientSide) saveAllLive();
-        tag.putBoolean("Wreck", wreck);
+        tag.putBoolean("Wreck", wreck); tag.putInt("DockSlot", dockSlot);
         if (bake != null) { double[] m = new double[16]; bake.get(m); ListTag bl = new ListTag(); for (double v : m) bl.add(net.minecraft.nbt.DoubleTag.valueOf(v)); tag.put("Bake", bl); }
         ListTag list = new ListTag();
         for (var e : blocks.entrySet()) {
@@ -1213,7 +1296,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         tag.putDouble("Yaw", yaw); tag.putDouble("YawRate", yawRate);
         tag.putDouble("VX", vel.x); tag.putDouble("VY", vel.y); tag.putDouble("VZ", vel.z);
         tag.putLong("Energy", energy); tag.putLong("EnergyStart", energyStart); tag.putBoolean("Hover", hover());
-        tag.putDouble("Walk", walkPhase); tag.putDouble("Spin", spin); tag.putDouble("Tilt", tilt);
+        tag.putDouble("Walk", walkPhase); tag.putDouble("Spin", spin); tag.putDouble("Wheel", wheelAngle); tag.putDouble("Tilt", tilt);
         tag.putDouble("BodyPitch", bodyPitch); tag.putDouble("BodyRoll", bodyRoll);
     }
     @Override protected void readAdditionalSaveData(CompoundTag tag) {
@@ -1225,12 +1308,12 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             if (b.contains("E")) bes.put(p, b.getCompound("E"));
         }
         jointCfg = tag.getCompound("JointCfg");
-        wreck = tag.getBoolean("Wreck");
+        wreck = tag.getBoolean("Wreck"); dockSlot = tag.contains("DockSlot") ? tag.getInt("DockSlot") : -1;
         if (tag.contains("Bake")) { ListTag bl = tag.getList("Bake", Tag.TAG_DOUBLE); double[] m = new double[16]; for (int i = 0; i < 16; i++) m[i] = bl.getDouble(i); bake = new Matrix4d().set(m); }
         yaw = prevYaw = tag.getDouble("Yaw"); yawRate = tag.getDouble("YawRate");
         vel = new Vec3(tag.getDouble("VX"), tag.getDouble("VY"), tag.getDouble("VZ"));
         energy = tag.getLong("Energy"); energyStart = tag.getLong("EnergyStart");
-        entityData.set(HOVER, tag.getBoolean("Hover")); walkPhase = tag.getDouble("Walk"); spin = tag.getDouble("Spin"); tilt = prevTilt = tag.getDouble("Tilt"); entityData.set(TILT, (float) tilt);
+        entityData.set(HOVER, tag.getBoolean("Hover")); walkPhase = tag.getDouble("Walk"); spin = tag.getDouble("Spin"); wheelAngle = tag.getDouble("Wheel"); tilt = prevTilt = tag.getDouble("Tilt"); entityData.set(TILT, (float) tilt);
         bodyPitch = tag.getDouble("BodyPitch"); bodyRoll = tag.getDouble("BodyRoll");
         entityData.set(YAW, (float) yaw);
         if (!blocks.isEmpty()) rebuild();

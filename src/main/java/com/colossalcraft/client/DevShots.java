@@ -89,8 +89,8 @@ public final class DevShots {
                 for (int du = 0; du < 2; du++) for (int dv = 0; dv < 2; dv++) {
                     lv2.setBlockAndUpdate(base.offset(-8 + du, 1 + dv, -8), ModRegistry.BEARING.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z));
                     lv2.setBlockAndUpdate(base.offset(-5 + du, 1 + dv, -8), ModRegistry.MOTOR.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z));
-                    lv2.setBlockAndUpdate(base.offset(-2 + du, 1, -9 + dv), ModRegistry.SOCKET.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.UP, true));
-                    lv2.setBlockAndUpdate(base.offset(-2 + du, 2, -9 + dv), ModRegistry.BALL_HALF.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.UP, false));
+                    lv2.setBlockAndUpdate(base.offset(-2 + du, 1, -9 + dv), ModRegistry.BALL_JOINT.get().defaultBlockState());
+                    lv2.setBlockAndUpdate(base.offset(-2 + du, 2, -9 + dv), ModRegistry.BALL_JOINT.get().defaultBlockState());
                 }
                 lv2.setBlockAndUpdate(base.offset(1, 1, -8), ModRegistry.SMALL_GYRO.get().defaultBlockState());
                 lv2.setBlockAndUpdate(base.offset(3, 1, -8), ModRegistry.POWERED_BALL_JOINT.get().defaultBlockState()); });
@@ -134,6 +134,19 @@ public final class DevShots {
                 sp.getAbilities().flying = true; sp.onUpdateAbilities();
                 sp.connection.teleport(eye.x, eye.y - 1.62, eye.z, (float) Math.toDegrees(Math.atan2(-d.x, d.z)), (float) Math.toDegrees(-Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z))));
             });
+            case 185 -> server(sp -> { ColossusEntity c = colossus(); if (c == null) return;
+                var d = com.colossalcraft.colossus.ColossusDock.level(sp.server);
+                ColossalCraft.LOG.info("[devshots] dock present={} slot={} dockChest={}", d != null, c.dockSlot, d == null ? null : d.getBlockState(com.colossalcraft.colossus.ColossusDock.toDock(c, new BlockPos(2, 0, 2))));
+                com.colossalcraft.colossus.ColossusInteract.handle(sp, new Net.ColossusBlock(c.getId(), new BlockPos(2, 0, 2).asLong(), Direction.UP.get3DDataValue(), 0));
+                ColossalCraft.LOG.info("[devshots] chest on colossus opened={}", sp.containerMenu);
+                sp.closeContainer();
+                if (d != null) d.setBlockAndUpdate(com.colossalcraft.colossus.ColossusDock.toDock(c, new BlockPos(0, 1, 0)), Blocks.GLOWSTONE.defaultBlockState()); });
+            case 187 -> server(sp -> { ColossusEntity c = colossus(); if (c == null) return;
+                ColossalCraft.LOG.info("[devshots] dock->colossus block came back={}", c.blocks.get(new BlockPos(0, 1, 0)));
+                var d = com.colossalcraft.colossus.ColossusDock.level(sp.server);
+                if (d != null) d.setBlockAndUpdate(com.colossalcraft.colossus.ColossusDock.toDock(c, new BlockPos(0, 1, 0)), Blocks.AIR.defaultBlockState()); });
+            case 189 -> { var lk = ClientHooks.look(); ColossalCraft.LOG.info("[devshots] looking at colossus block={}", lk == null ? null : lk.c().blocks.get(lk.pos())); }
+            case 191 -> shot("3b_look_label");
             case 192 -> ColossalCraft.LOG.info("[devshots] click hull core handled={}", ClientHooks.tryClickColossus());
             case 200 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
             case 205 -> shot("4_built_joints");

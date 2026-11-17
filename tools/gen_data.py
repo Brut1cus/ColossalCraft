@@ -165,43 +165,6 @@ def motor_model(d, n, gu, gv):
     model(name, els, {'body': tex('motor'), 'shaft': tex('shaft'), 'particle': tex('motor')})
     return name
 grid_variants('motor', motor_model, {}, 'motor_y_1_0_0'); blocks.append('motor'); NAMES['motor'] = 'Servo Motor'
-# Ball half / socket: a square layer each; together an n x 2 x n ball joint. Everything tinted 12 (drawn whole with its part).
-pdone = set()
-def ballpart_model(kind, d, n, gu, gv):
-    up = d['up'] == 'true'; name = f'{kind}_{"up" if up else "down"}_{n}_{gu}_{gv}'
-    if name in pdone: return name
-    pdone.add(name)
-    C, E = 8 * n, 16 * n
-    def Y(y0, y1): return (y0, y1) if up else (16 - y1, 16 - y0)   # flip for the downward version
-    parts = []
-    if kind == 'ball_half':
-        parts.append((Y(0, 2), (0, E), (0, E), '#socket'))            # flat plate on its own part
-        Rh, Rv = 8 * n - 1.5, 14.0                                       # dome: wide as the square, as high as the layer
-        for y0 in range(2, 16, 2):
-            dmid = y0 + 1 - 2
-            if dmid >= Rv: break
-            r = Rh * math.sqrt(1 - (dmid / Rv) ** 2) * 0.95
-            parts.append((Y(y0, y0 + 2), (C - r, C + r), (C - r, C + r), '#ball'))
-    else:
-        t = 3
-        parts.append((Y(0, 5), (0, E), (0, E), '#socket'))            # closed bottom of the cup
-        for ru, rv in (((0, E), (0, t)), ((0, E), (E - t, E)), ((0, t), (t, E - t)), ((E - t, E), (t, E - t))):
-            parts.append((Y(5, 16), ru, rv, '#socket'))               # rim
-        for y0 in range(5, 16, 3):                                       # inner bowl steps
-            r = (8 * n - t) * (y0 - 5) / 11
-            for ru, rv in (((t, E - t), (t, C - r)), ((t, E - t), (C + r, E - t))):
-                if rv[1] - rv[0] > 0.5: parts.append((Y(y0, min(16, y0 + 3)), ru, rv, '#socket'))
-    els = []
-    for ry, ru, rv, tx2 in parts:
-        lo_u, hi_u = max(ru[0] - 16 * gu, 0), min(ru[1] - 16 * gu, 16)
-        lo_v, hi_v = max(rv[0] - 16 * gv, 0), min(rv[1] - 16 * gv, 16)
-        if lo_u >= hi_u or lo_v >= hi_v: continue
-        lo, hi = [lo_u, ry[0], lo_v], [hi_u, ry[1], hi_v]
-        els.append({'from': lo, 'to': hi, 'faces': {f: {'texture': tx2, 'uv': fit_uv(f, lo, hi), 'tintindex': 12} for f in ('north', 'south', 'east', 'west', 'up', 'down')}})
-    model(name, els, {'ball': tex('ball'), 'socket': tex('socket'), 'particle': tex('socket')})
-    return name
-grid_variants('ball_half', lambda d, n, gu, gv: ballpart_model('ball_half', d, n, gu, gv), {'up': ['false', 'true']}, 'ball_half_up_1_0_0'); blocks.append('ball_half'); NAMES['ball_half'] = 'Ball Half'
-grid_variants('socket', lambda d, n, gu, gv: ballpart_model('socket', d, n, gu, gv), {'up': ['false', 'true']}, 'socket_up_1_0_0'); blocks.append('socket'); NAMES['socket'] = 'Socket'
 # Small joints (single blocks)
 for n, sh, title in (('slab_joint', 'joint_slab', 'Slab Joint'), ('panel_joint', 'joint_panel', 'Panel Joint'), ('pin_joint', 'joint_pin', 'Pin Joint')):
     variants = {}
@@ -226,13 +189,46 @@ for n, sh, title in (('slab_joint', 'joint_slab', 'Slab Joint'), ('panel_joint',
         item = f'{n}_x'
     w(f'{A}/blockstates/{n}.json', {'variants': variants}); blocks.append(n); NAMES[n] = title
     w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{item}'})
-# 1x1 ball joints: bottom base (tint 9), top base (10), ball (11). The powered one has a motor band on its top base.
-model('ball_joint', ball_els(), JTX)
-pbe = ball_els() + [{'from': [3, 10, 3], 'to': [13, 12.5, 13], 'faces': {f: {'texture': '#band', 'uv': fit_uv(f, [3, 10, 3], [13, 12.5, 13]), 'tintindex': 10} for f in ('north', 'south', 'east', 'west', 'up', 'down')}}]
-model('powered_ball_joint', pbe, dict(JTX, band=tex('powered_ball')))
+# Ball joints: one model per (side n, place gu/gv, height h, layer gh). An n x h x n box draws one big ball across all its blocks:
+# bottom base plate (tint 9), top base plate (10, the powered one has a motor band), the ball (11) in 2-pixel slices.
+bdone = set()
+def ball_box_model(kind, n, gu, gv, h, gh):
+    name = f'{kind}_{n}_{h}_{gu}_{gv}_{gh}'
+    if name in bdone: return name
+    bdone.add(name)
+    E, H = 16 * n, 16 * h
+    m = 2 if n == 1 else 3
+    parts = []  # (y range in box pixels, u range, v range, texture, tint)
+    plate = 3 if n == 1 else 4
+    parts.append(((0, plate), (m, E - m), (m, E - m), '#side', 9))
+    parts.append(((H - plate, H), (m, E - m), (m, E - m), '#side', 10))
+    if kind == 'powered_ball_joint': parts.append(((H - plate - 2.5, H - plate), (m + 1, E - m - 1), (m + 1, E - m - 1), '#band', 10))
+    C, Cy = E / 2, H / 2
+    Rh, Rv = E / 2 - m - 0.5, H / 2 - plate + 1
+    y = Cy - Rv
+    while y < Cy + Rv - 0.01:
+        y1 = min(y + 2, Cy + Rv); mid = (y + y1) / 2 - Cy
+        r = Rh * math.sqrt(max(0.0, 1 - (mid / Rv) ** 2))
+        if r > 0.6: parts.append(((y, y1), (C - r, C + r), (C - r, C + r), '#end', 11))
+        y = y1
+    els = []
+    for ry, ru, rv, tx2, tint in parts:
+        lo_y, hi_y = max(ry[0] - 16 * gh, 0), min(ry[1] - 16 * gh, 16)
+        lo_u, hi_u = max(ru[0] - 16 * gu, 0), min(ru[1] - 16 * gu, 16)
+        lo_v, hi_v = max(rv[0] - 16 * gv, 0), min(rv[1] - 16 * gv, 16)
+        if lo_u >= hi_u or lo_v >= hi_v or lo_y >= hi_y: continue
+        lo, hi = [round(lo_u, 3), round(lo_y, 3), round(lo_v, 3)], [round(hi_u, 3), round(hi_y, 3), round(hi_v, 3)]
+        els.append({'from': lo, 'to': hi, 'faces': {f: {'texture': tx2, 'uv': fit_uv(f, lo, hi), 'tintindex': tint} for f in ('north', 'south', 'east', 'west', 'up', 'down')}})
+    model(name, els, dict(JTX, band=tex('powered_ball')))
+    return name
 for n, title in (('ball_joint', 'Ball Joint'), ('powered_ball_joint', 'Powered Ball Joint')):
-    w(f'{A}/blockstates/{n}.json', {'variants': {f'axis={a}': {'model': f'{NS}:block/{n}'} for a in 'xyz'}})
-    w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}'}); blocks.append(n); NAMES[n] = title
+    v = {}
+    for size, gu, gv, ht, gh in itertools.product([1, 2, 3, 4], [0, 1, 2, 3], [0, 1, 2, 3], [1, 2, 3, 4], [0, 1, 2, 3]):
+        ok = gu < size and gv < size and ht <= size and gh < ht
+        mn = ball_box_model(n, size, gu, gv, ht, gh) if ok else ball_box_model(n, 1, 0, 0, 1, 0)
+        v[f'gh={gh},gu={gu},gv={gv},ht={ht},size={size}'] = {'model': f'{NS}:block/{mn}'}
+    w(f'{A}/blockstates/{n}.json', {'variants': v})
+    w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}_1_1_0_0_0'}); blocks.append(n); NAMES[n] = title
 def axis_box(axis, ra, ru, rv, tx, spin=False):
     a, u, v = AX[axis]
     lo, hi = make(a, u, v, ra, ru, rv)
@@ -302,7 +298,7 @@ w(f'{A}/blockstates/sky_sail.json', {'variants': {'': {'model': f'{NS}:block/sky
 blocks.append('sky_sail'); NAMES['sky_sail'] = 'Sky Sail'
 
 for b in blocks:
-    if b not in ('bearing', 'motor', 'ball_half', 'socket', 'slab_joint', 'panel_joint', 'pin_joint', 'ball_joint', 'powered_ball_joint'): item_from_block(b)
+    if b not in ('bearing', 'motor', 'slab_joint', 'panel_joint', 'pin_joint', 'ball_joint', 'powered_ball_joint'): item_from_block(b)
 ITEMS = {'colossteel_blend': 'Colossteel Blend', 'colossteel_ingot': 'Colossteel Ingot', 'reactor_alloy': 'Reactor Alloy',
          'neutronium_ingot': 'Neutronium Ingot', 'enriched_fuel_cell': 'Enriched Fuel Cell', 'deuterium_cell': 'Deuterium Cell'}
 for i in ITEMS: w(f'{A}/models/item/{i}.json', {'parent': 'minecraft:item/generated', 'textures': {'layer0': f'{NS}:item/{i}'}})
@@ -355,8 +351,6 @@ shaped('panel_joint', ['J', 'J', 'J'], {'J': 'bearing'}, 6)
 shapeless('pin_joint', ['bearing'], 4)
 shapeless('ball_joint', ['bearing', 'minecraft:slime_ball'])
 shapeless('powered_ball_joint', ['ball_joint', 'motor'])
-shaped('ball_half', [' I ', 'IBI'], {'I': 'minecraft:iron_ingot', 'B': 'ball_joint'}, 2)
-shaped('socket', ['IBI', ' I '], {'I': 'minecraft:iron_ingot', 'B': 'ball_joint'}, 2)
 shaped('gantry_scaffold', ['SNS', ' S ', 'SNS'], {'S': 'minecraft:stick', 'N': 'minecraft:iron_nugget'}, 12)
 shaped('ember_boiler', ['III', 'IFI', 'IBI'], {'I': 'minecraft:iron_ingot', 'F': 'minecraft:furnace', 'B': 'minecraft:bucket'})
 shaped('blaze_combustor', ['SBS', 'BEB', 'SBS'], {'S': S, 'B': 'minecraft:blaze_rod', 'E': 'ember_boiler'})
@@ -497,7 +491,7 @@ for b in ('locomotion_controller', 'jump_drive'):
     w(f'{D}/loot_table/blocks/{b}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{b}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
 lang = json.load(open(f'{A}/lang/en_us.json'))
 for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]
-lang['key.colossalcraft.loco'] = 'Colossus: Open Locomotion Controller'; lang['key.colossalcraft.jump'] = 'Colossus: Jump Drive (default)'
+lang['key.colossalcraft.loco'] = 'Colossus: Open Locomotion Controller'; lang['key.colossalcraft.brake'] = 'Colossus: Brake wheels (default)'; lang['key.colossalcraft.jump'] = 'Colossus: Jump Drive (default)'
 w(f'{A}/lang/en_us.json', lang)
 w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in blocks if b not in ('sky_sail', 'kinetic_dynamo', 'gantry_scaffold')] + [{'id': f'{NS}:kinetic_dynamo', 'required': False}]})
 shaped('locomotion_controller', ['SCS', 'RMR', 'SRS'], {'S': S, 'C': 'minecraft:comparator', 'R': 'minecraft:redstone', 'M': 'motor'})

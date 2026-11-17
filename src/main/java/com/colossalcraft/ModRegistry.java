@@ -75,10 +75,8 @@ public final class ModRegistry {
     public static final DeferredBlock<SlabJointBlock> SLAB_JOINT = block("slab_joint", SlabJointBlock::new, metal().noOcclusion());
     public static final DeferredBlock<PanelJointBlock> PANEL_JOINT = block("panel_joint", PanelJointBlock::new, metal().noOcclusion());
     public static final DeferredBlock<JointBlock> PIN_JOINT = block("pin_joint", p -> new JointBlock(JointShape.PIN, p), metal().noOcclusion());
-    public static final DeferredBlock<JointBlock> BALL_JOINT = block("ball_joint", p -> new JointBlock(JointShape.BALL, p), metal().noOcclusion());
-    public static final DeferredBlock<JointBlock> POWERED_BALL_JOINT = block("powered_ball_joint", p -> new JointBlock(JointShape.POWERED_BALL, p), metal().noOcclusion().lightLevel(s -> 4));
-    public static final DeferredBlock<BallPartBlock> BALL_HALF = block("ball_half", p -> new BallPartBlock(JointShape.BALL_HALF, p), metal().noOcclusion());
-    public static final DeferredBlock<BallPartBlock> SOCKET = block("socket", p -> new BallPartBlock(JointShape.SOCKET, p), metal().noOcclusion());
+    public static final DeferredBlock<BallJointBlock> BALL_JOINT = block("ball_joint", p -> new BallJointBlock(JointShape.BALL, p), metal().noOcclusion());
+    public static final DeferredBlock<BallJointBlock> POWERED_BALL_JOINT = block("powered_ball_joint", p -> new BallJointBlock(JointShape.POWERED_BALL, p), metal().noOcclusion().lightLevel(s -> 4));
     public static final DeferredBlock<MotorBlock> MOTOR = block("motor", MotorBlock::new, metal().noOcclusion());
     /** Two gearboxes: 2:1 and 5:1 (placed backwards they speed up instead: 1:2, 1:5). */
     public static final DeferredBlock<GearboxBlock> GEARBOX = block("gearbox", p -> new GearboxBlock(2, 0.95, "2:1", p), metal().noOcclusion());

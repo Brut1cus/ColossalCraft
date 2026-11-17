@@ -6,7 +6,6 @@ import com.colossalcraft.block.Grid;
 import static com.colossalcraft.block.SimpleParts.SIZE;
 import static com.colossalcraft.block.SimpleParts.GU;
 import static com.colossalcraft.block.SimpleParts.GV;
-import static com.colossalcraft.block.SimpleParts.UP;
 import com.colossalcraft.tier.EngineTier;
 import com.colossalcraft.tier.Parts;
 import net.minecraft.core.BlockPos;
@@ -77,7 +76,9 @@ public class StructureModel {
         /** A powered ball joint set to Leg or Sway: a two-way joint (forward/back like a hinge about {@link #axis}, plus sideways). */
         public boolean universal;
         public Direction.Axis axis; public long key;
-        public String label() { return (size > 1 ? size + "x" + size + " " : "") + (shape == JointShape.BALL_HALF ? (powered ? "Powered Ball Joint" : "Ball Joint") : shape.title); }
+        public String label() { return (size > 1 || height > 1 ? (ball ? size + "x" + height + "x" + size + " " : size + "x" + size + " ") : "") + shape.title; }
+        /** Ball joints: layers high (1..size), and how far it can turn either way at most (degrees). Others: the limit cap. */
+        public int height = 1, romCap = 120;
         public final List<BlockPos> blocks = new ArrayList<>();
         public final List<Integer> childSegs = new ArrayList<>();
         public Vec3 pivot = Vec3.ZERO, subCom = Vec3.ZERO;
@@ -97,6 +98,8 @@ public class StructureModel {
         public boolean ball; public int group;
         /** Propeller data (Spin joints): sum of blade area * r^2, area * r^3, and which way along the axis it pushes. */
         public double bladeA2, bladeA3; public int blades; public double thrustSign = 1;
+        /** Wheel data (Spin joints without blades): radius (blocks), +-1 so positive spin drives forward, touches the ground. */
+        public double wheelRadius; public int wheelSign = 1; public boolean wheelGround;
         /** Gear ratios seen by this joint's motors (for the screen). */
         public final List<Double> ratios = new ArrayList<>();
         public boolean stalled() { return !ball && mode != LOCKED && !childSegs.isEmpty() && (motorTorque <= 0 || motorTorque < reqTorque); }
@@ -114,7 +117,7 @@ public class StructureModel {
             if (footBelow) return new Object[]{"Hip (powered ball): Leg swings the leg forward/back AND sideways, so the body can lean over a foot. Needs no extra motor.", LEG};
             return new Object[]{"Shoulder (powered ball): Sway swings the arm with the steps; Locked holds it still.", -1};
         }
-        if (j.ball) return new Object[]{"Ankle (ball joint): keeps the foot level by itself. Its mode is ignored; set its Limit (±5° is tight). For a hip or shoulder use a Powered Ball Joint.", -1};
+        if (j.ball) return new Object[]{"Ankle (ball joint): keeps the foot level by itself. Set its range with the arrows. For a hip, use a Powered Ball Joint or put a Servo Motor against it. Bigger ball joints (2x2x2 cubes) turn further.", -1};
         if (j.childSegs.isEmpty()) return new Object[]{"Nothing hangs from this joint.", -1};
         boolean footBelow = j.footShare > 0;
         if (footBelow && j.axis == Direction.Axis.Y) return new Object[]{"Twists a whole leg: walkers can't step with it. Use Locked.", LOCKED};
@@ -127,6 +130,7 @@ public class StructureModel {
             return new Object[]{"Hip or knee of a leg: use Leg so the leg can step (needs a motor).", LEG};
         }
         if (j.blades > 0) return new Object[]{"Rotor: blades on it make thrust. Use Spin.", SPIN};
+        if (j.mode == SPIN) return new Object[]{j.wheelGround ? "Wheel: turns with the Spin keys (Keys tab) and drives the Colossus along the ground. Brake stops it." : "Spins with the Spin keys (Keys tab): clockwise, counter-clockwise, brake.", -1};
         return new Object[]{"Arm, tail or turret: Locked (rigid), Spin (keeps turning) or Sway (idle motion).", -1};
     }
     public record Thruster(BlockPos pos, Direction push, double force, double power, int seg) {}
@@ -140,7 +144,6 @@ public class StructureModel {
     public final Map<BlockPos, double[]> spinParts = new HashMap<>();
     public final Set<Integer> footSegs = new TreeSet<>();
     /** Blocks of big ball joints that move with the child part (the rest stay with the parent). */
-    public final Set<BlockPos> ballChildSide = new HashSet<>();
     /** Powered ball joints: how far each tilts its foot to match the ground (radians, about the right and forward axes). */
     public double[] ballPitch = new double[0], ballRoll = new double[0];
     /** Sideways angle of each powered hip (radians, from the IK). */
@@ -241,32 +244,18 @@ public class StructureModel {
         }
 
         // ---- joint clusters ----
-        // Bearings: one joint per square assembly (n x n, stacked along the axis is fine). Ball joints: a square of ball halves against
-        // a square of sockets. Slab / panel / pin joints side by side join. Unpaired ball halves and sockets are just solid parts.
+        // Bearings: one joint per square assembly (n x n, stacked along the axis is fine). Ball joints: one joint per n x h x n box.
+        // Slab / panel / pin joints side by side join.
         List<List<BlockPos>> groups = new ArrayList<>();
         Set<BlockPos> jointPos = new HashSet<>(), grouped = new HashSet<>();
-        for (var e : blocks.entrySet()) {
-            BlockState st = e.getValue();
-            if (!(st.getBlock() instanceof BallPartBlock bp) || bp.shape != JointShape.BALL_HALF || st.getValue(GU) != 0 || st.getValue(GV) != 0) continue;
-            int n = st.getValue(SIZE);
-            BlockPos so = null; // a socket square of the same size right above or below (which way they face doesn't matter)
-            for (Direction dd : new Direction[]{Direction.UP, Direction.DOWN}) {
-                BlockState ss = blocks.get(e.getKey().relative(dd));
-                if (ss != null && ss.getBlock() instanceof BallPartBlock sb && sb.shape == JointShape.SOCKET && ss.getValue(SIZE) == n && ss.getValue(GU) == 0 && ss.getValue(GV) == 0) { so = e.getKey().relative(dd); break; }
-            }
-            if (so == null) continue;
-            List<BlockPos> g = new ArrayList<>();
-            for (int du = 0; du < n; du++) for (int dv = 0; dv < n; dv++) { g.add(e.getKey().offset(du, 0, dv)); g.add(so.offset(du, 0, dv)); }
-            if (!blocks.keySet().containsAll(g)) continue;
-            groups.add(g); grouped.addAll(g);
-        }
+        Map<BlockPos, List<BlockPos>> balls = new LinkedHashMap<>();
         for (var e : blocks.entrySet()) {
             BlockPos p = e.getKey(); BlockState st = e.getValue();
-            if (!(st.getBlock() instanceof JointBlock jb) || grouped.contains(p)) continue;
-            if (jb instanceof BallPartBlock) continue; // unpaired half: a solid part
+            if (!(st.getBlock() instanceof JointBlock)) continue;
             jointPos.add(p);
+            if (st.getBlock() instanceof BallJointBlock) { balls.computeIfAbsent(Grid.origin(p, st), x -> new ArrayList<>()).add(p); grouped.add(p); }
         }
-        jointPos.addAll(grouped);
+        groups.addAll(balls.values());
         for (BlockPos start : jointPos) {
             if (grouped.contains(start)) continue;
             BlockState s0 = blocks.get(start); JointBlock jb0 = (JointBlock) s0.getBlock();
@@ -275,7 +264,6 @@ public class StructureModel {
             BlockPos o0 = jb0 instanceof BearingBlock ? flat(Grid.origin(start, s0), ax0) : null;
             while (!q.isEmpty()) {
                 BlockPos p = q.poll(); g.add(p);
-                if (jb0.shape == JointShape.BALL || jb0.shape == JointShape.POWERED_BALL) break; // 1x1 ball joints stand alone
                 for (Direction d : Direction.values()) {
                     BlockPos n = p.relative(d); BlockState ns = blocks.get(n);
                     if (ns == null || !jointPos.contains(n) || grouped.contains(n) || !(ns.getBlock() instanceof JointBlock nb) || ns.getValue(RotatedPillarBlock.AXIS) != ax0) continue;
@@ -293,13 +281,15 @@ public class StructureModel {
             BlockState ss = blocks.get(first);
             JointBlock jb = (JointBlock) ss.getBlock();
             Joint j = new Joint(); j.id = joints.size();
-            j.shape = jb instanceof BallPartBlock ? JointShape.BALL_HALF : jb.shape;
-            j.axis = jb instanceof BallPartBlock ? Direction.Axis.Y : ss.getValue(RotatedPillarBlock.AXIS);
-            j.size = jb instanceof BearingBlock || jb instanceof BallPartBlock ? ss.getValue(SIZE) : 1;
+            boolean bj = jb instanceof BallJointBlock;
+            j.shape = jb.shape;
+            j.axis = bj ? Direction.Axis.Y : ss.getValue(RotatedPillarBlock.AXIS);
+            j.size = jb instanceof BearingBlock || bj ? ss.getValue(SIZE) : 1;
+            j.height = bj ? Math.max(1, Math.min(j.size, ss.getValue(SimpleParts.HT))) : 1;
             double px = 0, py = 0, pz = 0;
             for (BlockPos p : g) { j.blocks.add(p); clusterOf.put(p, j.id); px += p.getX() + .5; py += p.getY() + .5; pz += p.getZ() + .5; }
-            if (jb instanceof BearingBlock || jb instanceof BallPartBlock) {
-                int layers = jb instanceof BearingBlock ? Math.max(1, g.size() / (j.size * j.size)) : 1;
+            if (jb instanceof BearingBlock || bj) {
+                int layers = jb instanceof BearingBlock ? Math.max(1, g.size() / (j.size * j.size)) : j.height;
                 j.area = Parts.scale(j.size) * j.shape.strength * Math.sqrt(layers); // longer stacks help a little
             } else for (BlockPos p : g) j.area += ((JointBlock) blocks.get(p).getBlock()).shape.strength;
             j.k = j.blocks.size(); j.key = first.asLong();
@@ -313,7 +303,7 @@ public class StructureModel {
             j.group = jc.getInt("Group");
             j.ball = j.shape.ball();
             j.powered = j.shape == JointShape.POWERED_BALL;
-            if (j.ball && !jc.contains("Amp")) j.amp = 22; // default +-45 degrees
+            if (j.ball) { j.romCap = BallJointBlock.romCap(j.size, j.height); j.amp = Math.min(jc.contains("Amp") ? j.amp : Math.min(22, j.romCap / 2), Math.max(1, j.romCap / 2)); } // default +-44 degrees, never past what its shape allows
             else if (isLegMode(j.mode) && !jc.contains("Amp")) j.amp = 45; // legs: +-90 degrees, so knees can fold enough to lift a foot onto a step
             if (j.powered) { j.motorTorque += Parts.MOTOR_TORQUE * j.area; j.motorPower += Parts.MOTOR_POWER; }
             joints.add(j);
@@ -364,18 +354,6 @@ public class StructureModel {
         for (int i = 0; i < segs.size(); i++) segs.get(i).id = i;
         for (Seg s : segs) for (BlockPos p : s.blocks) segOf.put(p, s.id);
         for (Joint j : joints) { int ps = Math.max(0, j.parentSeg); for (BlockPos p : j.blocks) { segOf.put(p, ps); } if (j.parentSeg >= 0) segs.get(ps).blocks.addAll(j.blocks); }
-        // big ball joints: the layer touching the child part moves with it, the other layer stays with the parent
-        for (Joint j : joints) if (j.shape == JointShape.BALL_HALF && !j.childSegs.isEmpty()) {
-            Set<BlockPos> jb = new HashSet<>(j.blocks);
-            for (BlockPos p : j.blocks) for (Direction d : Direction.values()) {
-                BlockPos n = p.relative(d);
-                if (!jb.contains(n) && Integer.valueOf(j.childSegs.get(0)).equals(compOf.containsKey(n) ? newId[compOf.get(n)] : null)) { ballChildSide.add(p); break; }
-            }
-            // the whole layer goes together
-            Set<Integer> ys = new HashSet<>(); for (BlockPos p : ballChildSide) if (jb.contains(p)) ys.add(p.getY());
-            for (BlockPos p : j.blocks) if (ys.contains(p.getY())) ballChildSide.add(p);
-        }
-
         // ---- segment masses & subtree masses (reverse BFS) ----
         for (Seg s : segs) {
             double sx = 0, sy = 0, sz = 0;
@@ -508,9 +486,27 @@ public class StructureModel {
         for (Joint j : joints) if (j.ball && j.powered && (isLegMode(j.mode) || j.mode == SWAY)) {
             j.universal = true; j.axis = forward.getAxis() == Direction.Axis.Z ? Direction.Axis.X : Direction.Axis.Z;
         }
+        // wheels: Spin joints without blades. Size, which way "forward" turns them, and whether they reach the ground
+        for (Joint j : joints) if (j.mode == SPIN && j.blades == 0 && !j.childSegs.isEmpty()) {
+            Vec3 a = axisVec(j.axis); double rMax = 0, low = Double.MAX_VALUE;
+            for (int cs : j.childSegs) for (BlockPos p : segs.get(cs).blocks) {
+                Vec3 r = Vec3.atCenterOf(p).subtract(j.pivot); Vec3 perp = r.subtract(a.scale(a.dot(r)));
+                rMax = Math.max(rMax, perp.length() + 0.5); low = Math.min(low, p.getY());
+            }
+            j.wheelRadius = rMax;
+            Vec3 roll = a.cross(new Vec3(0, 1, 0)); // which way the ground pushes it when it turns forward (positive)
+            Vec3 fw = Vec3.atLowerCornerOf(forward.getNormal());
+            j.wheelSign = roll.dot(fw) < -0.5 ? -1 : 1;
+            j.wheelGround = j.axis != Direction.Axis.Y && low <= localBounds.minY + 0.01;
+            wheels++;
+        }
         standLoads();
         footing();
     }
+    /** Spin joints with no blades: they turn with the Spin keys and drive on the ground like wheels. */
+    public int wheels;
+    /** Wheel angle (radians), the same for every wheel: each turns it its own way so "forward" always drives forward. */
+    public double wheelAngle;
 
     /** Standing loads, worked out from the feet up. Each foot carries a share of the whole weight
      *  (equal legs placed evenly get equal shares, shifted toward the foot nearer the centre of mass).
@@ -807,7 +803,7 @@ public class StructureModel {
                 double f = walkPhase / (2 * Math.PI) + j.autoPhase + j.phase / 360.0; f -= Math.floor(f);
                 yield amp * (f < 0.5 ? 1 - 4 * f : -1 + 4 * (f - 0.5)) * walkBlend;
             }
-            case SPIN -> spin;
+            case SPIN -> j.blades > 0 ? spin : wheelAngle * j.wheelSign;
             case SWAY -> walkAmount > 0.01
                     ? amp * 0.6 * walkAmount * Math.sin(2 * Math.PI * walkClock + (j.pivot.subtract(com).dot(new Vec3(-forward.getNormal().getZ(), 0, forward.getNormal().getX())) < 0 ? 0 : Math.PI)) // arms swing with the steps, left and right opposite
                     : amp * 0.5 * Math.sin(time * 0.06 + j.id * 0.9);

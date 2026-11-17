@@ -4,8 +4,6 @@
   "block.colossalcraft.gantry_scaffold": "Gantry Scaffold",
   "block.colossalcraft.bearing": "Bearing",
   "block.colossalcraft.motor": "Servo Motor",
-  "block.colossalcraft.ball_half": "Ball Half",
-  "block.colossalcraft.socket": "Socket",
   "block.colossalcraft.slab_joint": "Slab Joint",
   "block.colossalcraft.panel_joint": "Panel Joint",
   "block.colossalcraft.pin_joint": "Pin Joint",
@@ -68,5 +66,6 @@
   "block.colossalcraft.locomotion_controller": "Locomotion Controller",
   "block.colossalcraft.jump_drive": "Jump Drive",
   "key.colossalcraft.loco": "Colossus: Open Locomotion Controller",
-  "key.colossalcraft.jump": "Colossus: Jump Drive (default)"
+  "key.colossalcraft.jump": "Colossus: Jump Drive (default)",
+  "key.colossalcraft.brake": "Colossus: Brake wheels (default)"
 }

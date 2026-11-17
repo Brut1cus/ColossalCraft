@@ -13,7 +13,7 @@ import java.util.*;
 /**
  * Grid assemblies, like chests that join: bearings, motors, ball halves and sockets placed side by side in their plane
  * join into the biggest squares that fit (2x2, 3x3, up to 4x4). Each block remembers the square's size and its place in it,
- * which picks its model (one big shaft or ball across the whole square). Blocks placed while sneaking stay 1x1.
+ * which picks its model (one big shaft or ball across the whole square). Ball joints also stack into boxes. Blocks placed while sneaking stay 1x1.
  */
 public final class Grid {
     private Grid() {}
@@ -22,14 +22,15 @@ public final class Grid {
     public interface Access { BlockState get(BlockPos p); void set(BlockPos p, BlockState s); }
 
     public static void placed(Level l, BlockPos p, boolean isNew) {
-        if (l.isClientSide || !isNew) return;
+        if (l.isClientSide || !isNew || com.colossalcraft.colossus.ColossusDock.isDock(l)) return; // on a Colossus, the Colossus regrids
         regrid(world(l), p);
     }
     public static void removed(Level l, BlockPos p, BlockState was, boolean gone) {
-        if (l.isClientSide || !gone || !(was.getBlock() instanceof GridBlock gb)) return;
+        if (l.isClientSide || !gone || !(was.getBlock() instanceof GridBlock gb) || com.colossalcraft.colossus.ColossusDock.isDock(l)) return;
         Access a = world(l);
-        for (Direction.Axis ax : gb.plane(was)) for (int s = -1; s <= 1; s += 2) {
-            BlockPos n = p.relative(ax, s);
+        for (Direction d : Direction.values()) {
+            if (!gb.stacks() && !java.util.Arrays.asList(gb.plane(was)).contains(d.getAxis())) continue;
+            BlockPos n = p.relative(d);
             BlockState ns = a.get(n);
             if (ns.getBlock() == was.getBlock()) regrid(a, n);
         }
@@ -52,7 +53,8 @@ public final class Grid {
     public static void regrid(Access a, BlockPos start) {
         BlockState s0 = a.get(start);
         if (!(s0.getBlock() instanceof GridBlock gb)) return;
-        if (s0.getValue(SimpleParts.LONE)) { set(a, start, s0, 1, 0, 0); return; }
+        if (s0.getValue(SimpleParts.LONE)) { set(a, start, s0, 1, 0, 0); if (gb.stacks()) setH(a, start, 1, 0); return; }
+        if (gb.stacks()) { regrid3(a, start, gb, s0); return; }
         Direction.Axis[] pl = gb.plane(s0);
         Set<BlockPos> comp = new HashSet<>();
         ArrayDeque<BlockPos> q = new ArrayDeque<>(); q.add(start); comp.add(start);
@@ -85,6 +87,44 @@ public final class Grid {
             }
         }
     }
+    /** Ball joints: tile the connected group into n x h x n boxes (h up to n), biggest squares first, bottom up. */
+    private static void regrid3(Access a, BlockPos start, GridBlock gb, BlockState s0) {
+        Set<BlockPos> comp = new HashSet<>();
+        ArrayDeque<BlockPos> q = new ArrayDeque<>(); q.add(start); comp.add(start);
+        while (!q.isEmpty() && comp.size() < 512) {
+            BlockPos p = q.poll();
+            for (Direction d : Direction.values()) { BlockPos n = p.relative(d); if (!comp.contains(n) && gb.joins(s0, a.get(n))) { comp.add(n); q.add(n); } }
+        }
+        List<BlockPos> order = new ArrayList<>(comp);
+        order.sort(Comparator.comparingInt((BlockPos p) -> p.getY()).thenComparingInt(p -> p.getZ()).thenComparingInt(p -> p.getX()));
+        Set<BlockPos> done = new HashSet<>();
+        for (BlockPos c : order) {
+            if (done.contains(c)) continue;
+            int k = 1;
+            grow:
+            while (k < Parts.MAX) {
+                for (int du = 0; du <= k; du++) for (int dv = 0; dv <= k; dv++) {
+                    if (du < k && dv < k) continue;
+                    BlockPos x = c.offset(du, 0, dv);
+                    if (!comp.contains(x) || done.contains(x)) break grow;
+                }
+                k++;
+            }
+            int h = 1;
+            up:
+            while (h < k) {
+                for (int du = 0; du < k; du++) for (int dv = 0; dv < k; dv++) { BlockPos x = c.offset(du, h, dv); if (!comp.contains(x) || done.contains(x)) break up; }
+                h++;
+            }
+            for (int dh = 0; dh < h; dh++) for (int du = 0; du < k; du++) for (int dv = 0; dv < k; dv++) {
+                BlockPos x = c.offset(du, dh, dv);
+                done.add(x);
+                BlockState n = a.get(x).setValue(SimpleParts.SIZE, k).setValue(SimpleParts.GU, du).setValue(SimpleParts.GV, dv).setValue(SimpleParts.HT, h).setValue(SimpleParts.GH, dh);
+                if (n != a.get(x)) a.set(x, n);
+            }
+        }
+    }
+    private static void setH(Access a, BlockPos p, int h, int gh) { BlockState s = a.get(p), n = s.setValue(SimpleParts.HT, h).setValue(SimpleParts.GH, gh); if (n != s) a.set(p, n); }
     private static int coord(BlockPos p, Direction.Axis a) { return a.choose(p.getX(), p.getY(), p.getZ()); }
     private static void set(Access a, BlockPos p, BlockState s, int k, int u, int v) {
         BlockState n = s.setValue(SimpleParts.SIZE, k).setValue(SimpleParts.GU, u).setValue(SimpleParts.GV, v);
@@ -95,7 +135,8 @@ public final class Grid {
     public static BlockPos origin(BlockPos p, BlockState s) {
         if (!(s.getBlock() instanceof GridBlock gb)) return p;
         Direction.Axis[] pl = gb.plane(s);
-        return p.relative(pl[0], -s.getValue(SimpleParts.GU)).relative(pl[1], -s.getValue(SimpleParts.GV));
+        BlockPos o = p.relative(pl[0], -s.getValue(SimpleParts.GU)).relative(pl[1], -s.getValue(SimpleParts.GV));
+        return gb.stacks() ? o.below(s.getValue(SimpleParts.GH)) : o;
     }
     public static int size(BlockState s) { return s.hasProperty(SimpleParts.SIZE) ? s.getValue(SimpleParts.SIZE) : 1; }
 }

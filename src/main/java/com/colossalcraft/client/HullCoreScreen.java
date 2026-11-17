@@ -31,7 +31,7 @@ public class HullCoreScreen extends Screen {
             "Doesn't move. Use for rigid parts.",
             "Leg joint (hip or knee): the foot plants, IK bends the leg, ground grip pushes the Hull. Swing = joint limit.",
             "Hip of a leg (old setting).",
-            "Turns all the time while powered: propellers, wheels, turrets.",
+            "Turns with the Spin keys (Keys tab) like a wheel; with blades it is a rotor.",
             "Slow idle motion: tails, antennae, heads.",
             "Follows the keyframes you set in the Animate tab."};
     private static final String[] HULL_TABS = {"Overview", "Power", "Help"}, LOCO_TABS = {"Joints", "Gait", "Keys", "Footing"};
@@ -115,7 +115,7 @@ public class HullCoreScreen extends Screen {
         if (cur().equals("Keys")) keyWidgets(l + NAV + 8, t + 30);
         if (cur().equals("Footing")) {
             boolean on = data.getBoolean("Smart");
-            Button fb = Button.builder(Component.literal("Smart footing: " + (on ? "ON" : "OFF")), z -> send(17, -1, 0)).bounds(l + NAV + 8, t + 40, 150, 16).build();
+            Button fb = Button.builder(Component.literal("Smart footing: " + (on ? "ON" : "OFF")), z -> send(17, -1, 0)).bounds(l + W - 158, t + 28, 150, 16).build();
             fb.setTooltip(Tooltip.create(Component.literal("ON: before every step the legs look at the ground and put each foot on safe, level footing (uses " + (int) com.colossalcraft.colossus.StructureModel.SMART_FOOTING_POWER + " CJ/t). OFF: feet land wherever the gait says.")));
             addRenderableWidget(fb);
         }
@@ -125,10 +125,12 @@ public class HullCoreScreen extends Screen {
     }
 
     private static final int[] MODE_CYCLE = {0, 1, 3, 4};
-    private static final int[] LIMITS = {5, 10, 20, 30, 45, 60, 90};
+    /** Where the range-of-motion value is drawn next to its arrows (set by jointWidgets). */
+    private int romX = -1, romY, romW; private String romText = "", romTipText = "";
 
     /** Only two small controls: what the joint does, and how far it may turn. */
     private void jointWidgets(int x, int y) {
+        romX = -1;
         CompoundTag j = joint(selected);
         if (j == null) return;
         int mode = j.getInt("Mode"); if (mode == 2) mode = 1; if (mode == 5) mode = 0;
@@ -142,15 +144,19 @@ public class HullCoreScreen extends Screen {
         if (poweredBall) mb = Button.builder(Component.literal("Mode: " + (mode == 1 ? "Hip (Leg)" : mode == 4 ? "Shoulder (Sway)" : "Ankle (Locked)")), z -> send(1, selected, next)).bounds(x, by, w, 14).build();
         mb.setTooltip(Tooltip.create(Component.literal(poweredBall ? "Powered ball joint. Ankle (Locked): keeps the foot flat and tilts it to slopes. Hip (Leg): the leg swings forward/back and sideways under IK. Shoulder (Sway): swings an arm in time with the steps."
                 : ball ? "Ball joints level the part below them on their own: no mode to set."
-                : MODE_HELP[mode] + "  (click for " + MODE_NAMES[next] + ")\n\nLocked: rigid, never moves.\nLeg: hips and knees of walking legs.\nSpin: keeps turning (rotors, wheels).\nSway: gentle idle motion.")));
+                : MODE_HELP[mode] + "  (click for " + MODE_NAMES[next] + ")\n\nLocked: rigid, never moves.\nLeg: hips and knees of walking legs.\nSpin: wheels and rotors, turned by the Spin keys.\nSway: gentle idle motion.")));
         mb.active = !ball;
         addRenderableWidget(mb);
-        int lim = Math.max(5, Math.min(90, j.getInt("Amp") * 2)), li = 0;
-        for (int i = 0; i < LIMITS.length; i++) if (LIMITS[i] <= lim) li = i;
-        int nextLim = LIMITS[(li + 1) % LIMITS.length];
-        Button lb = Button.builder(Component.literal("Limit \u00B1" + lim + "\u00B0"), z -> send(2, selected, nextLim / 2)).bounds(x + w + 4, by, w, 14).build();
-        lb.setTooltip(Tooltip.create(Component.literal("How far this joint may turn either way (legs bend within this). Click for \u00B1" + nextLim + "\u00B0.")));
-        addRenderableWidget(lb);
+        // range of motion: the value is shown in the panel; up/down arrows change it (shift = bigger steps), never past the joint's cap
+        int amp = j.getInt("Amp"), capAmp = Math.max(1, j.getInt("RomCap") / 2);
+        String romTip = "Range of motion: how far this joint may turn either way (legs bend within this). Shift-click for steps of 10\u00B0."
+                + (j.getBoolean("Ball") ? " This ball joint's shape allows up to \u00B1" + capAmp * 2 + "\u00B0 (a cube turns \u00B190\u00B0, a flat 2x1x2 \u00B145\u00B0)." : "");
+        Button up = Button.builder(Component.literal("\u25B2"), z -> send(2, selected, Math.min(capAmp, amp + (hasShiftDown() ? 5 : 1)))).bounds(x + w + 4 + w - 28, by, 13, 14).build();
+        Button dn = Button.builder(Component.literal("\u25BC"), z -> send(2, selected, Math.max(1, amp - (hasShiftDown() ? 5 : 1)))).bounds(x + w + 4 + w - 14, by, 13, 14).build();
+        up.active = amp < capAmp; dn.active = amp > 1;
+        up.setTooltip(Tooltip.create(Component.literal(romTip))); dn.setTooltip(Tooltip.create(Component.literal(romTip)));
+        addRenderableWidget(up); addRenderableWidget(dn);
+        romX = x + w + 4; romY = by; romW = w - 30; romText = "ROM \u00B1" + amp * 2 + "\u00B0" + (amp >= capAmp ? " max" : ""); romTipText = romTip;
         if (data.getInt("GaitMode") == 4 && j.getBoolean("LegHip")) {
             int grp = j.getInt("Group");
             Button gb = Button.builder(Component.literal("Step group " + (grp + 1)), z -> send(15, selected, grp + 1)).bounds(x, by - 16, w * 2 + 4, 14).build();
@@ -161,6 +167,7 @@ public class HullCoreScreen extends Screen {
 
     // ------------------------------------------------------------------ Gait & Keys (Locomotion Controller)
     private void gaitWidgets(int x, int y) {
+        if (data.getInt("LegCount") == 0) return; // no IK legs: nothing to set (wheels and spinners use the Spin keys)
         int ik = data.getInt("IKMode"), gm = data.getInt("GaitMode");
         Button b1 = Button.builder(Component.literal("IK: " + com.colossalcraft.colossus.StructureModel.IK_MODES[ik]), z -> send(11, -1, ik + 1)).bounds(x, y + 10, 156, 15).build();
         b1.setTooltip(Tooltip.create(Component.literal("Auto: picks per leg (2 joints: Analytic 2-link, 3 joints: Analytic 3-link, more: FABRIK, mixed axes: CCD). Analytic 2-link: exact hip+knee. Analytic 3-link: hip, knee and ankle with the foot kept flat. FABRIK: any number of joints in the leg's plane. CCD: any joint axes.")));
@@ -185,11 +192,20 @@ public class HullCoreScreen extends Screen {
     }
 
     // blueprint colours
-    private static final int BP_BG = 0xFF0D2F57, BP_GRID = 0xFF1A4677, BP_LINE = 0xFFE8F2FF, BP_DIM = 0xFF7FA6D6, BP_ACC = 0xFFFFD45C;
+    // same greens and yellows as the Footing map
+    private static final int BP_BG = 0xFF0A1C10, BP_GRID = 0xFF12301C, BP_LINE = 0xFF8CFFAE, BP_DIM = 0xFF3C8F55, BP_ACC = 0xFFFFD45C;
 
     /** Gait tab: settings, the hull's shape from above with a step chart, and a side view of every leg walking (blueprint style). */
     private void gait(GuiGraphics g, int x, int y) {
         g.drawString(font, "GAIT", x, y, DIM, false);
+        if (data.getInt("LegCount") == 0) {
+            int ly = y + 14;
+            String msg = data.getInt("Wheels") > 0
+                    ? "Gait is off: this Colossus has no walking legs. Its " + data.getInt("Wheels") + " Spin joint" + (data.getInt("Wheels") == 1 ? "" : "s") + " work like wheels: they turn with the Spin keys (see Keys) and drive it along the ground. Brake stops them."
+                    : "Gait is off: no walking legs. Set hip and knee joints to Leg in Joints (they need Servo Motors), and the gait settings appear here.";
+            for (var ln : font.split(Component.literal(msg), W - NAV - 20)) { g.drawString(font, ln, x, ly, TXT, false); ly += 10; }
+            return;
+        }
         double speed = data.getDouble("GaitSpeed"), strideF = data.getDouble("GaitStride"), liftF = data.getDouble("GaitLift"), duty = data.getDouble("GaitDuty");
         CompoundTag geo = data.getCompound("LegGeo");
         ListTag legs = geo.getList("Legs", Tag.TAG_COMPOUND);
@@ -313,7 +329,7 @@ public class HullCoreScreen extends Screen {
         if (order.size() > n) g.drawString(font, "+" + (order.size() - n) + " more legs", rx + 2, py + ph - 9, BP_DIM, false);
         g.drawString(font, String.format("%.1f m/s", v), x + lw - font.width(String.format("%.1f m/s", v)) - 3, py + 2, BP_ACC, false);
     }
-    private static final int BP_GRID2 = 0xFF24578F;
+    private static final int BP_GRID2 = 0xFF1E4A2A;
     private static double ua(int c) { return ((c & 511) - 256) / 2.0; }
     private static double ub(int c) { return (((c >> 9) & 511) - 256) / 2.0; }
     private static int ut(int c) { return (c >> 18) - 2; }
@@ -321,11 +337,12 @@ public class HullCoreScreen extends Screen {
         CompoundTag h = lt.getList("P", Tag.TAG_COMPOUND).getCompound(0);
         return (h.getFloat("S") < 0 ? "L" : "R") + (h.getFloat("F") >= 0 ? "f" : "b");
     }
-    /** Blueprint panel: dark blue with a faint grid. */
+    /** Plan panel: dark green with a faint grid and a thin frame. */
     private static void bp(GuiGraphics g, int x, int y, int w, int h) {
         g.fill(x, y, x + w, y + h, BP_BG);
         for (int gx = x + 10; gx < x + w; gx += 10) g.fill(gx, y, gx + 1, y + h, BP_GRID);
         for (int gy = y + 10; gy < y + h; gy += 10) g.fill(x, gy, x + w, gy + 1, BP_GRID);
+        rect(g, x, y, x + w, y + h, BP_DIM);
     }
     /** An outlined square turned by an angle: drawn with the pose stack, so it's 4 quads no matter how it's turned. */
     private static void square(GuiGraphics g, double cx, double cy, double half, double angle, int col) {
@@ -369,67 +386,75 @@ public class HullCoreScreen extends Screen {
     public void footingMap(CompoundTag d) { foot = d; }
     @Override public void tick() {
         super.tick();
-        if (!loco() || !cur().equals("Footing") || footAge++ % 10 != 0) return;
+        if (!loco() || !cur().equals("Footing") || footAge++ % 20 != 0) return;
         net.neoforged.neoforge.network.PacketDistributor.sendToServer(built() ? new com.colossalcraft.network.Net.StepRequest(entity(), 0) : new com.colossalcraft.network.Net.StepRequest(-1, pos.asLong()));
     }
-    private static final int[] GROUND = {0xFF0A2012, 0xFF10331C, 0xFF184A28, 0xFF226436, 0xFF2E8046};
+    /** Footing map colours: few, flat, from the same green/yellow palette. */
+    private static final int F_LOW = 0xFF0E2A16, F_LEVEL = 0xFF1C4A28, F_HIGH = 0xFF2E7040, F_DANGER = 0xFF7A1C1C, F_WATER = 0xFF0E2C3A, F_WALL = 0xFF55604F, F_NONE = 0xFF000000, F_BODY = 0xFF3C8F55;
+    private static int footCol(byte hv, byte k) {
+        if (hv == 127) return F_NONE; if (hv == 126) return F_WALL;
+        if (k == 2) return F_DANGER; if (k == 1) return F_WATER;
+        return hv <= -2 ? F_LOW : hv >= 2 ? F_HIGH : F_LEVEL;
+    }
     private void footing(GuiGraphics g, int x, int y) {
         g.drawString(font, "FOOTING", x, y, DIM, false);
-        int helpX = x + 158, helpW = W - NAV - 16 - 158, hy = y + 10;
-        for (var hl : font.split(Component.literal("Before each step the legs check the ground and put the foot on safe, level footing: no lava, fire, cactus or edges, not too high or low. No good spot: a short step, or wait."), helpW)) { g.drawString(font, hl, helpX, hy, DIM, false); hy += 10; }
-        int cell = 6, R = foot.getInt("R"), size = 2 * R + 1, ox = x, oy = y + 32;
+        int R = foot.getInt("R"), size = 2 * R + 1, ox = x, oy = y + 12;
         byte[] h = foot.getByteArray("H"), k = foot.getByteArray("K");
-        int mapH = Math.min(size * cell, top() + H - 40 - oy);
+        int cell = Math.max(4, Math.min(9, (top() + H - 40 - oy) / Math.max(1, size)));
         if (h.length != size * size || size <= 1) { g.drawString(font, "Looking at the ground...", ox, oy + 4, DIM, false); return; }
-        g.enableScissor(ox, oy, ox + size * cell, oy + mapH);
-        for (int z = 0; z < size; z++) for (int xx = 0; xx < size; xx++) {
-            int i = z * size + xx, col; byte hv = h[i];
-            if (hv == 127) col = 0xFF000000; else if (hv == 126) col = 0xFF56645A;
-            else if (k[i] == 2) col = 0xFF6A1414; else if (k[i] == 1) col = 0xFF0E2C3A; else if (k[i] == 3) col = 0xFF27443F;
-            else col = GROUND[Math.max(0, Math.min(4, 2 + (int) Math.floor(hv / 2.0)))];
-            g.fill(ox + xx * cell, oy + z * cell, ox + xx * cell + cell - 1, oy + z * cell + cell - 1, col);
+        boolean[] body = new boolean[size * size];
+        for (int i : foot.getIntArray("Body")) if (i >= 0 && i < body.length) body[i] = true;
+        for (int z = 0; z < size; z++) { // one fill per run of same-coloured cells in a row
+            int run = 0, col = footCol(h[z * size], k[z * size]); if (body[z * size]) col = F_BODY;
+            for (int xx = 1; xx <= size; xx++) {
+                int c = xx < size ? (body[z * size + xx] ? F_BODY : footCol(h[z * size + xx], k[z * size + xx])) : 0;
+                if (xx == size || c != col) { g.fill(ox + run * cell, oy + z * cell, ox + xx * cell, oy + z * cell + cell, col); run = xx; col = c; }
+            }
         }
-        for (int i : foot.getIntArray("Body")) { int bx = ox + (i % size) * cell, by = oy + (i / size) * cell; rect(g, bx, by, bx + cell - 1, by + cell - 1, 0xFF4E8A63); }
         int cx0 = foot.getInt("X") - R, cz0 = foot.getInt("Z") - R;
         for (Tag tg : foot.getList("Feet", Tag.TAG_COMPOUND)) { CompoundTag f = (CompoundTag) tg;
             int sx = ox + (int) Math.round((f.getFloat("X") - cx0) * cell), sy = oy + (int) Math.round((f.getFloat("Z") - cz0) * cell);
-            if (f.getByte("S") == 0) g.fill(sx - 2, sy - 2, sx + 3, sy + 3, TXT); else rect(g, sx - 2, sy - 2, sx + 3, sy + 3, TXT); }
+            g.fill(sx - 2, sy - 2, sx + 3, sy + 3, f.getByte("S") == 0 ? TXT : DIM); }
         for (Tag tg : foot.getList("Next", Tag.TAG_COMPOUND)) { CompoundTag f = (CompoundTag) tg;
             int sx = ox + (int) Math.round((f.getFloat("X") - cx0) * cell), sy = oy + (int) Math.round((f.getFloat("Z") - cz0) * cell);
-            rect(g, sx - 3, sy - 3, sx + 4, sy + 4, f.getBoolean("Ok") ? 0xFFFFD45C : ERR); }
+            rect(g, sx - 3, sy - 3, sx + 4, sy + 4, f.getBoolean("Ok") ? WARN : ERR); }
         int mc = ox + R * cell + cell / 2; float fx = foot.getFloat("FX"), fz = foot.getFloat("FZ");
-        line(g, mc, oy + R * cell + cell / 2, mc + fx * 2.5 * cell, oy + R * cell + cell / 2 + fz * 2.5 * cell, 0xFFFFD45C);
-        g.disableScissor();
+        line(g, mc, oy + R * cell + cell / 2, mc + fx * 2.5 * cell, oy + R * cell + cell / 2 + fz * 2.5 * cell, WARN);
         // legend + status
-        int lx = ox + size * cell + 8, ly = Math.max(oy + 28, hy + 6);
+        int lx = ox + size * cell + 8, ly = y + 40, lw = W - NAV - 16 - size * cell - 8;
         boolean on = data.getBoolean("Smart"), pw = foot.getBoolean("Pw");
-        g.drawString(font, !built() ? (on ? "Plans steps once built" : "Off") : !on ? "Off: feet land where the gait says" : pw ? "Planning each step" : "No power for it", lx, ly, !on ? DIM : pw || !built() ? OK : WARN, false); ly += 14;
-        g.fill(lx, ly + 1, lx + 6, ly + 7, GROUND[1]); g.fill(lx + 7, ly + 1, lx + 13, ly + 7, GROUND[3]); g.drawString(font, "low / high ground", lx + 16, ly, DIM, false); ly += 9;
-        int[] lg = {0xFF0E2C3A, 0xFF27443F, 0xFF6A1414, 0xFF56645A};
-        String[] ln = {"water", "slippery", "danger", "wall"};
-        for (int i = 0; i < ln.length; i++) { g.fill(lx, ly + 1, lx + 6, ly + 7, lg[i]); g.drawString(font, ln[i], lx + 9, ly, DIM, false); ly += 9; }
+        g.drawString(font, !built() ? (on ? "Plans steps once built" : "Off") : !on ? "Off: feet land where the gait says" : pw ? "Planning each step" : "No power for it", lx, ly, !on ? DIM : pw || !built() ? OK : WARN, false); ly += 12;
+        for (var hl : font.split(Component.literal("Each foot is put on safe, level ground: no lava, fire or edges. No good spot: a short step, or wait."), lw)) { g.drawString(font, hl, lx, ly, DIM, false); ly += 10; }
+        ly += 4;
+        int[] lc = {F_LOW, F_LEVEL, F_HIGH, F_WATER, F_DANGER, F_WALL, F_BODY};
+        String[] ln = {"lower", "level", "higher", "water", "danger", "wall", "Colossus"};
+        for (int i = 0; i < ln.length; i++) { g.fill(lx, ly + 1, lx + 7, ly + 8, lc[i]); g.drawString(font, ln[i], lx + 10, ly, DIM, false); ly += 10; }
         ly += 2;
-        g.fill(lx, ly + 1, lx + 6, ly + 7, TXT); g.drawString(font, "foot down", lx + 9, ly, TXT, false); ly += 9;
-        rect(g, lx, ly + 1, lx + 7, ly + 8, 0xFFFFD45C); g.drawString(font, "where it steps next", lx + 9, ly, TXT, false); ly += 9;
-        rect(g, lx, ly + 1, lx + 7, ly + 8, ERR); g.drawString(font, "no safe spot", lx + 9, ly, TXT, false);
+        g.fill(lx + 1, ly + 2, lx + 6, ly + 7, TXT); g.drawString(font, "foot down", lx + 10, ly, TXT, false); ly += 10;
+        rect(g, lx, ly + 1, lx + 7, ly + 8, WARN); g.drawString(font, "next step", lx + 10, ly, TXT, false); ly += 10;
+        rect(g, lx, ly + 1, lx + 7, ly + 8, ERR); g.drawString(font, "no safe spot", lx + 10, ly, TXT, false);
     }
 
     private static String keyName(int code) { return InputConstantsName.of(code); }
 
+    /** Keys shown: the spin keys only when some joint is set to Spin. */
+    private int keyCount() { return data.getInt("Wheels") > 0 ? ClientEvents.ACTIONS.length : ClientEvents.SPIN_ACTIONS; }
     private void keyWidgets(int x, int y) {
         CompoundTag lc = data.getCompound("LocoCfg");
-        for (int i = 0; i < ClientEvents.ACTIONS.length; i++) {
+        int rowH = keyCount() > 9 ? 14 : 17;
+        for (int i = 0; i < keyCount(); i++) {
             int ai = i, code = lc.contains("K" + i) ? lc.getInt("K" + i) : -1;
             String label = binding == i ? "> press a key <" : code < 0 ? "Default (" + ClientEvents.defaultKey(i).getTranslatedKeyMessage().getString() + ")" : keyName(code);
-            addRenderableWidget(Button.builder(Component.literal(label), z -> { binding = ai; rebuild(); }).bounds(x + 100, y + 10 + i * 17, 130, 15).build());
-            Button r = Button.builder(Component.literal("Reset"), z -> send(13, ai, -1)).bounds(x + 234, y + 10 + i * 17, 40, 15).build();
+            addRenderableWidget(Button.builder(Component.literal(label), z -> { binding = ai; rebuild(); }).bounds(x + 100, y + 10 + i * rowH, 130, rowH - 2).build());
+            Button r = Button.builder(Component.literal("Reset"), z -> send(13, ai, -1)).bounds(x + 234, y + 10 + i * rowH, 40, rowH - 2).build();
             r.active = code >= 0; addRenderableWidget(r);
         }
     }
     private void keys(GuiGraphics g, int x, int y) {
         g.drawString(font, "KEYS WHILE PILOTING", x, y, DIM, false);
-        for (int i = 0; i < ClientEvents.ACTIONS.length; i++) g.drawString(font, ClientEvents.ACTIONS[i], x, y + 14 + i * 17, TXT, false);
-        g.drawString(font, "Click a key, then press the new one (Esc = default).", x, y + 12 + ClientEvents.ACTIONS.length * 17, DIM, false);
+        int rowH = keyCount() > 9 ? 14 : 17;
+        for (int i = 0; i < keyCount(); i++) g.drawString(font, ClientEvents.ACTIONS[i], x, y + 13 + i * rowH + (rowH - 14) / 2, i >= ClientEvents.SPIN_ACTIONS ? WARN : TXT, false);
+        g.drawString(font, keyCount() > ClientEvents.SPIN_ACTIONS ? "Yellow: Spin joints (wheels). Clockwise drives forward." : "Click a key, then press the new one (Esc = default).", x, y + 12 + keyCount() * rowH, DIM, false);
     }
 
     @Override public boolean keyPressed(int key, int scan, int mods) {
@@ -707,6 +732,7 @@ public class HullCoreScreen extends Screen {
         if (list("Joints").isEmpty()) g.drawString(font, "No joints yet: place Bearing Joints between parts.", x, y + 14, WARN, false);
         CompoundTag j = joint(selected);
         if (j == null) return;
+        if (romX >= 0) { g.fill(romX, romY, romX + romW, romY + 14, 0xFF14281A); g.drawString(font, font.plainSubstrByWidth(romText, romW - 4), romX + 3, romY + 3, romText.endsWith("max") ? WARN : TXT, false); tips.add(new Tip(romX, romY, romX + romW, romY + 14, romTipText)); }
         int dx = x + 168, dw = W - NAV - 8 - 174;
         g.drawString(font, "J" + j.getInt("Id") + "  " + j.getString("Tier"), dx, y, HEAD, false);
         String gears = j.getString("Gears");

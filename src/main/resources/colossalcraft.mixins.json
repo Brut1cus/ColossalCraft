@@ -3,6 +3,6 @@
   "minVersion": "0.8",
   "package": "com.colossalcraft.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": ["EntityCollideMixin"],
+  "mixins": ["EntityCollideMixin", "DockLevelMixin", "DockServerLevelMixin", "DockPlayerMixin", "DockBlockEntityMixin"],
   "injectors": { "defaultRequire": 1 }
 }

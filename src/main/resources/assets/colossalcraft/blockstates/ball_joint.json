@@ -1,13 +1,3076 @@
 {
   "variants": {
-    "axis=x": {
-      "model": "colossalcraft:block/ball_joint"
+    "gh=0,gu=0,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
     },
-    "axis=y": {
-      "model": "colossalcraft:block/ball_joint"
+    "gh=1,gu=0,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
     },
-    "axis=z": {
-      "model": "colossalcraft:block/ball_joint"
+    "gh=2,gu=0,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=1,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=2,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=3,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=4,size=1": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_2_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_2_0_0_1"
+    },
+    "gh=2,gu=0,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_1_0_1_0"
+    },
+    "gh=1,gu=0,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_2_0_1_0"
+    },
+    "gh=1,gu=0,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_2_0_1_1"
+    },
+    "gh=2,gu=0,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_1_1_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_2_1_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_2_1_0_1"
+    },
+    "gh=2,gu=1,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_1_1_1_0"
+    },
+    "gh=1,gu=1,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_2_1_1_0"
+    },
+    "gh=1,gu=1,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_2_2_1_1_1"
+    },
+    "gh=2,gu=1,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=1,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=2,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=3,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=4,size=2": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_0_0_1"
+    },
+    "gh=2,gu=0,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_0_0_1"
+    },
+    "gh=2,gu=0,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_0_0_2"
+    },
+    "gh=3,gu=0,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_1_0_1_0"
+    },
+    "gh=1,gu=0,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_0_1_0"
+    },
+    "gh=1,gu=0,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_0_1_1"
+    },
+    "gh=2,gu=0,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_0_1_0"
+    },
+    "gh=1,gu=0,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_0_1_1"
+    },
+    "gh=2,gu=0,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_0_1_2"
+    },
+    "gh=3,gu=0,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_1_0_2_0"
+    },
+    "gh=1,gu=0,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_0_2_0"
+    },
+    "gh=1,gu=0,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_0_2_1"
+    },
+    "gh=2,gu=0,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_0_2_0"
+    },
+    "gh=1,gu=0,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_0_2_1"
+    },
+    "gh=2,gu=0,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_0_2_2"
+    },
+    "gh=3,gu=0,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_1_1_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_1_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_1_0_1"
+    },
+    "gh=2,gu=1,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_1_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_1_0_1"
+    },
+    "gh=2,gu=1,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_1_0_2"
+    },
+    "gh=3,gu=1,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_1_1_1_0"
+    },
+    "gh=1,gu=1,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_1_1_0"
+    },
+    "gh=1,gu=1,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_1_1_1"
+    },
+    "gh=2,gu=1,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_1_1_0"
+    },
+    "gh=1,gu=1,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_1_1_1"
+    },
+    "gh=2,gu=1,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_1_1_2"
+    },
+    "gh=3,gu=1,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_1_1_2_0"
+    },
+    "gh=1,gu=1,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_1_2_0"
+    },
+    "gh=1,gu=1,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_1_2_1"
+    },
+    "gh=2,gu=1,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_1_2_0"
+    },
+    "gh=1,gu=1,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_1_2_1"
+    },
+    "gh=2,gu=1,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_1_2_2"
+    },
+    "gh=3,gu=1,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=1,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_1_2_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_2_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_2_0_1"
+    },
+    "gh=2,gu=2,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_2_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_2_0_1"
+    },
+    "gh=2,gu=2,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_2_0_2"
+    },
+    "gh=3,gu=2,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_1_2_1_0"
+    },
+    "gh=1,gu=2,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_2_1_0"
+    },
+    "gh=1,gu=2,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_2_1_1"
+    },
+    "gh=2,gu=2,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_2_1_0"
+    },
+    "gh=1,gu=2,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_2_1_1"
+    },
+    "gh=2,gu=2,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_2_1_2"
+    },
+    "gh=3,gu=2,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_1_2_2_0"
+    },
+    "gh=1,gu=2,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_2_2_0"
+    },
+    "gh=1,gu=2,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_2_2_2_1"
+    },
+    "gh=2,gu=2,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_2_2_0"
+    },
+    "gh=1,gu=2,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_2_2_1"
+    },
+    "gh=2,gu=2,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_3_3_2_2_2"
+    },
+    "gh=3,gu=2,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=2,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=1,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=2,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=3,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=1,gu=3,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=4,size=3": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_0_0_1"
+    },
+    "gh=2,gu=0,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_0_1"
+    },
+    "gh=2,gu=0,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_0_2"
+    },
+    "gh=3,gu=0,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_0_0"
+    },
+    "gh=1,gu=0,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_0_1"
+    },
+    "gh=2,gu=0,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_0_2"
+    },
+    "gh=3,gu=0,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_0_3"
+    },
+    "gh=0,gu=0,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_0_1_0"
+    },
+    "gh=1,gu=0,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_0_1_0"
+    },
+    "gh=1,gu=0,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_0_1_1"
+    },
+    "gh=2,gu=0,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_1_0"
+    },
+    "gh=1,gu=0,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_1_1"
+    },
+    "gh=2,gu=0,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_1_2"
+    },
+    "gh=3,gu=0,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_1_0"
+    },
+    "gh=1,gu=0,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_1_1"
+    },
+    "gh=2,gu=0,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_1_2"
+    },
+    "gh=3,gu=0,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_1_3"
+    },
+    "gh=0,gu=0,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_0_2_0"
+    },
+    "gh=1,gu=0,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_0_2_0"
+    },
+    "gh=1,gu=0,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_0_2_1"
+    },
+    "gh=2,gu=0,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_2_0"
+    },
+    "gh=1,gu=0,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_2_1"
+    },
+    "gh=2,gu=0,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_2_2"
+    },
+    "gh=3,gu=0,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_2_0"
+    },
+    "gh=1,gu=0,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_2_1"
+    },
+    "gh=2,gu=0,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_2_2"
+    },
+    "gh=3,gu=0,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_2_3"
+    },
+    "gh=0,gu=0,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_0_3_0"
+    },
+    "gh=1,gu=0,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=0,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_0_3_0"
+    },
+    "gh=1,gu=0,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_0_3_1"
+    },
+    "gh=2,gu=0,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=0,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_3_0"
+    },
+    "gh=1,gu=0,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_3_1"
+    },
+    "gh=2,gu=0,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_0_3_2"
+    },
+    "gh=3,gu=0,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=0,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_3_0"
+    },
+    "gh=1,gu=0,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_3_1"
+    },
+    "gh=2,gu=0,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_3_2"
+    },
+    "gh=3,gu=0,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_0_3_3"
+    },
+    "gh=0,gu=1,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_1_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_1_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_1_0_1"
+    },
+    "gh=2,gu=1,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_0_1"
+    },
+    "gh=2,gu=1,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_0_2"
+    },
+    "gh=3,gu=1,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_0_0"
+    },
+    "gh=1,gu=1,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_0_1"
+    },
+    "gh=2,gu=1,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_0_2"
+    },
+    "gh=3,gu=1,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_0_3"
+    },
+    "gh=0,gu=1,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_1_1_0"
+    },
+    "gh=1,gu=1,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_1_1_0"
+    },
+    "gh=1,gu=1,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_1_1_1"
+    },
+    "gh=2,gu=1,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_1_0"
+    },
+    "gh=1,gu=1,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_1_1"
+    },
+    "gh=2,gu=1,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_1_2"
+    },
+    "gh=3,gu=1,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_1_0"
+    },
+    "gh=1,gu=1,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_1_1"
+    },
+    "gh=2,gu=1,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_1_2"
+    },
+    "gh=3,gu=1,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_1_3"
+    },
+    "gh=0,gu=1,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_1_2_0"
+    },
+    "gh=1,gu=1,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_1_2_0"
+    },
+    "gh=1,gu=1,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_1_2_1"
+    },
+    "gh=2,gu=1,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_2_0"
+    },
+    "gh=1,gu=1,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_2_1"
+    },
+    "gh=2,gu=1,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_2_2"
+    },
+    "gh=3,gu=1,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_2_0"
+    },
+    "gh=1,gu=1,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_2_1"
+    },
+    "gh=2,gu=1,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_2_2"
+    },
+    "gh=3,gu=1,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_2_3"
+    },
+    "gh=0,gu=1,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_1_3_0"
+    },
+    "gh=1,gu=1,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=1,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_1_3_0"
+    },
+    "gh=1,gu=1,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_1_3_1"
+    },
+    "gh=2,gu=1,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=1,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_3_0"
+    },
+    "gh=1,gu=1,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_3_1"
+    },
+    "gh=2,gu=1,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_1_3_2"
+    },
+    "gh=3,gu=1,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=1,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_3_0"
+    },
+    "gh=1,gu=1,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_3_1"
+    },
+    "gh=2,gu=1,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_3_2"
+    },
+    "gh=3,gu=1,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_1_3_3"
+    },
+    "gh=0,gu=2,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_2_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_2_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_2_0_1"
+    },
+    "gh=2,gu=2,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_0_1"
+    },
+    "gh=2,gu=2,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_0_2"
+    },
+    "gh=3,gu=2,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_0_0"
+    },
+    "gh=1,gu=2,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_0_1"
+    },
+    "gh=2,gu=2,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_0_2"
+    },
+    "gh=3,gu=2,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_0_3"
+    },
+    "gh=0,gu=2,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_2_1_0"
+    },
+    "gh=1,gu=2,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_2_1_0"
+    },
+    "gh=1,gu=2,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_2_1_1"
+    },
+    "gh=2,gu=2,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_1_0"
+    },
+    "gh=1,gu=2,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_1_1"
+    },
+    "gh=2,gu=2,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_1_2"
+    },
+    "gh=3,gu=2,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_1_0"
+    },
+    "gh=1,gu=2,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_1_1"
+    },
+    "gh=2,gu=2,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_1_2"
+    },
+    "gh=3,gu=2,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_1_3"
+    },
+    "gh=0,gu=2,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_2_2_0"
+    },
+    "gh=1,gu=2,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_2_2_0"
+    },
+    "gh=1,gu=2,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_2_2_1"
+    },
+    "gh=2,gu=2,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_2_0"
+    },
+    "gh=1,gu=2,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_2_1"
+    },
+    "gh=2,gu=2,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_2_2"
+    },
+    "gh=3,gu=2,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_2_0"
+    },
+    "gh=1,gu=2,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_2_1"
+    },
+    "gh=2,gu=2,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_2_2"
+    },
+    "gh=3,gu=2,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_2_3"
+    },
+    "gh=0,gu=2,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_2_3_0"
+    },
+    "gh=1,gu=2,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=2,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_2_3_0"
+    },
+    "gh=1,gu=2,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_2_3_1"
+    },
+    "gh=2,gu=2,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=2,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_3_0"
+    },
+    "gh=1,gu=2,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_3_1"
+    },
+    "gh=2,gu=2,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_2_3_2"
+    },
+    "gh=3,gu=2,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=2,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_3_0"
+    },
+    "gh=1,gu=2,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_3_1"
+    },
+    "gh=2,gu=2,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_3_2"
+    },
+    "gh=3,gu=2,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_2_3_3"
+    },
+    "gh=0,gu=3,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_3_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_3_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_3_0_1"
+    },
+    "gh=2,gu=3,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=0,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_0_1"
+    },
+    "gh=2,gu=3,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_0_2"
+    },
+    "gh=3,gu=3,gv=0,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_0_0"
+    },
+    "gh=1,gu=3,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_0_1"
+    },
+    "gh=2,gu=3,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_0_2"
+    },
+    "gh=3,gu=3,gv=0,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_0_3"
+    },
+    "gh=0,gu=3,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_3_1_0"
+    },
+    "gh=1,gu=3,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_3_1_0"
+    },
+    "gh=1,gu=3,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_3_1_1"
+    },
+    "gh=2,gu=3,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=1,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_1_0"
+    },
+    "gh=1,gu=3,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_1_1"
+    },
+    "gh=2,gu=3,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_1_2"
+    },
+    "gh=3,gu=3,gv=1,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_1_0"
+    },
+    "gh=1,gu=3,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_1_1"
+    },
+    "gh=2,gu=3,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_1_2"
+    },
+    "gh=3,gu=3,gv=1,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_1_3"
+    },
+    "gh=0,gu=3,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_3_2_0"
+    },
+    "gh=1,gu=3,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_3_2_0"
+    },
+    "gh=1,gu=3,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_3_2_1"
+    },
+    "gh=2,gu=3,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=2,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_2_0"
+    },
+    "gh=1,gu=3,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_2_1"
+    },
+    "gh=2,gu=3,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_2_2"
+    },
+    "gh=3,gu=3,gv=2,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_2_0"
+    },
+    "gh=1,gu=3,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_2_1"
+    },
+    "gh=2,gu=3,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_2_2"
+    },
+    "gh=3,gu=3,gv=2,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_2_3"
+    },
+    "gh=0,gu=3,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_1_3_3_0"
+    },
+    "gh=1,gu=3,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=2,gu=3,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=1,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_3_3_0"
+    },
+    "gh=1,gu=3,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_2_3_3_1"
+    },
+    "gh=2,gu=3,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=3,gu=3,gv=3,ht=2,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_3_0"
+    },
+    "gh=1,gu=3,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_3_1"
+    },
+    "gh=2,gu=3,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_3_3_3_2"
+    },
+    "gh=3,gu=3,gv=3,ht=3,size=4": {
+      "model": "colossalcraft:block/ball_joint_1_1_0_0_0"
+    },
+    "gh=0,gu=3,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_3_0"
+    },
+    "gh=1,gu=3,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_3_1"
+    },
+    "gh=2,gu=3,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_3_2"
+    },
+    "gh=3,gu=3,gv=3,ht=4,size=4": {
+      "model": "colossalcraft:block/ball_joint_4_4_3_3_3"
     }
   }
 }

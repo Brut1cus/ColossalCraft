@@ -111,15 +111,6 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             Matrix4d local = segM[cs];
             if (!j.ball) { drawJointPart(e, m, j, local, Part.SPIN, ps, buf, pt, light, ex, ey, ez, level, lp); continue; }
             Matrix4d parent = segM[Math.max(0, j.parentSeg)];
-            if (j.shape == com.colossalcraft.block.SimpleParts.JointShape.BALL_HALF) { // big ball joint: each layer with its own part
-                for (BlockPos p : j.blocks) {
-                    Matrix4d mm = m.ballChildSide.contains(p) ? local : parent;
-                    ps.pushPose(); ps.mulPose(new Matrix4f(mm));
-                    drawBlock(e, m, p, mm, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL_TINTED, null, 0);
-                    ps.popPose();
-                }
-                continue;
-            }
             boolean childBelow = m.segs.get(cs).com.y < j.pivot.y;
             drawJointPart(e, m, j, local, childBelow ? Part.SPIN : Part.SPIN2, ps, buf, pt, light, ex, ey, ez, level, lp);
             drawJointPart(e, m, j, parent, childBelow ? Part.SPIN2 : Part.SPIN, ps, buf, pt, light, ex, ey, ez, level, lp);

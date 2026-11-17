@@ -38,6 +38,10 @@ public class ColossalCraft {
             var ex = e.getExplosion();
             for (var c : new java.util.ArrayList<>(com.colossalcraft.colossus.ColossusCollision.all(e.getLevel()))) c.explode(ex.center(), ex.radius());
         });
+        // things that appear in the dock (dropped items, arrows from dispensers, xp) come out at the Colossus instead
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.EntityJoinLevelEvent e) -> {
+            if (!e.loadedFromDisk() && com.colossalcraft.colossus.ColossusDock.isDock(e.getLevel()) && com.colossalcraft.colossus.ColossusDock.relayEntity(e.getEntity())) e.setCanceled(true);
+        });
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.EntityMountEvent e) -> {
             if (e.isDismounting() && e.getEntityBeingMounted() instanceof ColossusEntity c && !c.allowDismount && e.getEntityMounting() instanceof net.minecraft.world.entity.player.Player p
                     && p.isAlive() && !c.isRemoved() && p.isShiftKeyDown()) e.setCanceled(true);

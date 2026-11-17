@@ -278,7 +278,7 @@ public final class StructureScan {
             c.putInt("Id", j.id); c.putInt("Parent", j.parentSeg); c.putString("Tier", j.label()); c.putInt("K", j.k); c.putDouble("Area", j.area); c.putString("Axis", j.axis.getName());
             c.putDouble("Sub", j.subMass); c.putDouble("Ratio", j.staticRatio); c.putDouble("FCap", j.forceCap); c.putDouble("MCap", j.momentCap);
             c.putDouble("Torque", j.motorTorque); c.putDouble("Req", j.reqTorque); c.putDouble("Stand", j.standMass); c.putDouble("StandTq", j.standTorque); c.putDouble("StandRatio", j.standRatio); c.putDouble("Share", j.footShare); c.putInt("Motors", j.motors);
-            c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putBoolean("Stalled", j.stalled());
+            c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putInt("RomCap", j.ball ? j.romCap : 120); c.putInt("Height", j.height); c.putBoolean("Stalled", j.stalled());
             BlockPos lp = BlockPos.of(j.key);
             BlockPos wp = r.entity != null ? BlockPos.containing(r.entity.blockWorldCenter(lp)) : r.origin.offset(lp);
             c.putInt("X", wp.getX()); c.putInt("Y", wp.getY()); c.putInt("Z", wp.getZ());
@@ -310,6 +310,7 @@ public final class StructureScan {
         for (BlockPos[] c2 : r.contacts) { CompoundTag c = new CompoundTag(); c.putInt("X", c2[1].getX()); c.putInt("Y", c2[1].getY()); c.putInt("Z", c2[1].getZ()); ct.add(c); }
         t.put("Contacts", ct);
         t.put("Points", points(m));
+        t.putInt("Wheels", m.wheels); t.putInt("LegCount", m.legChains.size());
         t.putBoolean("Legged", m.legged); t.putBoolean("FootOK", m.footingOk()); t.putDouble("FootGyro", m.footingGyro);
         ListTag feet = new ListTag();
         for (StructureModel.Foot f : m.feet) { CompoundTag c = new CompoundTag(); c.putInt("Seg", f.seg()); c.putDouble("Gyro", f.gyro()); c.putBoolean("Ok", f.ok()); c.putString("Problem", f.problem()); feet.add(c); }

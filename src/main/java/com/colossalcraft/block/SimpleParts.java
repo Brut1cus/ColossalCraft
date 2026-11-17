@@ -26,12 +26,10 @@ public final class SimpleParts {
         /** Ball joint: keeps the part below it level (turns any way, within its limit). */
         BALL("ball_joint", "Ball Joint", 1.0),
         /** Powered ball joint: a ball joint with its own motor; tilts the foot to the ground and helps balance. */
-        POWERED_BALL("powered_ball_joint", "Powered Ball Joint", 1.0),
-        /** Halves of a big ball joint: an n x n layer of ball halves against an n x n layer of sockets. */
-        BALL_HALF("ball_half", "Ball Half", 1.0), SOCKET("socket", "Socket", 1.0);
+        POWERED_BALL("powered_ball_joint", "Powered Ball Joint", 1.0);
         public final String suffix, title; public final double strength;
         JointShape(String s, String t, double k) { suffix = s; title = t; strength = k; }
-        public boolean ball() { return this == BALL || this == POWERED_BALL || this == BALL_HALF || this == SOCKET; }
+        public boolean ball() { return this == BALL || this == POWERED_BALL; }
     }
 
     /** Grid assembly state: assembly side (1..4), this block's place in it, and "keep separate" (placed while sneaking). */
@@ -39,10 +37,11 @@ public final class SimpleParts {
     public static final net.minecraft.world.level.block.state.properties.IntegerProperty GU = net.minecraft.world.level.block.state.properties.IntegerProperty.create("gu", 0, 3);
     public static final net.minecraft.world.level.block.state.properties.IntegerProperty GV = net.minecraft.world.level.block.state.properties.IntegerProperty.create("gv", 0, 3);
     public static final net.minecraft.world.level.block.state.properties.BooleanProperty LONE = net.minecraft.world.level.block.state.properties.BooleanProperty.create("lone");
-    /** Ball halves: the dome points up (true) or down. Sockets: the cup opens up (true) or down. */
-    public static final net.minecraft.world.level.block.state.properties.BooleanProperty UP = net.minecraft.world.level.block.state.properties.BooleanProperty.create("up");
+    /** Ball joint assemblies also stack: HT = how many layers high (1..size), GH = this block's layer in it. */
+    public static final net.minecraft.world.level.block.state.properties.IntegerProperty HT = net.minecraft.world.level.block.state.properties.IntegerProperty.create("ht", 1, 4);
+    public static final net.minecraft.world.level.block.state.properties.IntegerProperty GH = net.minecraft.world.level.block.state.properties.IntegerProperty.create("gh", 0, 3);
 
-    /** Blocks that join their neighbours into square grids (bearings, motors, ball halves, sockets). */
+    /** Blocks that join their neighbours into square grids (bearings, motors) or boxes (ball joints). */
     public interface GridBlock {
         /** The two axes the grid spreads along. */
         Direction.Axis[] plane(BlockState s);
@@ -50,8 +49,10 @@ public final class SimpleParts {
         default boolean joins(BlockState a, BlockState b) {
             if (a.getBlock() != b.getBlock() || a.getValue(LONE) || b.getValue(LONE)) return false;
             if (a.hasProperty(BlockStateProperties.AXIS) && a.getValue(BlockStateProperties.AXIS) != b.getValue(BlockStateProperties.AXIS)) return false;
-            return !a.hasProperty(UP) || a.getValue(UP) == b.getValue(UP);
+            return true;
         }
+        /** Also stacks upward into n x h x n boxes (ball joints). */
+        default boolean stacks() { return false; }
     }
     static Direction.Axis[] across(Direction.Axis a) {
         return switch (a) { case X -> new Direction.Axis[]{Direction.Axis.Z, Direction.Axis.Y}; case Y -> new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z}; default -> new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Y}; };
@@ -90,36 +91,21 @@ public final class SimpleParts {
         @Override protected BlockState rotate(BlockState s, Rotation r) { return RotatedPillarBlock.rotatePillar(s, r); }
     }
 
-    /** Ball half / socket: lay an n x n layer of ball halves against an n x n layer of sockets for an n x 2 x n ball joint. */
-    public static class BallPartBlock extends JointBlock implements GridBlock {
-        public BallPartBlock(JointShape sh, Properties p) { super(sh, p); registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y).setValue(SIZE, 1).setValue(GU, 0).setValue(GV, 0).setValue(LONE, false).setValue(UP, true)); }
-        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIZE, GU, GV, LONE, UP); }
-        @Override public BlockState getStateForPlacement(BlockPlaceContext c) {
-            // faces its partner (a socket for a ball half, a ball half for a socket) above or below; otherwise away from what it was placed on
-            BlockState s0 = defaultBlockState().setValue(UP, c.getClickedFace() != Direction.DOWN).setValue(LONE, c.isSecondaryUseActive());
-            Boolean f = facing(c.getLevel(), c.getClickedPos());
-            return f == null ? s0 : s0.setValue(UP, f);
-        }
-        /** Up (true) / down (false) towards a partner block, or null if there's none above or below. */
-        private Boolean facing(BlockGetter l, BlockPos p) {
-            JointShape other = shape == JointShape.BALL_HALF ? JointShape.SOCKET : JointShape.BALL_HALF;
-            if (l.getBlockState(p.above()).getBlock() instanceof BallPartBlock b && b.shape == other) return true;
-            if (l.getBlockState(p.below()).getBlock() instanceof BallPartBlock b && b.shape == other) return false;
-            return null;
-        }
-        @Override protected BlockState updateShape(BlockState s, Direction d, BlockState ns, net.minecraft.world.level.LevelAccessor l, BlockPos p, BlockPos np) {
-            if (d.getAxis() != Direction.Axis.Y) return s;
-            Boolean f = facing(l, p);
-            return f == null ? s : s.setValue(UP, f); // a partner was placed next to it: turn to face it
-        }
+    /** Ball joint (plain or powered). Ball joints next to each other join into one big ball joint: an n x n square, up to n layers high.
+     *  A flat 2x1x2 turns +-45 degrees, a 2x2x2 cube +-90 (range = 90 * layers / side). Sneak to keep one separate. */
+    public static class BallJointBlock extends JointBlock implements GridBlock {
+        private static final VoxelShape SMALL = Block.box(2, 0, 2, 14, 16, 14);
+        public BallJointBlock(JointShape sh, Properties p) { super(sh, p); registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y).setValue(SIZE, 1).setValue(GU, 0).setValue(GV, 0).setValue(HT, 1).setValue(GH, 0).setValue(LONE, false)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIZE, GU, GV, HT, GH, LONE); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(LONE, c.isSecondaryUseActive()); }
         public Direction.Axis[] plane(BlockState s) { return new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z}; }
-        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return Shapes.block(); }
-        @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) {
-            super.onPlace(s, l, p, old, m);
-            Grid.placed(l, p, old.getBlock() != this || old.getValue(UP) != s.getValue(UP)); // turned round: its square may change
-        }
+        @Override public boolean stacks() { return true; }
+        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return s.getValue(SIZE) == 1 && s.getValue(HT) == 1 ? SMALL : Shapes.block(); }
+        @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) { super.onPlace(s, l, p, old, m); Grid.placed(l, p, old.getBlock() != this); }
         @Override protected void onRemove(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState now, boolean m) { boolean gone = now.getBlock() != this; Grid.removed(l, p, s, gone); super.onRemove(s, l, p, now, m); }
         @Override protected BlockState rotate(BlockState s, Rotation r) { return s; }
+        /** Range of motion cap either way, in degrees, for an assembly of this size and height. */
+        public static int romCap(int size, int height) { return (int) Math.round(90.0 * Math.min(height, size) / size); }
     }
 
     /** Servo motor. AXIS = its shaft. Motors side by side (across their axis) join into 2x2, 3x3, 4x4 motors: one shaft, n^n the torque. */

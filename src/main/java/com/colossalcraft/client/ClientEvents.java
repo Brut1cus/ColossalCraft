@@ -24,11 +24,14 @@ public final class ClientEvents {
     public static final KeyMapping SCREEN = new KeyMapping("key.colossalcraft.screen", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, CAT);
     public static final KeyMapping LOCO = new KeyMapping("key.colossalcraft.loco", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_L, CAT);
     public static final KeyMapping JUMP_DRIVE = new KeyMapping("key.colossalcraft.jump", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, CAT);
-    /** Actions the Locomotion Controller can bind: 0 forward, 1 back, 2 left, 3 right, 4 raise, 5 lower, 6 sprint, 7 jump drive. */
-    public static final String[] ACTIONS = {"Forward", "Back", "Turn left", "Turn right", "Raise / up", "Lower / down", "Sprint", "Jump Drive"};
+    public static final KeyMapping BRAKE = new KeyMapping("key.colossalcraft.brake", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_X, CAT);
+    /** Actions the Locomotion Controller can bind: 0 forward, 1 back, 2 left, 3 right, 4 raise, 5 lower, 6 sprint, 7 jump drive,
+     *  8-10 spin clockwise / counter-clockwise / brake (only shown when a joint is set to Spin). */
+    public static final String[] ACTIONS = {"Forward", "Back", "Turn left", "Turn right", "Raise / up", "Lower / down", "Sprint", "Jump Drive", "Spin clockwise", "Spin counter-cw", "Brake"};
+    public static final int SPIN_ACTIONS = 8;
     public static KeyMapping defaultKey(int action) {
         var o = Minecraft.getInstance().options;
-        return switch (action) { case 0 -> o.keyUp; case 1 -> o.keyDown; case 2 -> o.keyLeft; case 3 -> o.keyRight; case 4 -> o.keyJump; case 5 -> o.keyShift; case 6 -> o.keySprint; default -> JUMP_DRIVE; };
+        return switch (action) { case 0 -> o.keyUp; case 1 -> o.keyDown; case 2 -> o.keyLeft; case 3 -> o.keyRight; case 4 -> o.keyJump; case 5 -> o.keyShift; case 6 -> o.keySprint; case 8 -> o.keyUp; case 9 -> o.keyDown; case 10 -> BRAKE; default -> JUMP_DRIVE; };
     }
     /** Is the key bound to this action (in the Colossus' Locomotion settings) held down? */
     public static boolean actionDown(ColossusEntity c, int action) {
@@ -42,8 +45,9 @@ public final class ClientEvents {
     public static final class ModBus {
         @SubscribeEvent public static void renderers(EntityRenderersEvent.RegisterRenderers e) { e.registerEntityRenderer(ModRegistry.COLOSSUS.get(), ColossusRenderer::new); e.registerEntityRenderer(ModRegistry.SEAT.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); }
         @SubscribeEvent public static void menus(RegisterMenuScreensEvent e) { e.register(ModRegistry.ENGINE_MENU.get(), EngineScreen::new); }
-        @SubscribeEvent public static void keys(RegisterKeyMappingsEvent e) { e.register(PILOT); e.register(DESCEND); e.register(HOVER); e.register(DISASSEMBLE); e.register(SCREEN); e.register(LOCO); e.register(JUMP_DRIVE); }
+        @SubscribeEvent public static void keys(RegisterKeyMappingsEvent e) { e.register(PILOT); e.register(DESCEND); e.register(HOVER); e.register(DISASSEMBLE); e.register(SCREEN); e.register(LOCO); e.register(JUMP_DRIVE); e.register(BRAKE); }
         @SubscribeEvent public static void hud(RegisterGuiLayersEvent e) {
+            e.registerAboveAll(ResourceLocation.fromNamespaceAndPath(ColossalCraft.MODID, "look"), (g, delta) -> ColossusLook.label(g));
             e.registerAboveAll(ResourceLocation.fromNamespaceAndPath(ColossalCraft.MODID, "hud"), (g, delta) -> {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc.player == null || !(mc.player.getVehicle() instanceof ColossusEntity c) || c.model == null || mc.options.hideGui) return;
@@ -79,6 +83,7 @@ public final class ClientEvents {
             if (mc.player.getVehicle() instanceof ColossusEntity c && mc.screen == null && !DevShots.ON) {
                 float fwd = (actionDown(c, 0) ? 1 : 0) - (actionDown(c, 1) ? 1 : 0), turn = (actionDown(c, 2) ? 1 : 0) - (actionDown(c, 3) ? 1 : 0);
                 PacketDistributor.sendToServer(new Net.PilotInput(fwd, turn, actionDown(c, 4), actionDown(c, 5) || DESCEND.isDown(), actionDown(c, 6), actionDown(c, 7)));
+                if (c.model.wheels > 0) PacketDistributor.sendToServer(new Net.SpinInput((actionDown(c, 8) ? 1 : 0) | (actionDown(c, 9) ? 2 : 0) | (actionDown(c, 10) ? 4 : 0)));
             }
         }
 

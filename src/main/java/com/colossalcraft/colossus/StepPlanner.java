@@ -26,7 +26,7 @@ import java.util.Set;
 public final class StepPlanner {
     private StepPlanner() {}
     /** Map half-size in blocks: (2R+1)^2 columns. */
-    public static final int R = 12;
+    public static final int R = 8;
     public static final byte NONE = 127, WALL = 126;
 
     public static void handle(ServerPlayer sp, Net.StepRequest r) {
@@ -43,7 +43,7 @@ public final class StepPlanner {
         for (int i = 0; i < w.foot.length; i++) if (w.state[i] == WalkerController.State.STANCE) { sum += w.foot[i].y; k++; }
         refY = k > 0 ? sum / k : c.getY() + (m.localBounds.minY - m.com.y);
         List<Vec3> body = new ArrayList<>();
-        int step = Math.max(1, m.blocks.size() / 3000);
+        int step = Math.max(1, m.blocks.size() / 800);
         int n = 0;
         for (StructureModel.Seg sg : m.segs) {
             if (m.legSegs.contains(sg.id)) continue;
@@ -72,7 +72,11 @@ public final class StepPlanner {
     }
 
     /** Not built yet: the ground around it, its body and where its feet stand. */
+    private static final java.util.Map<Long, Object[]> PARKED = new java.util.HashMap<>();
     public static void sendParked(ServerPlayer sp, BlockPos controller) {
+        Object[] hit = PARKED.get(controller.asLong()); long now = sp.level().getGameTime();
+        if (hit != null && now - (Long) hit[0] < 100) { PacketDistributor.sendToPlayer(sp, new Net.StepData(((CompoundTag) hit[1]).copy())); return; } // a parked walker doesn't change: reuse the last map for 5 s
+        if (PARKED.size() > 64) PARKED.clear();
         BlockPos heart = Net.findHeart(sp.level(), controller);
         if (heart == null) return;
         StructureScan.Result r = StructureScan.scan(sp.level(), heart);
@@ -80,7 +84,7 @@ public final class StepPlanner {
         List<Vec3> body = new ArrayList<>();
         int minY = Integer.MAX_VALUE;
         for (BlockPos p : r.blocks.keySet()) minY = Math.min(minY, p.getY());
-        int step = Math.max(1, r.blocks.size() / 3000), n = 0;
+        int step = Math.max(1, r.blocks.size() / 800), n = 0;
         for (StructureModel.Seg sg : m.segs) {
             if (m.legSegs.contains(sg.id)) continue;
             for (BlockPos p : sg.blocks) if (n++ % step == 0) body.add(Vec3.atCenterOf(heart.offset(p)));
@@ -97,6 +101,7 @@ public final class StepPlanner {
         t.putBoolean("Built", false); t.putLong("Pos", controller.asLong());
         t.putBoolean("Smart", m.smartFooting); t.putBoolean("Pw", false); t.putInt("Legs", m.legChains.size());
         t.putString("Status", "");
+        PARKED.put(controller.asLong(), new Object[]{now, t.copy()});
         PacketDistributor.sendToPlayer(sp, new Net.StepData(t));
     }
 
@@ -108,7 +113,7 @@ public final class StepPlanner {
         int top = (int) Math.floor(refY) + 6;
         for (int dz = -R; dz <= R; dz++) for (int dx = -R; dx <= R; dx++) {
             int idx = (dz + R) * size + (dx + R), x = cx + dx, z = cz + dz;
-            double gy = WalkerController.groundFrom(lv, x + .5, top + 1, z + .5, 13);
+            double gy = WalkerController.groundFrom(lv, x + .5, top + 1, z + .5, 10);
             if (Double.isNaN(gy)) {
                 mp.set(x, top, z);
                 h[idx] = lv.getBlockState(mp).getCollisionShape(lv, mp).isEmpty() ? NONE : WALL;

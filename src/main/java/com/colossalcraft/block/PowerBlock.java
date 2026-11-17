@@ -40,7 +40,7 @@ public class PowerBlock extends BaseEntityBlock {
     @Override protected BlockState rotate(BlockState s, Rotation r) { return s.setValue(FACING, r.rotate(s.getValue(FACING))); }
 
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState s, BlockEntityType<T> type) {
-        return level.isClientSide || type != ModRegistry.POWER_BE.get() ? null : (l, p, st, be) -> PowerBlockEntity.serverTick(l, p, st, (PowerBlockEntity) be);
+        return level.isClientSide || com.colossalcraft.colossus.ColossusDock.isDock(level) /* engines on a Colossus are run by the Colossus */ || type != ModRegistry.POWER_BE.get() ? null : (l, p, st, be) -> PowerBlockEntity.serverTick(l, p, st, (PowerBlockEntity) be);
     }
 
     /** Right-click opens the furnace-like screen (fuel slot + energy). Gyro structures just report their status. */
