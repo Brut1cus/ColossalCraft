@@ -44,29 +44,34 @@ def grill(im, col, x0=3, x1=12, y0=3, y1=12, vertical=False):
 def save(im, folder, name): im.save(os.path.join(folder, name + '.png'))
 
 STEEL = hx(0x6f7a84)
-MATS = {'wood': hx(0xa07a45), 'stone': hx(0x8d8d8d), 'copper': hx(0xd8763f), 'iron': hx(0xe2e2e2), 'gold': hx(0xf5c842), 'diamond': hx(0x4fe3dc), 'netherite': hx(0x7d6a74)}
-
-# --- Joints (log-like column: side + end) ---
-for i, (m, a) in enumerate(MATS.items()):
-    s = base(STEEL, 10 + i); bevel(s, STEEL)
-    for y in range(16):
-        for x in (4, 5, 10, 11): px(s, x, y, mix(shade(a, 0.9), STEEL, 0.25))
-    for y in (3, 12): rect(s, 1, y, 14, y, shade(STEEL, 0.5))
-    rivets(s, STEEL, ((7, 1), (7, 13)))
-    save(s, B, f'{m}_joint_side')
-    e = base(STEEL, 20 + i); bevel(e, STEEL)
-    circle(e, 8, 8, 6, shade(STEEL, 0.8)); circle(e, 8, 8, 6, shade(a, 0.9), False)
-    circle(e, 8, 8, 3.2, shade(a, 1.0)); circle(e, 8, 8, 1.5, shade(STEEL, 0.35))
-    save(e, B, f'{m}_joint_end')
-
-# --- Motors ---
-for i, (m, a) in enumerate(MATS.items()):
-    s = base(STEEL, 40 + i); bevel(s, STEEL); rivets(s, STEEL)
-    rect(s, 3, 3, 12, 12, shade(STEEL, 0.75))
-    for y in range(4, 12):
-        if y % 2 == 0: rect(s, 4, y, 11, y, shade(a, 0.85))
-    circle(s, 8, 8, 2.2, shade(STEEL, 1.3)); px(s, 7, 7, shade(STEEL, 0.4))
-    save(s, B, f'{m}_motor')
+# --- size-based parts (no materials): bearing housing + end, motor casing, ball, socket, powered ball band ---
+BRASS = hx(0xc9a24a)
+bs = base(STEEL, 10); bevel(bs, STEEL)
+for y in range(16):
+    for x in (4, 5, 10, 11): px(bs, x, y, mix(shade(BRASS, 0.9), STEEL, 0.35))
+for y in (3, 12): rect(bs, 1, y, 14, y, shade(STEEL, 0.5))
+rivets(bs, STEEL, ((7, 1), (7, 13)))
+save(bs, B, 'bearing_side')
+be = base(STEEL, 20); bevel(be, STEEL)
+for y in range(16):
+    for x in range(16):
+        if x < 2 or y < 2 or x > 13 or y > 13: px(be, x, y, shade(BRASS, 0.85 if (x + y) % 2 else 0.7))
+rivets(be, STEEL, ((1, 1), (14, 1), (1, 14), (14, 14)))
+save(be, B, 'bearing_end')
+mo = base(STEEL, 40); bevel(mo, STEEL); rivets(mo, STEEL)
+rect(mo, 3, 3, 12, 12, shade(STEEL, 0.75))
+for y in range(4, 12):
+    if y % 2 == 0: rect(mo, 4, y, 11, y, shade(hx(0xd8763f), 0.85))   # copper windings
+save(mo, B, 'motor')
+bl = base(hx(0xd6dde3), 41, 0.06)
+for i in range(16): px(bl, i, (i * 5) % 16, hx(0xffffff)); px(bl, (i * 7) % 16, i, shade(hx(0xd6dde3), 0.8))
+save(bl, B, 'ball')
+so = base(hx(0x3f464d), 42, 0.08); bevel(so, hx(0x3f464d))
+for x in range(16): px(so, x, 2, shade(BRASS, 0.8)); px(so, x, 13, shade(BRASS, 0.8))
+save(so, B, 'socket')
+pb = base(hx(0x2b3138), 43); bevel(pb, hx(0x2b3138))
+for x in range(1, 15, 2): px(pb, x, 7, hx(0x46ff7e)); px(pb, x + 1, 8, hx(0x46ff7e))   # powered: green status band
+save(pb, B, 'powered_ball')
 
 # --- Hull core: screen-like computer face ---
 hc = base(hx(0x3a4048), 70); bevel(hc, hx(0x3a4048)); rivets(hc, hx(0x3a4048))
@@ -194,31 +199,35 @@ for y in range(16):
 save(gd, B, 'gantry_scaffold_deck')
 print('scaffold textures done')
 
-# --- gearboxes: steel housing with a gear face, accent by type ---
-def gear_face(seed, accent, teeth, name):
-    im = base(STEEL, seed); bevel(im, STEEL); rivets(im, STEEL)
-    for k in range(teeth):
-        a = 2 * math.pi * k / teeth
-        for r in (5.5, 6.5):
-            x = int(round(7.5 + r * math.cos(a))); y = int(round(7.5 + r * math.sin(a)))
-            if 0 <= x < 16 and 0 <= y < 16: px(im, x, y, shade(accent, 0.8))
-    circle(im, 8, 8, 5, shade(accent, 0.9)); circle(im, 8, 8, 3.5, shade(STEEL, 0.6)); circle(im, 8, 8, 1.6, shade(accent, 1.2))
+# --- gearboxes: stone-and-timber casing (kinetic-mod style), arrows show input -> output ---
+STONE_C, WOOD_C = hx(0x9a9c98), hx(0x8a5a32)
+def casing(seed, hole=False):
+    im = base(STONE_C, seed, 0.07)
+    for y in range(16):
+        for x in range(16):
+            edge = x < 2 or y < 2 or x > 13 or y > 13
+            if edge: px(im, x, y, shade(WOOD_C, 1.1 if (x * 3 + y) % 5 else 0.85))
+    for (x, y) in ((1, 1), (14, 1), (1, 14), (14, 14)): px(im, x, y, hx(0x4a4a4a))
+    if hole: circle(im, 8, 8, 3.6, hx(0x2c2c2c)); circle(im, 8, 8, 3.6, shade(WOOD_C, 0.7), False)
+    return im
+save(casing(700), B, 'gearbox_casing')
+save(casing(701, True), B, 'gearbox_end')
+def casing_arrow(name, col, chevrons):
+    im = casing(702)
+    for k in range(chevrons):
+        y0 = 4 + k * 4
+        for i in range(4): px(im, 7 - i, y0 + i, col); px(im, 8 + i, y0 + i, col)
+    for y in range(4, 13): px(im, 7, y, shade(col, 0.8)); px(im, 8, y, shade(col, 0.8))
     save(im, B, name)
-gear_face(700, hx(0x46ff7e), 8, 'overdrive_gearbox')
-gear_face(701, hx(0xd9d9d9), 10, 'spur_gearbox')
-gear_face(702, hx(0x3aa0ff), 14, 'planetary_gearbox')
-wd = base(STEEL, 703); bevel(wd, STEEL); rivets(wd, STEEL)
-for y in range(3, 13):
-    for x in range(3, 13):
-        if (x + y) % 3 == 0: px(wd, x, y, hx(0xffb43a))
-rect(wd, 7, 2, 8, 13, shade(STEEL, 1.3)); save(wd, B, 'worm_drive')
+casing_arrow('gearbox_arrow', hx(0xf2c21a), 1)
+casing_arrow('reduction_gearbox_arrow', hx(0x3ad7ff), 2)
 print('gear textures done')
 
 # --- shaft, gearbox frame, rotor blade, hoist hook ---
 sh = Image.new('RGBA', (16, 16))
 for y in range(16):
     for x in range(16):
-        px(sh, x, y, shade(hx(0xb8c0c8), 1.15 if (x + y) % 4 < 2 else 0.8))
+        px(sh, x, y, shade(hx(0xa8adb2), 1.2 if x in (6, 7) else 0.65 if x in (0, 15) or y % 8 == 0 else 0.95))
 save(sh, B, 'shaft')
 gf = base(hx(0x4a525a), 720); bevel(gf, hx(0x4a525a)); save(gf, B, 'gearbox_frame')
 rb = base(hx(0x9aa3ab), 721, 0.05)
@@ -230,11 +239,6 @@ for on in (False, True):
     save(hk, B, 'gantry_hoist_on' if on else 'gantry_hoist')
 print('mech textures done')
 
-# --- gear metals (one per gearbox) ---
-for name, col in (('overdrive_gearbox_gear', hx(0xe8c34a)), ('spur_gearbox_gear', hx(0xc9a26a)), ('planetary_gearbox_gear', hx(0xb8c4d0)), ('worm_drive_gear', hx(0xd08a52))):
-    im = base(col, hash(name) & 1023, 0.08)
-    for i in range(16): px(im, i, i, shade(col, 1.25)); px(im, 15 - i, i, shade(col, 0.8))
-    save(im, B, name)
 print('gear metals done')
 
 # --- gearbox arrows/in face, locomotion controller, jump drive ---
@@ -245,7 +249,6 @@ def arrow_tex(name, col):
         for x in range(8 - w2, 8 + w2 + (0 if y < 8 else 1)): px(im, x, y, col)
     for y in range(8, 13): px(im, 7, y, col); px(im, 8, y, col)
     save(im, B, name)
-for n, col in (('overdrive_gearbox', hx(0x46ff7e)), ('spur_gearbox', hx(0xd9d9d9)), ('planetary_gearbox', hx(0x3aa0ff)), ('worm_drive', hx(0xffb43a))): arrow_tex(n + '_arrow', col)
 gi = base(STEEL, 730); bevel(gi, STEEL); circle(gi, 8, 8, 5, shade(STEEL, 0.6)); circle(gi, 8, 8, 5, hx(0xff8a3a), False); save(gi, B, 'gearbox_in')
 lf = base(hx(0x2e3640), 731); bevel(lf, hx(0x2e3640)); rect(lf, 2, 2, 13, 11, hx(0x061018))
 for (x, y) in ((5, 4), (5, 5), (5, 6), (4, 7), (4, 8), (10, 4), (10, 5), (10, 6), (11, 7), (11, 8), (6, 3), (7, 3), (8, 3), (9, 3)): px(lf, x, y, hx(0x3ad7ff))

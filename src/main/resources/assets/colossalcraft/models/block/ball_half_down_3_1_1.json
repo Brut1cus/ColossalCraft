@@ -1,0 +1,602 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "ball": "colossalcraft:block/ball",
+    "socket": "colossalcraft:block/socket",
+    "particle": "colossalcraft:block/socket"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        14,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        12,
+        0
+      ],
+      "to": [
+        16,
+        14,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            2,
+            16,
+            4
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            2,
+            16,
+            4
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            2,
+            16,
+            4
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            2,
+            16,
+            4
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        10,
+        0
+      ],
+      "to": [
+        16,
+        12,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            4,
+            16,
+            6
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            4,
+            16,
+            6
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            4,
+            16,
+            6
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            4,
+            16,
+            6
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        8,
+        0
+      ],
+      "to": [
+        16,
+        10,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            6,
+            16,
+            8
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            6,
+            16,
+            8
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            6,
+            16,
+            8
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            6,
+            16,
+            8
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        6,
+        0
+      ],
+      "to": [
+        16,
+        8,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            8,
+            16,
+            10
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            8,
+            16,
+            10
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            8,
+            16,
+            10
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            8,
+            16,
+            10
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        4,
+        0
+      ],
+      "to": [
+        16,
+        6,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            10,
+            16,
+            12
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            10,
+            16,
+            12
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            10,
+            16,
+            12
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            10,
+            16,
+            12
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        2,
+        0
+      ],
+      "to": [
+        16,
+        4,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            12,
+            16,
+            14
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            12,
+            16,
+            14
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            12,
+            16,
+            14
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            12,
+            16,
+            14
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#ball",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0.06658871176041004,
+        0,
+        0.06658871176041004
+      ],
+      "to": [
+        15.93341128823959,
+        2,
+        15.93341128823959
+      ],
+      "faces": {
+        "north": {
+          "texture": "#ball",
+          "uv": [
+            0.06658871176041004,
+            14,
+            15.93341128823959,
+            16
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#ball",
+          "uv": [
+            0.06658871176041004,
+            14,
+            15.93341128823959,
+            16
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#ball",
+          "uv": [
+            0.06658871176041004,
+            14,
+            15.93341128823959,
+            16
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#ball",
+          "uv": [
+            0.06658871176041004,
+            14,
+            15.93341128823959,
+            16
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#ball",
+          "uv": [
+            0.06658871176041004,
+            0.06658871176041004,
+            15.93341128823959,
+            15.93341128823959
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#ball",
+          "uv": [
+            0.06658871176041004,
+            0.06658871176041004,
+            15.93341128823959,
+            15.93341128823959
+          ],
+          "tintindex": 12
+        }
+      }
+    }
+  ]
+}

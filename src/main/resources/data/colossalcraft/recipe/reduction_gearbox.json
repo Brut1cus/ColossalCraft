@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "IGI",
+    "GSG",
+    "IGI"
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "G": {
+      "item": "colossalcraft:gearbox"
+    },
+    "S": {
+      "item": "colossalcraft:colossteel_ingot"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:reduction_gearbox",
+    "count": 1
+  }
+}

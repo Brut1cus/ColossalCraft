@@ -105,6 +105,15 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             Matrix4d local = segM[cs];
             if (!j.ball) { drawJointPart(e, m, j, local, Part.SPIN, ps, buf, pt, light, ex, ey, ez, level, lp); continue; }
             Matrix4d parent = segM[Math.max(0, j.parentSeg)];
+            if (j.shape == com.colossalcraft.block.SimpleParts.JointShape.BALL_HALF) { // big ball joint: each layer with its own part
+                for (BlockPos p : j.blocks) {
+                    Matrix4d mm = m.ballChildSide.contains(p) ? local : parent;
+                    ps.pushPose(); ps.mulPose(new Matrix4f(mm));
+                    drawBlock(e, m, p, mm, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL_TINTED, null, 0);
+                    ps.popPose();
+                }
+                continue;
+            }
             boolean childBelow = m.segs.get(cs).com.y < j.pivot.y;
             drawJointPart(e, m, j, local, childBelow ? Part.SPIN : Part.SPIN2, ps, buf, pt, light, ex, ey, ez, level, lp);
             drawJointPart(e, m, j, parent, childBelow ? Part.SPIN2 : Part.SPIN, ps, buf, pt, light, ex, ey, ez, level, lp);
@@ -114,23 +123,24 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             Matrix4d mid = new Matrix4d(parent).translate(j.pivot.x, j.pivot.y, j.pivot.z).rotate(half).translate(-j.pivot.x, -j.pivot.y, -j.pivot.z);
             drawJointPart(e, m, j, mid, Part.BALL, ps, buf, pt, light, ex, ey, ez, level, lp);
         }
-        // motor groups: one shaft per group, as thick as the group, turning with its joint (times its gear ratio)
+        // motors: each block holds its piece of the square's one big shaft; all pieces turn round the square's centre
         for (StructureModel.MotorCluster mc : m.motorClusters) {
             BlockPos rep0 = mc.blocks().get(0);
             Matrix4d local = segM[m.segOf.getOrDefault(rep0, 0)];
             double ang = mc.joint() >= 0 ? angles[mc.joint()] * mc.ratio() : e.walkPhase * 2;
-            ps.pushPose();
-            ps.mulPose(new Matrix4f(local));
-            ps.translate(mc.center().x, mc.center().y, mc.center().z);
             var ax = StructureModel.axisVec(mc.axis());
-            ps.mulPose(new org.joml.Quaternionf().rotateAxis((float) ang, (float) ax.x, (float) ax.y, (float) ax.z));
-            float n = mc.n();
-            ps.scale(mc.axis() == net.minecraft.core.Direction.Axis.X ? 1 : n, mc.axis() == net.minecraft.core.Direction.Axis.Y ? 1 : n, mc.axis() == net.minecraft.core.Direction.Axis.Z ? 1 : n);
-            ps.translate(-0.5, -0.5, -0.5);
             Vector3d w = local.transformPosition(new Vector3d(mc.center().x, mc.center().y, mc.center().z));
             lp.set(ex + w.x, ey + w.y, ez + w.z);
-            drawQuads(m.blocks.get(rep0), ps, buf, level == null ? light : LevelRenderer.getLightColor(level, lp), Part.SPIN);
-            ps.popPose();
+            int li = level == null ? light : LevelRenderer.getLightColor(level, lp);
+            for (BlockPos p : mc.blocks()) {
+                ps.pushPose();
+                ps.mulPose(new Matrix4f(local));
+                ps.translate(mc.center().x, mc.center().y, mc.center().z);
+                ps.mulPose(new org.joml.Quaternionf().rotateAxis((float) ang, (float) ax.x, (float) ax.y, (float) ax.z));
+                ps.translate(p.getX() - mc.center().x, p.getY() - mc.center().y, p.getZ() - mc.center().z);
+                drawQuads(m.blocks.get(p), ps, buf, li, Part.SPIN);
+                ps.popPose();
+            }
         }
         // gantry hoist chain
         BlockPos hoist = e.heldBy();
@@ -149,7 +159,7 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         super.render(e, yawIgnored, pt, ps, buf, light);
     }
 
-    enum Part { ALL, STATIC, SPIN, SPIN2, BALL, ALL_SPIN_TOO }
+    enum Part { ALL, STATIC, SPIN, SPIN2, BALL, ALL_SPIN_TOO, ALL_TINTED }
     private void drawJointPart(ColossusEntity e, StructureModel m, StructureModel.Joint j, Matrix4d local, Part part, PoseStack ps, MultiBufferSource buf, float pt, int light,
                                double ex, double ey, double ez, net.minecraft.client.multiplayer.ClientLevel level, BlockPos.MutableBlockPos lp) {
         ps.pushPose();
@@ -190,7 +200,7 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
                 rnd.setSeed(42);
                 for (var q : model.getQuads(st, d < 0 ? null : net.minecraft.core.Direction.from3DDataValue(d), rnd, net.neoforged.neoforge.client.model.data.ModelData.EMPTY, rt)) {
                     int ti = q.getTintIndex();
-                    boolean keep = switch (part) { case STATIC -> ti < 9; case SPIN -> ti == 9; case SPIN2 -> ti == 10; case BALL -> ti == 11; default -> true; };
+                    boolean keep = switch (part) { case STATIC -> ti < 9; case SPIN -> ti == 9; case SPIN2 -> ti == 10; case BALL -> ti == 11; case ALL_TINTED -> true; default -> true; };
                     if (!keep) continue;
                     vc.putBulkData(ps.last(), q, 1f, 1f, 1f, 1f, light, OverlayTexture.NO_OVERLAY);
                 }

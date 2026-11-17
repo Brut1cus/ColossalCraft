@@ -1,0 +1,1156 @@
+{
+  "variants": {
+    "axis=x,gu=0,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_2_0_0"
+    },
+    "axis=x,gu=0,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_0_0"
+    },
+    "axis=x,gu=0,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_0_0"
+    },
+    "axis=x,gu=0,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_2_0_0"
+    },
+    "axis=x,gu=0,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_0_0"
+    },
+    "axis=x,gu=0,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_0_0"
+    },
+    "axis=x,gu=0,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_2_0_1"
+    },
+    "axis=x,gu=0,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_0_1"
+    },
+    "axis=x,gu=0,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_0_1"
+    },
+    "axis=x,gu=0,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_2_0_1"
+    },
+    "axis=x,gu=0,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_0_1"
+    },
+    "axis=x,gu=0,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_0_1"
+    },
+    "axis=x,gu=0,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_0_2"
+    },
+    "axis=x,gu=0,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_0_2"
+    },
+    "axis=x,gu=0,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_0_2"
+    },
+    "axis=x,gu=0,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_0_2"
+    },
+    "axis=x,gu=0,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_0_3"
+    },
+    "axis=x,gu=0,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=0,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_0_3"
+    },
+    "axis=x,gu=1,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_2_1_0"
+    },
+    "axis=x,gu=1,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_1_0"
+    },
+    "axis=x,gu=1,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_1_0"
+    },
+    "axis=x,gu=1,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_2_1_0"
+    },
+    "axis=x,gu=1,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_1_0"
+    },
+    "axis=x,gu=1,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_1_0"
+    },
+    "axis=x,gu=1,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_2_1_1"
+    },
+    "axis=x,gu=1,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_1_1"
+    },
+    "axis=x,gu=1,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_1_1"
+    },
+    "axis=x,gu=1,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_2_1_1"
+    },
+    "axis=x,gu=1,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_1_1"
+    },
+    "axis=x,gu=1,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_1_1"
+    },
+    "axis=x,gu=1,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_1_2"
+    },
+    "axis=x,gu=1,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_1_2"
+    },
+    "axis=x,gu=1,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_1_2"
+    },
+    "axis=x,gu=1,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_1_2"
+    },
+    "axis=x,gu=1,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_1_3"
+    },
+    "axis=x,gu=1,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=1,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_1_3"
+    },
+    "axis=x,gu=2,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_2_0"
+    },
+    "axis=x,gu=2,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_2_0"
+    },
+    "axis=x,gu=2,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_2_0"
+    },
+    "axis=x,gu=2,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_2_0"
+    },
+    "axis=x,gu=2,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_2_1"
+    },
+    "axis=x,gu=2,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_2_1"
+    },
+    "axis=x,gu=2,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_2_1"
+    },
+    "axis=x,gu=2,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_2_1"
+    },
+    "axis=x,gu=2,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_2_2"
+    },
+    "axis=x,gu=2,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_2_2"
+    },
+    "axis=x,gu=2,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_3_2_2"
+    },
+    "axis=x,gu=2,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_2_2"
+    },
+    "axis=x,gu=2,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_2_3"
+    },
+    "axis=x,gu=2,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=2,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_2_3"
+    },
+    "axis=x,gu=3,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_3_0"
+    },
+    "axis=x,gu=3,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_3_0"
+    },
+    "axis=x,gu=3,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_3_1"
+    },
+    "axis=x,gu=3,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_3_1"
+    },
+    "axis=x,gu=3,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_3_2"
+    },
+    "axis=x,gu=3,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_3_2"
+    },
+    "axis=x,gu=3,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_3_3"
+    },
+    "axis=x,gu=3,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_x_1_0_0"
+    },
+    "axis=x,gu=3,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_x_4_3_3"
+    },
+    "axis=y,gu=0,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_2_0_0"
+    },
+    "axis=y,gu=0,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_0_0"
+    },
+    "axis=y,gu=0,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_0_0"
+    },
+    "axis=y,gu=0,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_2_0_0"
+    },
+    "axis=y,gu=0,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_0_0"
+    },
+    "axis=y,gu=0,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_0_0"
+    },
+    "axis=y,gu=0,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_2_0_1"
+    },
+    "axis=y,gu=0,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_0_1"
+    },
+    "axis=y,gu=0,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_0_1"
+    },
+    "axis=y,gu=0,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_2_0_1"
+    },
+    "axis=y,gu=0,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_0_1"
+    },
+    "axis=y,gu=0,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_0_1"
+    },
+    "axis=y,gu=0,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_0_2"
+    },
+    "axis=y,gu=0,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_0_2"
+    },
+    "axis=y,gu=0,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_0_2"
+    },
+    "axis=y,gu=0,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_0_2"
+    },
+    "axis=y,gu=0,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_0_3"
+    },
+    "axis=y,gu=0,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=0,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_0_3"
+    },
+    "axis=y,gu=1,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_2_1_0"
+    },
+    "axis=y,gu=1,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_1_0"
+    },
+    "axis=y,gu=1,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_1_0"
+    },
+    "axis=y,gu=1,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_2_1_0"
+    },
+    "axis=y,gu=1,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_1_0"
+    },
+    "axis=y,gu=1,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_1_0"
+    },
+    "axis=y,gu=1,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_2_1_1"
+    },
+    "axis=y,gu=1,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_1_1"
+    },
+    "axis=y,gu=1,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_1_1"
+    },
+    "axis=y,gu=1,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_2_1_1"
+    },
+    "axis=y,gu=1,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_1_1"
+    },
+    "axis=y,gu=1,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_1_1"
+    },
+    "axis=y,gu=1,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_1_2"
+    },
+    "axis=y,gu=1,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_1_2"
+    },
+    "axis=y,gu=1,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_1_2"
+    },
+    "axis=y,gu=1,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_1_2"
+    },
+    "axis=y,gu=1,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_1_3"
+    },
+    "axis=y,gu=1,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=1,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_1_3"
+    },
+    "axis=y,gu=2,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_2_0"
+    },
+    "axis=y,gu=2,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_2_0"
+    },
+    "axis=y,gu=2,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_2_0"
+    },
+    "axis=y,gu=2,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_2_0"
+    },
+    "axis=y,gu=2,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_2_1"
+    },
+    "axis=y,gu=2,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_2_1"
+    },
+    "axis=y,gu=2,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_2_1"
+    },
+    "axis=y,gu=2,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_2_1"
+    },
+    "axis=y,gu=2,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_2_2"
+    },
+    "axis=y,gu=2,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_2_2"
+    },
+    "axis=y,gu=2,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_3_2_2"
+    },
+    "axis=y,gu=2,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_2_2"
+    },
+    "axis=y,gu=2,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_2_3"
+    },
+    "axis=y,gu=2,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=2,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_2_3"
+    },
+    "axis=y,gu=3,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_3_0"
+    },
+    "axis=y,gu=3,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_3_0"
+    },
+    "axis=y,gu=3,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_3_1"
+    },
+    "axis=y,gu=3,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_3_1"
+    },
+    "axis=y,gu=3,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_3_2"
+    },
+    "axis=y,gu=3,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_3_2"
+    },
+    "axis=y,gu=3,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_3_3"
+    },
+    "axis=y,gu=3,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_y_1_0_0"
+    },
+    "axis=y,gu=3,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_y_4_3_3"
+    },
+    "axis=z,gu=0,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_2_0_0"
+    },
+    "axis=z,gu=0,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_0_0"
+    },
+    "axis=z,gu=0,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_0_0"
+    },
+    "axis=z,gu=0,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_2_0_0"
+    },
+    "axis=z,gu=0,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_0_0"
+    },
+    "axis=z,gu=0,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_0_0"
+    },
+    "axis=z,gu=0,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_2_0_1"
+    },
+    "axis=z,gu=0,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_0_1"
+    },
+    "axis=z,gu=0,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_0_1"
+    },
+    "axis=z,gu=0,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_2_0_1"
+    },
+    "axis=z,gu=0,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_0_1"
+    },
+    "axis=z,gu=0,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_0_1"
+    },
+    "axis=z,gu=0,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_0_2"
+    },
+    "axis=z,gu=0,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_0_2"
+    },
+    "axis=z,gu=0,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_0_2"
+    },
+    "axis=z,gu=0,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_0_2"
+    },
+    "axis=z,gu=0,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_0_3"
+    },
+    "axis=z,gu=0,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=0,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_0_3"
+    },
+    "axis=z,gu=1,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_2_1_0"
+    },
+    "axis=z,gu=1,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_1_0"
+    },
+    "axis=z,gu=1,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_1_0"
+    },
+    "axis=z,gu=1,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_2_1_0"
+    },
+    "axis=z,gu=1,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_1_0"
+    },
+    "axis=z,gu=1,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_1_0"
+    },
+    "axis=z,gu=1,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_2_1_1"
+    },
+    "axis=z,gu=1,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_1_1"
+    },
+    "axis=z,gu=1,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_1_1"
+    },
+    "axis=z,gu=1,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_2_1_1"
+    },
+    "axis=z,gu=1,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_1_1"
+    },
+    "axis=z,gu=1,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_1_1"
+    },
+    "axis=z,gu=1,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_1_2"
+    },
+    "axis=z,gu=1,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_1_2"
+    },
+    "axis=z,gu=1,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_1_2"
+    },
+    "axis=z,gu=1,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_1_2"
+    },
+    "axis=z,gu=1,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_1_3"
+    },
+    "axis=z,gu=1,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=1,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_1_3"
+    },
+    "axis=z,gu=2,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_2_0"
+    },
+    "axis=z,gu=2,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_2_0"
+    },
+    "axis=z,gu=2,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_2_0"
+    },
+    "axis=z,gu=2,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_2_0"
+    },
+    "axis=z,gu=2,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_2_1"
+    },
+    "axis=z,gu=2,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_2_1"
+    },
+    "axis=z,gu=2,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_2_1"
+    },
+    "axis=z,gu=2,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_2_1"
+    },
+    "axis=z,gu=2,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_2_2"
+    },
+    "axis=z,gu=2,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_2_2"
+    },
+    "axis=z,gu=2,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_3_2_2"
+    },
+    "axis=z,gu=2,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_2_2"
+    },
+    "axis=z,gu=2,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_2_3"
+    },
+    "axis=z,gu=2,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=2,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_2_3"
+    },
+    "axis=z,gu=3,gv=0,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=0,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=0,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=0,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_3_0"
+    },
+    "axis=z,gu=3,gv=0,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=0,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=0,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=0,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_3_0"
+    },
+    "axis=z,gu=3,gv=1,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=1,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=1,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=1,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_3_1"
+    },
+    "axis=z,gu=3,gv=1,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=1,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=1,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=1,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_3_1"
+    },
+    "axis=z,gu=3,gv=2,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=2,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=2,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=2,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_3_2"
+    },
+    "axis=z,gu=3,gv=2,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=2,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=2,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=2,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_3_2"
+    },
+    "axis=z,gu=3,gv=3,lone=false,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=3,lone=false,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=3,lone=false,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=3,lone=false,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_3_3"
+    },
+    "axis=z,gu=3,gv=3,lone=true,size=1": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=3,lone=true,size=2": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=3,lone=true,size=3": {
+      "model": "colossalcraft:block/bearing_z_1_0_0"
+    },
+    "axis=z,gu=3,gv=3,lone=true,size=4": {
+      "model": "colossalcraft:block/bearing_z_4_3_3"
+    }
+  }
+}

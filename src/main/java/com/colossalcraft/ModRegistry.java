@@ -5,7 +5,6 @@ import com.colossalcraft.block.SimpleParts.*;
 import com.colossalcraft.colossus.ColossusEntity;
 import com.colossalcraft.multiblock.MultiblockDef;
 import com.colossalcraft.tier.EngineTier;
-import com.colossalcraft.tier.MaterialTier;
 import com.colossalcraft.tier.ThrusterTier;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -71,27 +70,22 @@ public final class ModRegistry {
     public static final DeferredBlock<ScaffoldBlock> GANTRY_SCAFFOLD = block("gantry_scaffold", ScaffoldBlock::new,
             BlockBehaviour.Properties.of().mapColor(MapColor.METAL).instabreak().sound(SoundType.SCAFFOLDING).noOcclusion());
 
-    // ---- joints & motors (5 material levels) ----
-    /** Full hollow bearing joints (one per material). */
-    public static final Map<MaterialTier, DeferredBlock<JointBlock>> JOINTS = new EnumMap<>(MaterialTier.class);
-    /** Every joint: material -> shape -> block. */
-    public static final Map<MaterialTier, Map<JointShape, DeferredBlock<JointBlock>>> JOINT_SHAPES = new EnumMap<>(MaterialTier.class);
-    public static final Map<MaterialTier, DeferredBlock<MotorBlock>> MOTORS = new EnumMap<>(MaterialTier.class);
-    public static final List<DeferredBlock<GearboxBlock>> GEARBOXES = new ArrayList<>();
-    static {
-        cat = Cat.JOINTS;
-        for (MaterialTier t : MaterialTier.values()) {
-            Map<JointShape, DeferredBlock<JointBlock>> m = new EnumMap<>(JointShape.class);
-            for (JointShape sh : JointShape.values()) m.put(sh, block(t.id + "_" + sh.suffix, p -> sh == JointShape.SLAB ? new SlabJointBlock(t, p) : sh == JointShape.PANEL ? new PanelJointBlock(t, p) : new JointBlock(t, sh, p), metal().noOcclusion()));
-            JOINT_SHAPES.put(t, m); JOINTS.put(t, m.get(JointShape.FULL));
-        }
-        for (MaterialTier t : MaterialTier.values()) MOTORS.put(t, block(t.id + "_motor", p -> new MotorBlock(t, p), metal().noOcclusion()));
-        GEARBOXES.add(block("overdrive_gearbox", p -> new GearboxBlock(0.5, 0.95, "1:2 speed-up", p), metal().noOcclusion()));
-        GEARBOXES.add(block("spur_gearbox", p -> new GearboxBlock(2, 0.95, "2:1", p), metal().noOcclusion()));
-        GEARBOXES.add(block("planetary_gearbox", p -> new GearboxBlock(5, 0.9, "5:1", p), metal().noOcclusion()));
-        GEARBOXES.add(block("worm_drive", p -> new GearboxBlock(20, 0.6, "20:1", p), metal().noOcclusion()));
-        cat = Cat.POWER;
-    }
+    // ---- joints & motors: no materials, strength comes from size (an n x n assembly is n^n times a 1x1) ----
+    static { cat = Cat.JOINTS; }
+    public static final DeferredBlock<BearingBlock> BEARING = block("bearing", BearingBlock::new, metal().noOcclusion());
+    public static final DeferredBlock<SlabJointBlock> SLAB_JOINT = block("slab_joint", SlabJointBlock::new, metal().noOcclusion());
+    public static final DeferredBlock<PanelJointBlock> PANEL_JOINT = block("panel_joint", PanelJointBlock::new, metal().noOcclusion());
+    public static final DeferredBlock<JointBlock> PIN_JOINT = block("pin_joint", p -> new JointBlock(JointShape.PIN, p), metal().noOcclusion());
+    public static final DeferredBlock<JointBlock> BALL_JOINT = block("ball_joint", p -> new JointBlock(JointShape.BALL, p), metal().noOcclusion());
+    public static final DeferredBlock<JointBlock> POWERED_BALL_JOINT = block("powered_ball_joint", p -> new JointBlock(JointShape.POWERED_BALL, p), metal().noOcclusion().lightLevel(s -> 4));
+    public static final DeferredBlock<BallPartBlock> BALL_HALF = block("ball_half", p -> new BallPartBlock(JointShape.BALL_HALF, p), metal().noOcclusion());
+    public static final DeferredBlock<BallPartBlock> SOCKET = block("socket", p -> new BallPartBlock(JointShape.SOCKET, p), metal().noOcclusion());
+    public static final DeferredBlock<MotorBlock> MOTOR = block("motor", MotorBlock::new, metal().noOcclusion());
+    /** Two gearboxes: 2:1 and 5:1 (placed backwards they speed up instead: 1:2, 1:5). */
+    public static final DeferredBlock<GearboxBlock> GEARBOX = block("gearbox", p -> new GearboxBlock(2, 0.95, "2:1", p), metal().noOcclusion());
+    public static final DeferredBlock<GearboxBlock> REDUCTION_GEARBOX = block("reduction_gearbox", p -> new GearboxBlock(5, 0.9, "5:1", p), metal().noOcclusion());
+    public static final List<DeferredBlock<GearboxBlock>> GEARBOXES = List.of(GEARBOX, REDUCTION_GEARBOX);
+    static { cat = Cat.POWER; }
 
     // ---- single block engines ----
     public static final DeferredBlock<PowerBlock> EMBER_BOILER = block("ember_boiler", p -> new PowerBlock(EngineTier.EMBER, p), metal().lightLevel(s -> 6));
@@ -174,7 +168,7 @@ public final class ModRegistry {
         });
     }
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_COMMAND = tab(Cat.COMMAND, "command", () -> new ItemStack(HULL_CORE.get()), null);
-    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_JOINTS = tab(Cat.JOINTS, "joints", () -> new ItemStack(JOINTS.get(MaterialTier.IRON).get()), "command");
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_JOINTS = tab(Cat.JOINTS, "joints", () -> new ItemStack(BEARING.get()), "command");
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_POWER = tab(Cat.POWER, "power", () -> new ItemStack(BLAZE_COMBUSTOR.get()), "joints");
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_PROPULSION = tab(Cat.PROPULSION, "propulsion", () -> new ItemStack(BLAZE_JET.get()), "power");
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_MATERIALS = tab(Cat.MATERIALS, "materials", () -> new ItemStack(COLOSSTEEL_INGOT.get()), "propulsion");

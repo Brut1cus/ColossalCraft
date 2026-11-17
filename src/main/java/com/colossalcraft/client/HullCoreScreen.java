@@ -397,7 +397,7 @@ public class HullCoreScreen extends Screen {
         treeRows.add(new Row((id == 0 ? "CORE  " : "Part " + id + "  ") + StructureScan.tons(s.getDouble("Mass")), id == 0 ? HEAD : TXT, -1, depth));
         for (CompoundTag j : bySeg.getOrDefault(id, List.of())) {
             double r = j.getDouble("Ratio");
-            treeRows.add(new Row("J" + j.getInt("Id") + " " + cap(j.getString("Tier")) + " " + (int) (r * 100) + "% @" + j.getInt("X") + "," + j.getInt("Y") + "," + j.getInt("Z"),
+            treeRows.add(new Row("J" + j.getInt("Id") + " " + j.getString("Tier") + " " + (int) (r * 100) + "% @" + j.getInt("X") + "," + j.getInt("Y") + "," + j.getInt("Z"),
                     r > 1 ? ERR : j.getBoolean("Stalled") ? WARN : TXT, j.getInt("Id"), depth + 1));
             for (Tag c : j.getList("Children", Tag.TAG_COMPOUND)) addSeg(((CompoundTag) c).getInt("S"), segs, bySeg, depth + 2);
         }
@@ -643,7 +643,7 @@ public class HullCoreScreen extends Screen {
         CompoundTag j = joint(selected);
         if (j == null) return;
         int dx = x + 168, dw = W - NAV - 8 - 174;
-        g.drawString(font, "J" + j.getInt("Id") + "  " + cap(j.getString("Tier")) + " joint", dx, y, HEAD, false);
+        g.drawString(font, "J" + j.getInt("Id") + "  " + j.getString("Tier"), dx, y, HEAD, false);
         String gears = j.getString("Gears");
         String spd = j.getInt("Motors") == 0 ? "" : String.format("max %.0f\u00B0/s", j.getDouble("MaxSpeed")) + (gears.isEmpty() || gears.equals("1") ? "" : "  gears " + gears + ":1");
         g.drawString(font, font.plainSubstrByWidth(spd, dw - 92), dx + 92, y, j.getDouble("NeedSpeed") > j.getDouble("MaxSpeed") + 0.01 && j.getInt("Mode") != 0 ? WARN : DIM, false);

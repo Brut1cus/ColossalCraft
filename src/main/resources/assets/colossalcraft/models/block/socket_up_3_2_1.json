@@ -1,0 +1,454 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "ball": "colossalcraft:block/ball",
+    "socket": "colossalcraft:block/socket",
+    "particle": "colossalcraft:block/socket"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        5,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            11,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            11,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            11,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            11,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        13,
+        5,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            3,
+            11
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#socket",
+          "uv": [
+            13,
+            0,
+            16,
+            11
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            16,
+            11
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            16,
+            11
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#socket",
+          "uv": [
+            13,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#socket",
+          "uv": [
+            13,
+            0,
+            16,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        5,
+        0
+      ],
+      "to": [
+        13,
+        8,
+        8.0
+      ],
+      "faces": {
+        "north": {
+          "texture": "#socket",
+          "uv": [
+            3,
+            8,
+            16,
+            11
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            8,
+            13,
+            11
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#socket",
+          "uv": [
+            8.0,
+            8,
+            16,
+            11
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            8,
+            8.0,
+            11
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            13,
+            8.0
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            8.0,
+            13,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        5,
+        8.0
+      ],
+      "to": [
+        13,
+        8,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#socket",
+          "uv": [
+            3,
+            8,
+            16,
+            11
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            8,
+            13,
+            11
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            8,
+            8.0,
+            11
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#socket",
+          "uv": [
+            8.0,
+            8,
+            16,
+            11
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            8.0,
+            13,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            13,
+            8.0
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        8,
+        0
+      ],
+      "to": [
+        13,
+        11,
+        2.2727272727272734
+      ],
+      "faces": {
+        "north": {
+          "texture": "#socket",
+          "uv": [
+            3,
+            5,
+            16,
+            8
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            5,
+            13,
+            8
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#socket",
+          "uv": [
+            13.727272727272727,
+            5,
+            16,
+            8
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            5,
+            2.2727272727272734,
+            8
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            13,
+            2.2727272727272734
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            13.727272727272727,
+            13,
+            16
+          ],
+          "tintindex": 12
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        8,
+        13.727272727272727
+      ],
+      "to": [
+        13,
+        11,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#socket",
+          "uv": [
+            3,
+            5,
+            16,
+            8
+          ],
+          "tintindex": 12
+        },
+        "south": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            5,
+            13,
+            8
+          ],
+          "tintindex": 12
+        },
+        "east": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            5,
+            2.2727272727272734,
+            8
+          ],
+          "tintindex": 12
+        },
+        "west": {
+          "texture": "#socket",
+          "uv": [
+            13.727272727272727,
+            5,
+            16,
+            8
+          ],
+          "tintindex": 12
+        },
+        "up": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            13.727272727272727,
+            13,
+            16
+          ],
+          "tintindex": 12
+        },
+        "down": {
+          "texture": "#socket",
+          "uv": [
+            0,
+            0,
+            13,
+            2.2727272727272734
+          ],
+          "tintindex": 12
+        }
+      }
+    }
+  ]
+}

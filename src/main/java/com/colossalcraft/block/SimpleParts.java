@@ -1,6 +1,5 @@
 package com.colossalcraft.block;
 
-import com.colossalcraft.tier.MaterialTier;
 import com.colossalcraft.tier.ThrusterTier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -21,40 +20,100 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 public final class SimpleParts {
     private SimpleParts() {}
 
-    /** Joint shapes. Strength = share of a full joint's load it can carry. */
+    /** Joint kinds. Strength = share of a 1x1 bearing's load it carries (assemblies multiply by n^n). */
     public enum JointShape {
-        FULL("joint", "Bearing Joint", 1.0), SLAB("joint_slab", "Slab Joint", 0.5), PANEL("joint_panel", "Panel Joint", 0.5), PIN("joint_pin", "Pin Joint", 0.25),
+        FULL("bearing", "Bearing", 1.0), SLAB("slab_joint", "Slab Joint", 0.5), PANEL("panel_joint", "Panel Joint", 0.5), PIN("pin_joint", "Pin Joint", 0.25),
         /** Ball joint: keeps the part below it level (turns any way, within its limit). */
-        BALL("ball_joint", "Ball Joint", 0.75);
+        BALL("ball_joint", "Ball Joint", 1.0),
+        /** Powered ball joint: a ball joint with its own motor; tilts the foot to the ground and helps balance. */
+        POWERED_BALL("powered_ball_joint", "Powered Ball Joint", 1.0),
+        /** Halves of a big ball joint: an n x n layer of ball halves against an n x n layer of sockets. */
+        BALL_HALF("ball_half", "Ball Half", 1.0), SOCKET("socket", "Socket", 1.0);
         public final String suffix, title; public final double strength;
         JointShape(String s, String t, double k) { suffix = s; title = t; strength = k; }
+        public boolean ball() { return this == BALL || this == POWERED_BALL || this == BALL_HALF || this == SOCKET; }
     }
 
-    /** Hollow bearing joint. AXIS = hinge axis. Joint blocks split the Colossus into Segments. */
+    /** Grid assembly state: assembly side (1..4), this block's place in it, and "keep separate" (placed while sneaking). */
+    public static final net.minecraft.world.level.block.state.properties.IntegerProperty SIZE = net.minecraft.world.level.block.state.properties.IntegerProperty.create("size", 1, 4);
+    public static final net.minecraft.world.level.block.state.properties.IntegerProperty GU = net.minecraft.world.level.block.state.properties.IntegerProperty.create("gu", 0, 3);
+    public static final net.minecraft.world.level.block.state.properties.IntegerProperty GV = net.minecraft.world.level.block.state.properties.IntegerProperty.create("gv", 0, 3);
+    public static final net.minecraft.world.level.block.state.properties.BooleanProperty LONE = net.minecraft.world.level.block.state.properties.BooleanProperty.create("lone");
+    /** Ball halves: the dome points up (true) or down. Sockets: the cup opens up (true) or down. */
+    public static final net.minecraft.world.level.block.state.properties.BooleanProperty UP = net.minecraft.world.level.block.state.properties.BooleanProperty.create("up");
+
+    /** Blocks that join their neighbours into square grids (bearings, motors, ball halves, sockets). */
+    public interface GridBlock {
+        /** The two axes the grid spreads along. */
+        Direction.Axis[] plane(BlockState s);
+        /** Do these two join into one assembly? */
+        default boolean joins(BlockState a, BlockState b) {
+            if (a.getBlock() != b.getBlock() || a.getValue(LONE) || b.getValue(LONE)) return false;
+            if (a.hasProperty(BlockStateProperties.AXIS) && a.getValue(BlockStateProperties.AXIS) != b.getValue(BlockStateProperties.AXIS)) return false;
+            return !a.hasProperty(UP) || a.getValue(UP) == b.getValue(UP);
+        }
+    }
+    static Direction.Axis[] across(Direction.Axis a) {
+        return switch (a) { case X -> new Direction.Axis[]{Direction.Axis.Z, Direction.Axis.Y}; case Y -> new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z}; default -> new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Y}; };
+    }
+
+    /** A joint block. AXIS = hinge axis. Joint blocks split the Colossus into Segments. */
     public static class JointBlock extends RotatedPillarBlock {
-        public final MaterialTier tier; public final JointShape shape;
+        public final JointShape shape;
         private final java.util.EnumMap<Direction.Axis, VoxelShape> shapes = new java.util.EnumMap<>(Direction.Axis.class);
-        public JointBlock(MaterialTier t, JointShape shape, Properties p) {
-            super(p); tier = t; this.shape = shape;
+        public JointBlock(JointShape shape, Properties p) {
+            super(p); this.shape = shape;
             for (Direction.Axis a : Direction.Axis.values()) shapes.put(a, outline(shape, a));
         }
         public static VoxelShape outline(JointShape shape, Direction.Axis a) {
             return switch (shape) {
-                case FULL -> Shapes.block();
                 case SLAB -> Block.box(0, 0, 0, 16, 8, 16);
                 case PANEL -> a == Direction.Axis.X ? Block.box(4, 0, 0, 12, 16, 16) : a == Direction.Axis.Y ? Block.box(0, 4, 0, 16, 12, 16) : Block.box(0, 0, 4, 16, 16, 12);
                 case PIN -> a == Direction.Axis.X ? Block.box(0, 5, 5, 16, 11, 11) : a == Direction.Axis.Y ? Block.box(5, 0, 5, 11, 16, 11) : Block.box(5, 5, 0, 11, 11, 16);
-                case BALL -> Block.box(2, 2, 2, 14, 14, 14);
+                case BALL, POWERED_BALL -> Block.box(2, 0, 2, 14, 16, 14);
+                default -> Shapes.block();
             };
         }
         @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return shapes.get(s.getValue(AXIS)); }
+        /** Joint strength for one block of this kind on its own (1x1). */
+        public double strength() { return shape.strength; }
     }
 
-    /** Servo motor. Touching a joint: drives that joint. Not touching a joint: drives the Colossus over ground. */
-    /** Servo motor. AXIS = its shaft. Motors of the same material and axis side by side work as one bigger motor. */
-    public static class MotorBlock extends RotatedPillarBlock {
-        public final MaterialTier tier;
-        public MotorBlock(MaterialTier t, Properties p) { super(p); tier = t; }
+    /** Bearing: the main hinge joint. Bearings side by side (across their axis) join into 2x2, 3x3 and 4x4 assemblies. */
+    public static class BearingBlock extends JointBlock implements GridBlock {
+        public BearingBlock(Properties p) { super(JointShape.FULL, p); registerDefaultState(defaultBlockState().setValue(SIZE, 1).setValue(GU, 0).setValue(GV, 0).setValue(LONE, false)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIZE, GU, GV, LONE); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { BlockState s = super.getStateForPlacement(c); return s == null ? null : s.setValue(LONE, c.isSecondaryUseActive()); }
+        public Direction.Axis[] plane(BlockState s) { return across(s.getValue(AXIS)); }
+        @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) { super.onPlace(s, l, p, old, m); Grid.placed(l, p, old.getBlock() != this); }
+        @Override protected void onRemove(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState now, boolean m) { boolean gone = now.getBlock() != this; Grid.removed(l, p, s, gone); super.onRemove(s, l, p, now, m); }
+        @Override protected BlockState rotate(BlockState s, Rotation r) { return RotatedPillarBlock.rotatePillar(s, r); }
+    }
+
+    /** Ball half / socket: lay an n x n layer of ball halves against an n x n layer of sockets for an n x 2 x n ball joint. */
+    public static class BallPartBlock extends JointBlock implements GridBlock {
+        public BallPartBlock(JointShape sh, Properties p) { super(sh, p); registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y).setValue(SIZE, 1).setValue(GU, 0).setValue(GV, 0).setValue(LONE, false).setValue(UP, true)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIZE, GU, GV, LONE, UP); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) {
+            // placed on top of something: dome/cup points up; placed under something: points down
+            return defaultBlockState().setValue(UP, c.getClickedFace() != Direction.DOWN).setValue(LONE, c.isSecondaryUseActive());
+        }
+        public Direction.Axis[] plane(BlockState s) { return new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z}; }
+        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return Shapes.block(); }
+        @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) { super.onPlace(s, l, p, old, m); Grid.placed(l, p, old.getBlock() != this); }
+        @Override protected void onRemove(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState now, boolean m) { boolean gone = now.getBlock() != this; Grid.removed(l, p, s, gone); super.onRemove(s, l, p, now, m); }
+        @Override protected BlockState rotate(BlockState s, Rotation r) { return s; }
+    }
+
+    /** Servo motor. AXIS = its shaft. Motors side by side (across their axis) join into 2x2, 3x3, 4x4 motors: one shaft, n^n the torque. */
+    public static class MotorBlock extends RotatedPillarBlock implements GridBlock {
+        public MotorBlock(Properties p) { super(p); registerDefaultState(defaultBlockState().setValue(SIZE, 1).setValue(GU, 0).setValue(GV, 0).setValue(LONE, false)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIZE, GU, GV, LONE); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { BlockState s = super.getStateForPlacement(c); return s == null ? null : s.setValue(LONE, c.isSecondaryUseActive()); }
+        public Direction.Axis[] plane(BlockState s) { return across(s.getValue(AXIS)); }
+        @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) { super.onPlace(s, l, p, old, m); Grid.placed(l, p, old.getBlock() != this); }
+        @Override protected void onRemove(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState now, boolean m) { boolean gone = now.getBlock() != this; Grid.removed(l, p, s, gone); super.onRemove(s, l, p, now, m); }
+        @Override protected BlockState rotate(BlockState s, Rotation r) { return RotatedPillarBlock.rotatePillar(s, r); }
     }
 
     /** Gearbox: placed between Servo Motors and a joint. Multiplies torque by ratio (times efficiency) and divides speed by ratio. Chains multiply. */
@@ -85,7 +144,7 @@ public final class SimpleParts {
     public static class SlabJointBlock extends JointBlock {
         public static final net.minecraft.world.level.block.state.properties.BooleanProperty TOP = net.minecraft.world.level.block.state.properties.BooleanProperty.create("top");
         private static final VoxelShape LOW = Block.box(0, 0, 0, 16, 8, 16), HIGH = Block.box(0, 8, 0, 16, 16, 16);
-        public SlabJointBlock(MaterialTier t, Properties p) { super(t, JointShape.SLAB, p); registerDefaultState(defaultBlockState().setValue(TOP, false)); }
+        public SlabJointBlock(Properties p) { super(JointShape.SLAB, p); registerDefaultState(defaultBlockState().setValue(TOP, false)); }
         @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(TOP); }
         @Override public BlockState getStateForPlacement(BlockPlaceContext c) {
             Direction f = c.getClickedFace();
@@ -98,7 +157,7 @@ public final class SimpleParts {
     /** Panel joint: a vertical half slab against the N/E/S/W side of its block. Axis = through the panel; sneak while placing for a vertical (door-hinge) axis. */
     public static class PanelJointBlock extends JointBlock {
         public static final DirectionProperty SIDE = BlockStateProperties.HORIZONTAL_FACING;
-        public PanelJointBlock(MaterialTier t, Properties p) { super(t, JointShape.PANEL, p); registerDefaultState(defaultBlockState().setValue(SIDE, Direction.NORTH)); }
+        public PanelJointBlock(Properties p) { super(JointShape.PANEL, p); registerDefaultState(defaultBlockState().setValue(SIDE, Direction.NORTH)); }
         @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIDE); }
         @Override public BlockState getStateForPlacement(BlockPlaceContext c) {
             Direction f = c.getClickedFace();

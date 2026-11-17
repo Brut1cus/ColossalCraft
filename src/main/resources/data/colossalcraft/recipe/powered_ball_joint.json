@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "colossalcraft:ball_joint"
+    },
+    {
+      "item": "colossalcraft:motor"
+    }
+  ],
+  "result": {
+    "id": "colossalcraft:powered_ball_joint",
+    "count": 1
+  }
+}

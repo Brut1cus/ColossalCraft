@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "colossalcraft:block/powered_ball_joint"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/powered_ball_joint"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/powered_ball_joint"
+    }
+  }
+}

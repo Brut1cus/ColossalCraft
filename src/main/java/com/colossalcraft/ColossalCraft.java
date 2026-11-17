@@ -54,7 +54,7 @@ public class ColossalCraft {
                         r.blocks.size(), StructureScan.tons(m.mass), m.segs.size(), m.joints.size(), StructureScan.kilo(m.output), m.energy,
                         StructureScan.kilo(m.thrustCap[1]), StructureScan.kilo(m.gyroCap), r.errors, r.warnings)), false);
                 for (var j : m.joints) c.getSource().sendSuccess(() -> Component.literal(String.format(" J%d %s k=%d axis=%s parentSeg=%d children=%s sub=%s ratio=%.2f torque=%s/%s",
-                        j.id, j.tier.id, j.k, j.axis, j.parentSeg, j.childSegs, StructureScan.tons(j.subMass), j.staticRatio, StructureScan.kilo(j.motorTorque), StructureScan.kilo(j.reqTorque))), false);
+                        j.id, j.label(), j.k, j.axis, j.parentSeg, j.childSegs, StructureScan.tons(j.subMass), j.staticRatio, StructureScan.kilo(j.motorTorque), StructureScan.kilo(j.reqTorque))), false);
                 return 1; })))
             .then(Commands.literal("assemble").then(Commands.argument("pos", BlockPosArgument.blockPos()).executes(c -> {
                 boolean ok = ColossusEntity.assemble(c.getSource().getLevel(), BlockPosArgument.getLoadedBlockPos(c, "pos"), null);

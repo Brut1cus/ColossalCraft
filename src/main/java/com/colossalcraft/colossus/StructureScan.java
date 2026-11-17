@@ -275,7 +275,7 @@ public final class StructureScan {
         ListTag js = new ListTag();
         for (StructureModel.Joint j : m.joints) {
             CompoundTag c = new CompoundTag();
-            c.putInt("Id", j.id); c.putInt("Parent", j.parentSeg); c.putString("Tier", j.tier.id); c.putInt("K", j.k); c.putDouble("Area", j.area); c.putString("Axis", j.axis.getName());
+            c.putInt("Id", j.id); c.putInt("Parent", j.parentSeg); c.putString("Tier", j.label()); c.putInt("K", j.k); c.putDouble("Area", j.area); c.putString("Axis", j.axis.getName());
             c.putDouble("Sub", j.subMass); c.putDouble("Ratio", j.staticRatio); c.putDouble("FCap", j.forceCap); c.putDouble("MCap", j.momentCap);
             c.putDouble("Torque", j.motorTorque); c.putDouble("Req", j.reqTorque); c.putDouble("Stand", j.standMass); c.putDouble("StandTq", j.standTorque); c.putDouble("StandRatio", j.standRatio); c.putDouble("Share", j.footShare); c.putInt("Motors", j.motors);
             c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putBoolean("Stalled", j.stalled());

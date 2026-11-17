@@ -8,7 +8,6 @@ import com.colossalcraft.colossus.ColossusEntity;
 import com.colossalcraft.colossus.StructureModel;
 import com.colossalcraft.colossus.StructureScan;
 import com.colossalcraft.network.Net;
-import com.colossalcraft.tier.MaterialTier;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
@@ -81,8 +80,8 @@ public final class DevShots {
                 base = sp.blockPosition().offset(0, 0, 10);
                 build(lv, base);
             });
-            case 42 -> server(sp -> { for (int i = 0; i < 4; i++) sp.serverLevel().setBlockAndUpdate(base.offset(-6 + i * 2, 1, -6), ModRegistry.GEARBOXES.get(i).get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.WEST));
-                sp.serverLevel().setBlockAndUpdate(base.offset(-6, 2, -6), ModRegistry.JOINT_SHAPES.get(MaterialTier.GOLD).get(com.colossalcraft.block.SimpleParts.JointShape.BALL).get().defaultBlockState());
+            case 42 -> server(sp -> { for (int i = 0; i < ModRegistry.GEARBOXES.size(); i++) sp.serverLevel().setBlockAndUpdate(base.offset(-6 + i * 2, 1, -6), ModRegistry.GEARBOXES.get(i).get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.WEST));
+                sp.serverLevel().setBlockAndUpdate(base.offset(-6, 2, -6), ModRegistry.BALL_JOINT.get().defaultBlockState());
                 sp.serverLevel().setBlockAndUpdate(base.offset(-2, 2, -6), ModRegistry.LOCOMOTION_CONTROLLER.get().defaultBlockState());
                 sp.serverLevel().setBlockAndUpdate(base.offset(0, 2, -6), ModRegistry.JUMP_DRIVE.get().defaultBlockState()); });
             case 43 -> server(sp -> look(sp, base.offset(-1, 3, -10), base.offset(-3, 1, -6)));
@@ -154,17 +153,17 @@ public final class DevShots {
         for (int side : new int[]{-1, 1}) { lv.setBlockAndUpdate(ground.offset(side, 0, 0), ModRegistry.GANTRY_SCAFFOLD.get().defaultBlockState()); lv.setBlockAndUpdate(ground.offset(side, 0, -1), ModRegistry.GANTRY_SCAFFOLD.get().defaultBlockState()); }
         BlockPos b = ground.above();
         for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) for (int y = 5; y <= 6; y++) lv.setBlockAndUpdate(b.offset(x, y, z), Blocks.SPRUCE_PLANKS.defaultBlockState());
-        BlockState joint = ModRegistry.JOINTS.get(MaterialTier.DIAMOND).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+        BlockState joint = ModRegistry.BEARING.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
         for (int side : new int[]{-1, 1}) {
             lv.setBlockAndUpdate(b.offset(side, 4, 0), joint);
-            var mot = ModRegistry.MOTORS.get(MaterialTier.IRON).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
+            var mot = ModRegistry.MOTOR.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
             if (side < 0) lv.setBlockAndUpdate(b.offset(side * 2, 4, 0), mot);
             else {
-                lv.setBlockAndUpdate(b.offset(2, 4, 0), ModRegistry.GEARBOXES.get(1).get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.WEST));
+                lv.setBlockAndUpdate(b.offset(2, 4, 0), ModRegistry.GEARBOX.get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.WEST));
                 for (int[] o : new int[][]{{3, 4, 0}, {3, 4, 1}, {3, 3, 0}, {3, 3, 1}}) lv.setBlockAndUpdate(b.offset(o[0], o[1], o[2]), mot); // 2x2 motor grid
             }
             for (int y = 2; y <= 3; y++) lv.setBlockAndUpdate(b.offset(side, y, 0), Blocks.STONE_BRICKS.defaultBlockState());
-            lv.setBlockAndUpdate(b.offset(side, 1, 0), ModRegistry.JOINT_SHAPES.get(MaterialTier.NETHERITE).get(com.colossalcraft.block.SimpleParts.JointShape.BALL).get().defaultBlockState()); // ball ankle
+            lv.setBlockAndUpdate(b.offset(side, 1, 0), ModRegistry.BALL_JOINT.get().defaultBlockState()); // ball ankle
             lv.setBlockAndUpdate(b.offset(side, 0, 0), Blocks.STONE_BRICKS.defaultBlockState());
             lv.setBlockAndUpdate(b.offset(side, 0, -1), Blocks.STONE_BRICK_SLAB.defaultBlockState());
         }
@@ -186,10 +185,9 @@ public final class DevShots {
             
         }
         if (lv.getBlockEntity(b.offset(-1, 7, 0)) instanceof PowerBlockEntity pe) { pe.energy = 800_000; pe.setChanged(); }
-        var js = ModRegistry.JOINT_SHAPES.get(MaterialTier.GOLD);
-        lv.setBlockAndUpdate(b.offset(-2, 7, -1), js.get(com.colossalcraft.block.SimpleParts.JointShape.SLAB).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.SlabJointBlock.TOP, true));
-        lv.setBlockAndUpdate(b.offset(2, 7, -1), js.get(com.colossalcraft.block.SimpleParts.JointShape.PANEL).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.PanelJointBlock.SIDE, Direction.EAST));
-        lv.setBlockAndUpdate(b.offset(2, 7, 1), js.get(com.colossalcraft.block.SimpleParts.JointShape.PIN).get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y));
+                lv.setBlockAndUpdate(b.offset(-2, 7, -1), ModRegistry.SLAB_JOINT.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.SlabJointBlock.TOP, true));
+        lv.setBlockAndUpdate(b.offset(2, 7, -1), ModRegistry.PANEL_JOINT.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.PanelJointBlock.SIDE, Direction.EAST));
+        lv.setBlockAndUpdate(b.offset(2, 7, 1), ModRegistry.PIN_JOINT.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y));
         lv.setBlockAndUpdate(b.offset(0, 7, -2), ModRegistry.SKY_SAIL.get().defaultBlockState());
         StructureScan.Result r = StructureScan.scan(lv, b.offset(0, 7, 0));
         if (lv.getBlockEntity(b.offset(0, 7, 0)) instanceof HullCoreBlockEntity hc) {

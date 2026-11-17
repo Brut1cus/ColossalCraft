@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "JJJ"
+  ],
+  "key": {
+    "J": {
+      "item": "colossalcraft:bearing"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:slab_joint",
+    "count": 6
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "colossalcraft:bearing"
+    }
+  ],
+  "result": {
+    "id": "colossalcraft:pin_joint",
+    "count": 4
+  }
+}

@@ -194,7 +194,12 @@ public class WalkerController {
             } else if (state[i] == State.SWING) {
                 swingT[i] += dt / Math.max(0.1, swingDur);
                 double t = Math.min(1, swingT[i]);
-                Vec3 p = swingFrom[i].add(swingTo[i].subtract(swingFrom[i]).scale(t)).add(0, Math.sin(Math.PI * t) * swingLift[i], 0);
+                // up a step: reach the new height by mid-swing (clear the riser); down a step: drop late (clear the edge)
+                double dyTo = swingTo[i].y - swingFrom[i].y;
+                double ty = dyTo > 0.05 ? Math.min(1, t / 0.4) : dyTo < -0.05 ? Math.max(0, (t - 0.6) / 0.4) : t;   // up: rise first; down: drop last
+                double tx = dyTo > 0.05 ? Math.max(0, Math.min(1, (t - 0.3) / 0.7)) : t;                              // up: move forward once lifted
+                Vec3 h0 = swingFrom[i].add(swingTo[i].subtract(swingFrom[i]).scale(tx));
+                Vec3 p = new Vec3(h0.x, swingFrom[i].y + dyTo * ty + Math.sin(Math.PI * t) * swingLift[i], h0.z);
                 foot[i] = p;
                 if (t >= 1) {
                     double gy = soleGround(c, i, p.add(0, 0.5, 0));
@@ -248,6 +253,11 @@ public class WalkerController {
                         if (!Double.isNaN(qy)) clear = Math.max(clear, qy);
                     }
                     swingLift[i] = m.gaitLift * m.legChains.get(i).length() + (clear - Math.max(foot[i].y, to.y)) + 0.1;
+                    { // no higher than the leg can fold (with the step itself)
+                        StructureModel.LegChain L = m.legChains.get(i);
+                        double room = L.joints().size() > 1 ? 0.75 * (maxReach(m, L) - minReach(m, L)) : 0.3;
+                        swingLift[i] = Math.max(0.2, Math.min(swingLift[i], room - Math.max(0, to.y - foot[i].y)));
+                    }
                     swingFrom[i] = foot[i]; swingTo[i] = to; swingT[i] = 0; state[i] = State.SWING;
                 }
             }
@@ -614,7 +624,10 @@ public class WalkerController {
         double[] p0 = to2(rp[0], rp[0], B), p1 = to2(rp[1], rp[0], B), p2 = to2(rp[2], rp[0], B), t = to2(target, rp[0], B);
         double l0 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), l1 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
         double[] restAbs = {Math.atan2(p1[1] - p0[1], p1[0] - p0[0]), Math.atan2(p2[1] - p1[1], p2[0] - p1[0])};
-        double d = Math.max(Math.abs(l0 - l1) + 1e-3, Math.min(l0 + l1 - 1e-3, Math.hypot(t[0], t[1])));
+        // the knee can't bend past its limit: the leg is never shorter than that (it reaches towards the target instead of breaking)
+        double kneeLim = L.limits().length > 1 ? L.limits()[1] : Math.PI;
+        double dMin = Math.sqrt(Math.max(0, l0 * l0 + l1 * l1 - 2 * l0 * l1 * Math.cos(Math.PI - Math.min(Math.PI, kneeLim))));
+        double d = Math.max(Math.max(Math.abs(l0 - l1) + 1e-3, dMin + 1e-3), Math.min(l0 + l1 - 1e-3, Math.hypot(t[0], t[1])));
         double base = Math.atan2(t[1], t[0]);
         double cosA = Math.max(-1, Math.min(1, (l0 * l0 + d * d - l1 * l1) / (2 * l0 * d)));
         double A = Math.acos(cosA);

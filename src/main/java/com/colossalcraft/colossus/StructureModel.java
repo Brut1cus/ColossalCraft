@@ -2,8 +2,13 @@ package com.colossalcraft.colossus;
 
 import com.colossalcraft.block.*;
 import com.colossalcraft.block.SimpleParts.*;
+import com.colossalcraft.block.Grid;
+import static com.colossalcraft.block.SimpleParts.SIZE;
+import static com.colossalcraft.block.SimpleParts.GU;
+import static com.colossalcraft.block.SimpleParts.GV;
+import static com.colossalcraft.block.SimpleParts.UP;
 import com.colossalcraft.tier.EngineTier;
-import com.colossalcraft.tier.MaterialTier;
+import com.colossalcraft.tier.Parts;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -60,7 +65,10 @@ public class StructureModel {
         public int id, parentSeg = -1, depth, k, mode, amp = 30, motors;
         /** Load-bearing size: sum of each joint block's shape strength (full 1, slab/panel 0.5, pin 0.25). */
         public double area;
-        public MaterialTier tier; public Direction.Axis axis; public long key;
+        /** Assembly side (1 for a 1x1 or small joint), joint kind, and whether it has its own motor (powered ball joints). */
+        public int size = 1; public JointShape shape = JointShape.FULL; public boolean powered;
+        public Direction.Axis axis; public long key;
+        public String label() { return (size > 1 ? size + "x" + size + " " : "") + (shape == JointShape.BALL_HALF ? (powered ? "Powered Ball Joint" : "Ball Joint") : shape.title); }
         public final List<BlockPos> blocks = new ArrayList<>();
         public final List<Integer> childSegs = new ArrayList<>();
         public Vec3 pivot = Vec3.ZERO, subCom = Vec3.ZERO;
@@ -104,12 +112,16 @@ public class StructureModel {
     }
     public record Thruster(BlockPos pos, Direction push, double force, double power, int seg) {}
     /** Motors of the same material and axis touching each other: one bigger motor (n x n grid). */
-    public record MotorCluster(List<BlockPos> blocks, MaterialTier tier, Direction.Axis axis, int k, int n, Vec3 center, int joint, double ratio) {}
+    public record MotorCluster(List<BlockPos> blocks, Direction.Axis axis, int k, int n, Vec3 center, int joint, double ratio) {}
+    /** A position with its coordinate along an axis set to 0 (to compare grid squares stacked along that axis). */
+    private static BlockPos flat(BlockPos p, Direction.Axis a) { return a == Direction.Axis.X ? new BlockPos(0, p.getY(), p.getZ()) : a == Direction.Axis.Y ? new BlockPos(p.getX(), 0, p.getZ()) : new BlockPos(p.getX(), p.getY(), 0); }
     public final List<Thruster> thrusterList = new ArrayList<>();
     public final List<MotorCluster> motorClusters = new ArrayList<>();
     /** Motor and gearbox blocks that turn: {joint id, ratio (turns per joint turn)}. */
     public final Map<BlockPos, double[]> spinParts = new HashMap<>();
     public final Set<Integer> footSegs = new TreeSet<>();
+    /** Blocks of big ball joints that move with the child part (the rest stay with the parent). */
+    public final Set<BlockPos> ballChildSide = new HashSet<>();
     /**
      * A leg for the walker controller: joints set to Leg on the way from the body down to a foot (top first).
      * hip/foot are rest positions (local). length = hip to foot. minLen < length if the leg has a knee.
@@ -198,36 +210,78 @@ public class StructureModel {
         }
 
         // ---- joint clusters ----
-        Set<BlockPos> jointPos = new HashSet<>();
-        for (var e : blocks.entrySet()) if (e.getValue().getBlock() instanceof JointBlock) jointPos.add(e.getKey());
-        Map<BlockPos, Integer> clusterOf = new HashMap<>();
+        // Bearings: one joint per square assembly (n x n, stacked along the axis is fine). Ball joints: a square of ball halves against
+        // a square of sockets. Slab / panel / pin joints side by side join. Unpaired ball halves and sockets are just solid parts.
+        List<List<BlockPos>> groups = new ArrayList<>();
+        Set<BlockPos> jointPos = new HashSet<>(), grouped = new HashSet<>();
+        for (var e : blocks.entrySet()) {
+            BlockState st = e.getValue();
+            if (!(st.getBlock() instanceof BallPartBlock bp) || bp.shape != JointShape.BALL_HALF || st.getValue(GU) != 0 || st.getValue(GV) != 0) continue;
+            int n = st.getValue(SIZE); boolean up = st.getValue(UP);
+            BlockPos so = e.getKey().relative(up ? Direction.UP : Direction.DOWN);
+            BlockState ss = blocks.get(so);
+            if (ss == null || !(ss.getBlock() instanceof BallPartBlock sb) || sb.shape != JointShape.SOCKET || ss.getValue(SIZE) != n || ss.getValue(GU) != 0 || ss.getValue(GV) != 0 || ss.getValue(UP) == up) continue;
+            List<BlockPos> g = new ArrayList<>();
+            for (int du = 0; du < n; du++) for (int dv = 0; dv < n; dv++) { g.add(e.getKey().offset(du, 0, dv)); g.add(so.offset(du, 0, dv)); }
+            if (!blocks.keySet().containsAll(g)) continue;
+            groups.add(g); grouped.addAll(g);
+        }
+        for (var e : blocks.entrySet()) {
+            BlockPos p = e.getKey(); BlockState st = e.getValue();
+            if (!(st.getBlock() instanceof JointBlock jb) || grouped.contains(p)) continue;
+            if (jb instanceof BallPartBlock) continue; // unpaired half: a solid part
+            jointPos.add(p);
+        }
+        jointPos.addAll(grouped);
         for (BlockPos start : jointPos) {
-            if (clusterOf.containsKey(start)) continue;
-            BlockState ss = blocks.get(start);
-            Joint j = new Joint(); j.id = joints.size(); j.tier = ((JointBlock) ss.getBlock()).tier;
-            j.axis = ss.hasProperty(RotatedPillarBlock.AXIS) ? ss.getValue(RotatedPillarBlock.AXIS) : Direction.Axis.Y;
-            ArrayDeque<BlockPos> q = new ArrayDeque<>(); q.add(start); clusterOf.put(start, j.id);
-            double px = 0, py = 0, pz = 0; long minKey = Long.MAX_VALUE; BlockPos minP = start;
+            if (grouped.contains(start)) continue;
+            BlockState s0 = blocks.get(start); JointBlock jb0 = (JointBlock) s0.getBlock();
+            Direction.Axis ax0 = s0.getValue(RotatedPillarBlock.AXIS);
+            List<BlockPos> g = new ArrayList<>(); ArrayDeque<BlockPos> q = new ArrayDeque<>(); q.add(start); grouped.add(start);
+            BlockPos o0 = jb0 instanceof BearingBlock ? flat(Grid.origin(start, s0), ax0) : null;
             while (!q.isEmpty()) {
-                BlockPos p = q.poll(); j.blocks.add(p); j.area += ((JointBlock) blocks.get(p).getBlock()).shape.strength; px += p.getX() + .5; py += p.getY() + .5; pz += p.getZ() + .5;
-                if (p.compareTo(minP) < 0) minP = p;
+                BlockPos p = q.poll(); g.add(p);
+                if (jb0.shape == JointShape.BALL || jb0.shape == JointShape.POWERED_BALL) break; // 1x1 ball joints stand alone
                 for (Direction d : Direction.values()) {
                     BlockPos n = p.relative(d); BlockState ns = blocks.get(n);
-                    if (ns != null && jointPos.contains(n) && !clusterOf.containsKey(n) && ((JointBlock) ns.getBlock()).tier == j.tier
-                            && ns.getValue(RotatedPillarBlock.AXIS) == j.axis) { clusterOf.put(n, j.id); q.add(n); }
+                    if (ns == null || !jointPos.contains(n) || grouped.contains(n) || !(ns.getBlock() instanceof JointBlock nb) || ns.getValue(RotatedPillarBlock.AXIS) != ax0) continue;
+                    boolean ok = jb0 instanceof BearingBlock
+                            ? nb instanceof BearingBlock && ns.getValue(SIZE).equals(s0.getValue(SIZE)) && flat(Grid.origin(n, ns), ax0).equals(o0)
+                            : !(nb instanceof BearingBlock) && !nb.shape.ball();
+                    if (ok) { grouped.add(n); q.add(n); }
                 }
             }
-            j.k = j.blocks.size(); j.key = minP.asLong();
+            groups.add(g);
+        }
+        Map<BlockPos, Integer> clusterOf = new HashMap<>();
+        for (List<BlockPos> g : groups) {
+            BlockPos first = g.stream().min(Comparator.naturalOrder()).get();
+            BlockState ss = blocks.get(first);
+            JointBlock jb = (JointBlock) ss.getBlock();
+            Joint j = new Joint(); j.id = joints.size();
+            j.shape = jb instanceof BallPartBlock ? JointShape.BALL_HALF : jb.shape;
+            j.axis = jb instanceof BallPartBlock ? Direction.Axis.Y : ss.getValue(RotatedPillarBlock.AXIS);
+            j.size = jb instanceof BearingBlock || jb instanceof BallPartBlock ? ss.getValue(SIZE) : 1;
+            double px = 0, py = 0, pz = 0;
+            for (BlockPos p : g) { j.blocks.add(p); clusterOf.put(p, j.id); px += p.getX() + .5; py += p.getY() + .5; pz += p.getZ() + .5; }
+            if (jb instanceof BearingBlock || jb instanceof BallPartBlock) {
+                int layers = jb instanceof BearingBlock ? Math.max(1, g.size() / (j.size * j.size)) : 1;
+                j.area = Parts.scale(j.size) * j.shape.strength * Math.sqrt(layers); // longer stacks help a little
+            } else for (BlockPos p : g) j.area += ((JointBlock) blocks.get(p).getBlock()).shape.strength;
+            j.k = j.blocks.size(); j.key = first.asLong();
             j.pivot = new Vec3(px / j.k, py / j.k, pz / j.k);
-            j.forceCap = MaterialTier.forceCap(j.tier, j.area); j.momentCap = MaterialTier.momentCap(j.tier, j.area);
+            j.forceCap = Parts.BEARING_FORCE * j.area; j.momentCap = Parts.BEARING_MOMENT * j.area;
             CompoundTag jc = cfg.getCompound(jointKey(j.key));
             j.mode = Math.max(0, Math.min(MODES.length - 1, jc.getByte("Mode")));
             if (jc.contains("Amp")) j.amp = jc.getInt("Amp");
             int[] k = jc.getIntArray("Keys"); for (int i = 0; i < Math.min(KEYS, k.length); i++) j.keys[i] = k[i];
             j.phase = jc.getInt("Phase"); if (jc.contains("SpeedX")) j.speedFactor = jc.getInt("SpeedX") / 100.0; j.loop = jc.getBoolean("Loop");
             j.group = jc.getInt("Group");
-            j.ball = ((JointBlock) ss.getBlock()).shape == JointShape.BALL;
+            j.ball = j.shape.ball();
+            j.powered = j.shape == JointShape.POWERED_BALL;
             if (j.ball && !jc.contains("Amp")) j.amp = 22; // default +-45 degrees
+            else if (isLegMode(j.mode) && !jc.contains("Amp")) j.amp = 45; // legs: +-90 degrees, so knees can fold enough to lift a foot onto a step
+            if (j.powered) { j.motorTorque += Parts.MOTOR_TORQUE * j.area; j.motorPower += Parts.MOTOR_POWER; }
             joints.add(j);
         }
 
@@ -276,6 +330,17 @@ public class StructureModel {
         for (int i = 0; i < segs.size(); i++) segs.get(i).id = i;
         for (Seg s : segs) for (BlockPos p : s.blocks) segOf.put(p, s.id);
         for (Joint j : joints) { int ps = Math.max(0, j.parentSeg); for (BlockPos p : j.blocks) { segOf.put(p, ps); } if (j.parentSeg >= 0) segs.get(ps).blocks.addAll(j.blocks); }
+        // big ball joints: the layer touching the child part moves with it, the other layer stays with the parent
+        for (Joint j : joints) if (j.shape == JointShape.BALL_HALF && !j.childSegs.isEmpty()) {
+            Set<BlockPos> jb = new HashSet<>(j.blocks);
+            for (BlockPos p : j.blocks) for (Direction d : Direction.values()) {
+                BlockPos n = p.relative(d);
+                if (!jb.contains(n) && Integer.valueOf(j.childSegs.get(0)).equals(compOf.containsKey(n) ? newId[compOf.get(n)] : null)) { ballChildSide.add(p); break; }
+            }
+            // the whole layer goes together
+            Set<Integer> ys = new HashSet<>(); for (BlockPos p : ballChildSide) if (jb.contains(p)) ys.add(p.getY());
+            for (BlockPos p : j.blocks) if (ys.contains(p.getY())) ballChildSide.add(p);
+        }
 
         // ---- segment masses & subtree masses (reverse BFS) ----
         for (Seg s : segs) {
@@ -352,28 +417,33 @@ public class StructureModel {
         // ---- motor clusters (parallel motors) ----
         Set<BlockPos> doneM = new HashSet<>();
         for (var e : blocks.entrySet()) {
-            if (!(e.getValue().getBlock() instanceof MotorBlock mb0) || doneM.contains(e.getKey())) continue;
-            Direction.Axis ax = e.getValue().getValue(RotatedPillarBlock.AXIS);
+            if (!(e.getValue().getBlock() instanceof MotorBlock) || doneM.contains(e.getKey())) continue;
+            BlockState m0 = e.getValue();
+            Direction.Axis ax = m0.getValue(RotatedPillarBlock.AXIS);
+            int n = m0.getValue(SIZE);
+            BlockPos o0 = flat(Grid.origin(e.getKey(), m0), ax);
             List<BlockPos> cl = new ArrayList<>(); ArrayDeque<BlockPos> mq = new ArrayDeque<>(); mq.add(e.getKey()); doneM.add(e.getKey());
             double cx = 0, cy = 0, cz = 0;
-            while (!mq.isEmpty()) {
+            while (!mq.isEmpty()) { // one square motor (possibly several layers deep along its shaft)
                 BlockPos p = mq.poll(); cl.add(p); cx += p.getX() + .5; cy += p.getY() + .5; cz += p.getZ() + .5;
                 for (Direction d : Direction.values()) {
-                    BlockPos n = p.relative(d); BlockState ns = blocks.get(n);
-                    if (ns != null && !doneM.contains(n) && ns.getBlock() instanceof MotorBlock mb && mb.tier == mb0.tier && ns.getValue(RotatedPillarBlock.AXIS) == ax) { doneM.add(n); mq.add(n); }
+                    BlockPos nb = p.relative(d); BlockState ns = blocks.get(nb);
+                    if (ns != null && !doneM.contains(nb) && ns.getBlock() instanceof MotorBlock && ns.getValue(RotatedPillarBlock.AXIS) == ax && ns.getValue(SIZE) == n
+                            && flat(Grid.origin(nb, ns), ax).equals(o0)) { doneM.add(nb); mq.add(nb); }
                 }
             }
-            int k = cl.size(), n = Math.max(1, (int) Math.round(Math.sqrt(k)));
+            int k = cl.size(), layers = Math.max(1, k / (n * n));
+            double sc = Parts.scale(n) * layers;
             double[] best = null;
             for (BlockPos p : cl) { double[] mg = motorGear.get(p); if (mg != null && (best == null || mg[1] < best[1])) best = mg; }
             Vec3 center = new Vec3(cx / k, cy / k, cz / k);
-            if (best == null) { driveMotors += k; driveForce += k * mb0.tier.driveForce; drivePower += k * mb0.tier.motorPower; motorClusters.add(new MotorCluster(cl, mb0.tier, ax, k, n, center, -1, 1)); continue; }
+            if (best == null) { driveMotors += k; driveForce += Parts.MOTOR_DRIVE * sc; drivePower += Parts.MOTOR_POWER * sc; motorClusters.add(new MotorCluster(cl, ax, k, n, center, -1, 1)); continue; }
             Joint j = joints.get((int) best[0]); double ratio = best[1], eff = best[2];
-            double bonus = 1 + 0.1 * (n - 1); // a solid grid of motors shares one bigger shaft
-            j.motors += k; j.motorTorque += k * mb0.tier.motorTorque * ratio * eff * bonus; j.motorPower += k * mb0.tier.motorPower; j.motorDrive += k * mb0.tier.driveForce;
-            double sp = mb0.tier.motorRpm * 6 / ratio;
+            j.motors += k; j.motorTorque += Parts.MOTOR_TORQUE * sc * ratio * eff; j.motorPower += Parts.MOTOR_POWER * sc; j.motorDrive += Parts.MOTOR_DRIVE * sc;
+            double sp = Parts.MOTOR_RPM * 6 / ratio;
             j.maxSpeed = j.maxSpeed == 0 ? sp : Math.min(j.maxSpeed, sp); j.ratios.add(ratio);
-            motorClusters.add(new MotorCluster(cl, mb0.tier, ax, k, n, center, j.id, ratio));
+            if (j.ball) j.powered = true; // a motor on a ball joint assembly powers it
+            motorClusters.add(new MotorCluster(cl, ax, k, n, center, j.id, ratio));
             for (BlockPos p : cl) spinParts.put(p, new double[]{j.id, ratio});
         }
         // ---- propeller blades on Spin joints ----

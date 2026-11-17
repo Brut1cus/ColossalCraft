@@ -809,6 +809,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
      * Parts no longer connected to the Hull Core fall off as wrecks. Server: tells the clients too.
      */
     public void editBlocks(Map<BlockPos, BlockState> set, Map<BlockPos, CompoundTag> setBes, Collection<BlockPos> del) {
+        if (!level().isClientSide) set = regridEdit(set, del);
         Vec3 anchor = toWorld(Vec3.ZERO, position(), yaw);
         for (BlockPos p : del) { blocks.remove(p); bes.remove(p); liveBes.remove(p); mining.remove(p); if (clientBes != null) clientBes.remove(p); }
         for (var e : set.entrySet()) { blocks.put(e.getKey(), e.getValue()); if (!setBes.containsKey(e.getKey())) { bes.remove(e.getKey()); liveBes.remove(e.getKey()); } if (clientBes != null) clientBes.remove(e.getKey()); }
@@ -828,6 +829,22 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         setPos(anchor.x + d.x * cs - d.z * sn, anchor.y + d.y, anchor.z + d.x * sn + d.z * cs);
         if (!level().isClientSide) detachIslands();
     }
+    /** Bearings, motors and ball parts touched by an edit join or split their grid squares again; the changed neighbours go along. */
+    private Map<BlockPos, BlockState> regridEdit(Map<BlockPos, BlockState> set, Collection<BlockPos> del) {
+        Map<BlockPos, BlockState> tmp = new HashMap<>(blocks);
+        for (BlockPos p : del) tmp.remove(p);
+        tmp.putAll(set);
+        List<BlockPos> touch = new ArrayList<>(set.keySet());
+        for (BlockPos p : del) for (Direction d : Direction.values()) touch.add(p.relative(d));
+        boolean any = false;
+        for (BlockPos p : touch) { BlockState st = tmp.get(p); if (st != null && st.getBlock() instanceof com.colossalcraft.block.SimpleParts.GridBlock) { com.colossalcraft.block.Grid.regrid(com.colossalcraft.block.Grid.map(tmp), p); any = true; } }
+        if (!any) return set;
+        Map<BlockPos, BlockState> out = new HashMap<>(set);
+        for (var e : tmp.entrySet()) if (blocks.get(e.getKey()) != e.getValue() && !out.containsKey(e.getKey())) out.put(e.getKey(), e.getValue());
+        for (var e : set.entrySet()) out.put(e.getKey(), tmp.get(e.getKey()));
+        return out;
+    }
+
     /** Client: apply an edit the server made. */
     public void applyEdit(CompoundTag t) {
         List<BlockPos> del = new ArrayList<>(); for (long l : t.getLongArray("Del")) del.add(BlockPos.of(l));
@@ -955,7 +972,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         List<Long> broken = new ArrayList<>();
         for (StructureModel.Joint j : model.joints) {
             jointDamage[j.id] += dmg[j.id];
-            if (jointDamage[j.id] > 20 * j.area * j.tier.jointForce / 120_000) broken.add(j.key);
+            if (jointDamage[j.id] > 20 * j.area) broken.add(j.key);
         }
         if (!gone.isEmpty()) editBlocks(Map.of(), Map.of(), gone);
         for (long key : broken) {

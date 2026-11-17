@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "colossalcraft:block/pin_joint_x"
+    },
+    "axis=y": {
+      "model": "colossalcraft:block/pin_joint_y"
+    },
+    "axis=z": {
+      "model": "colossalcraft:block/pin_joint_z"
+    }
+  }
+}
