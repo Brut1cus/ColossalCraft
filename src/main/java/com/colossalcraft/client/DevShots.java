@@ -161,13 +161,18 @@ public final class DevShots {
     private static void build(ServerLevel lv, BlockPos ground) {
         for (int side : new int[]{-1, 1}) { lv.setBlockAndUpdate(ground.offset(side, 0, 0), ModRegistry.GANTRY_SCAFFOLD.get().defaultBlockState()); lv.setBlockAndUpdate(ground.offset(side, 0, -1), ModRegistry.GANTRY_SCAFFOLD.get().defaultBlockState()); }
         BlockPos b = ground.above();
-        for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) for (int y = 5; y <= 6; y++) lv.setBlockAndUpdate(b.offset(x, y, z), Blocks.SPRUCE_PLANKS.defaultBlockState());
+        for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) { // a light deck (slabs): 1x1 ball ankles can carry it
+            lv.setBlockAndUpdate(b.offset(x, 5, z), Blocks.SPRUCE_SLAB.defaultBlockState().setValue(net.minecraft.world.level.block.SlabBlock.TYPE, net.minecraft.world.level.block.state.properties.SlabType.TOP));
+            lv.setBlockAndUpdate(b.offset(x, 6, z), Blocks.SPRUCE_SLAB.defaultBlockState());
+        }
         BlockState joint = ModRegistry.BEARING.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
         for (int side : new int[]{-1, 1}) {
             lv.setBlockAndUpdate(b.offset(side, 4, 0), joint);
             var mot = ModRegistry.MOTOR.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X);
-            if (side < 0) lv.setBlockAndUpdate(b.offset(side * 2, 4, 0), mot);
-            else {
+            if (side < 0) { // mirror of the right side: gearbox + 2x2 motor, so the weight is even
+                lv.setBlockAndUpdate(b.offset(-2, 4, 0), ModRegistry.GEARBOX.get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.EAST));
+                for (int[] o : new int[][]{{-3, 4, 0}, {-3, 4, 1}, {-3, 3, 0}, {-3, 3, 1}}) lv.setBlockAndUpdate(b.offset(o[0], o[1], o[2]), mot);
+            } else {
                 lv.setBlockAndUpdate(b.offset(2, 4, 0), ModRegistry.GEARBOX.get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.WEST));
                 for (int[] o : new int[][]{{3, 4, 0}, {3, 4, 1}, {3, 3, 0}, {3, 3, 1}}) lv.setBlockAndUpdate(b.offset(o[0], o[1], o[2]), mot); // 2x2 motor grid
             }

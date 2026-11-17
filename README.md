@@ -78,8 +78,11 @@ A walker stands on its feet and is placed from the lowest point up. Nothing "hol
 4. **Grip:** about 1.0 on normal ground, 0.03-0.05 on ice. On ice the walker can't speed up quickly and the HUD shows SLIP. A stiff (knee-less) leg slides if it leans past its grip.
 5. **IK** bends each leg to its foot. Knees always bend to the same side (forward, or back for digitigrade), so they can't flip over, and joints turn smoothly: a leg in the air at most about 460°/s. If any leg block would end up inside the ground, that foot is raised.
 6. **Steps** land on the real ground (up a step, down a slope) and lift high enough to clear what's in between. A wall or a drop of more than 1.5 blocks makes the foot step in place.
-7. **Balance (equilibrium):** standing still, the body always settles its weight over the middle of its feet. If something pushes the weight outside the feet (an overhang, a hit), it takes a **catch step** under it, like a person. Only if that fails does it tip. Powered Ball Joints at the ankles let it balance further out, like a gyro.
-8. **Step speed is limited by power:** the leg motors use their full power at 0.5 steps a second, more when faster. The walker steps no faster than the engines can feed (after gyros, smart footing and powered ball joints), and the Gait tab shows the cap.
+7. **Tilt from the feet up:** on uneven ground (a hill, a step under one foot) every planted leg tries to hold its hip at standing height above its own foot. If the legs can take up the difference (knees bend, legs stretch) the Hull stays level; only what they can't take up tilts the body (pitch forward/back, roll left/right, up to about 23°). No foot is left hanging off the ground.
+8. **Turning:** the walker turns as fast as its steps can carry its feet round, easing in and out. **Hip twist:** a vertical-axis Bearing set to **Leg** above a leg's hip, or a **Powered Ball Joint hip**, turns the leg so a planted foot keeps pointing where it landed while the body turns.
+9. **Walls:** legs don't walk through buildings. If a leg would end up inside a wall, the body doesn't move that way (the foot steps in place); climb with steps of a block or so, not straight up a wall.
+10. **Balance (equilibrium):** standing still, the body always settles its weight over the middle of its feet. If something pushes the weight outside the feet (an overhang, a hit), it takes a **catch step** under it, like a person. Only if that fails does it tip. Powered Ball Joints at the ankles let it balance further out, like a gyro.
+11. **Step speed is limited by power:** the leg motors use their full power at 0.5 steps a second, more when faster. The walker steps no faster than the engines can feed (after gyros, smart footing and powered ball joints), and the Gait tab shows the cap.
 
 Set each **hip** (and any **knee**) joint to **Leg**, with a foot under it. Left/right step groups are automatic. The Swing setting is the joint's angle limit. The HUD shows each foot: DOWN, STEP, SLIP.
 
@@ -125,7 +128,7 @@ The **Footing** tab shows a top-down map of what the feet see: ground height in 
 - **Ball Joint** (plain): keeps the part below it **level** (a flat foot). Needs no motor and has no mode. Put one between the shin and the foot.
 - **Powered Ball Joint** (or a Ball Half + Socket assembly with a Servo Motor touching it) has three modes, set in the Joints tab:
   - **Ankle (Locked):** keeps the foot flat and tilts it to match a slope; helps the walker balance.
-  - **Hip (Leg):** a two-way leg joint. The IK swings the leg forward/back *and* sideways, so the body can lean over a foot without the feet sliding. Use it as the top joint of a leg (a knee bearing below it is fine). No extra motor needed.
+  - **Hip (Leg):** a three-way leg joint. The IK swings the leg forward/back *and* sideways, and twists it when the body turns, so the body can lean over a foot and turn without the feet sliding. Use it as the top joint of a leg (a knee bearing below it is fine). No extra motor needed.
   - **Shoulder (Sway):** swings an arm in time with the steps (left and right opposite), and rests when standing.
 - **Ball Half + Socket:** stack a Ball Half and a Socket (or matching n x n squares of each). They turn to face each other by themselves and become one ball joint.
 

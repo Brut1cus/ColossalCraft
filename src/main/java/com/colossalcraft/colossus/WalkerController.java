@@ -74,7 +74,7 @@ public class WalkerController {
         if (h == legsHash && state.length == m.legChains.size()) return;
         legsHash = h;
         int n = m.legChains.size();
-        state = new State[n]; foot = new Vec3[n]; swingFrom = new Vec3[n]; swingTo = new Vec3[n]; swingT = new double[n]; swingLift = new double[n]; swingObstacle = new boolean[n]; footRaise = new double[n]; slipping = new boolean[n]; next = new Vec3[n]; nextOk = new boolean[n];
+        state = new State[n]; foot = new Vec3[n]; swingFrom = new Vec3[n]; swingTo = new Vec3[n]; swingT = new double[n]; swingLift = new double[n]; swingObstacle = new boolean[n]; footRaise = new double[n]; slipping = new boolean[n]; next = new Vec3[n]; nextOk = new boolean[n]; footYaw = new double[n]; Arrays.fill(footYaw, c.yaw);
         for (int i = 0; i < n; i++) { state[i] = State.AIR; foot[i] = footFromPose(c, i); }
         track = null; nextGroup = 0; waitingGroup = -1;
     }
@@ -140,6 +140,10 @@ public class WalkerController {
 
     /** Gait clock in step cycles: each leg group lifts when its phase passes the stance share. */
     private double clock;
+    /** Fastest the walker can turn (rad/s): what its steps can follow. ColossusEntity eases the turn up to this. */
+    public double turnRateMax = 0.3;
+    /** Body yaw when each foot was planted: hip twist joints keep a planted foot pointing that way while the body turns. */
+    private double[] footYaw = new double[0];
     private double inSmooth, ySmooth = Double.NaN;
     private Vec3 lastAccel = Vec3.ZERO;
     /** Comfortable limits for the body: acceleration (m/s^2) and how fast acceleration may change (m/s^3). */
@@ -179,9 +183,15 @@ public class WalkerController {
         double vGait = stride / (duty * cycle);                                  // the speed this gait walks at
         // the pilot's stick is eased in and out (about 0.6 s from stop to full), so the walker never lurches
         double inRaw = Math.max(-1, Math.min(1, fwd));
-        inSmooth += Math.max(-dt / 0.6, Math.min(dt / 0.6, inRaw - inSmooth));
+        double ramp = Math.abs(inRaw) < Math.abs(inSmooth) ? 0.3 : 0.6; // eases in over 0.6 s, out over 0.3 s (stops promptly)
+        inSmooth += Math.max(-dt / ramp, Math.min(dt / ramp, inRaw - inSmooth));
         double in = Math.abs(inSmooth) < 0.02 && inRaw == 0 ? 0 : inSmooth;
         Vec3 vCmd = fW.scale(in * vGait);
+        { // turning: as fast as the steps can carry the feet round (a foot travels about a stride per step)
+            double rad = 0; for (StructureModel.LegChain L : m.legChains) { Vec3 d = L.hip().subtract(m.com); rad += Math.sqrt(d.x * d.x + d.z * d.z); }
+            rad = Math.max(1, rad / Math.max(1, n));
+            turnRateMax = Math.max(0.1, Math.min(1.2, 0.9 * vGait / rad));
+        }
         double yawRate = Double.isNaN(lastYaw) ? 0 : wrap(yw - lastYaw) / dt; lastYaw = yw;
 
         if (launchTicks > 0) launchTicks--;
@@ -200,7 +210,7 @@ public class WalkerController {
                 Vec3 f = footFromPose(c, i);
                 double gy = soleGround(c, i, f);
                 boolean mayLand = launchTicks <= 0 && c.vel.y <= 0.1;
-                if (mayLand && !Double.isNaN(gy) && f.y - gy < 0.15) { state[i] = State.STANCE; foot[i] = new Vec3(f.x, gy, f.z); }
+                if (mayLand && !Double.isNaN(gy) && f.y - gy < 0.15) { state[i] = State.STANCE; foot[i] = new Vec3(f.x, gy, f.z); footYaw[i] = c.yaw; }
                 else foot[i] = f;
             } else if (state[i] == State.SWING) {
                 swingT[i] += dt / Math.max(0.1, swingDur);
@@ -216,7 +226,7 @@ public class WalkerController {
                 foot[i] = p;
                 if (t >= 1) {
                     double gy = soleGround(c, i, p.add(0, 0.5, 0));
-                    if (!Double.isNaN(gy)) { foot[i] = new Vec3(p.x, gy, p.z); state[i] = State.STANCE; }
+                    if (!Double.isNaN(gy)) { foot[i] = new Vec3(p.x, gy, p.z); state[i] = State.STANCE; footYaw[i] = c.yaw; }
                     else { swingTo[i] = swingTo[i].subtract(0, 0.3, 0); swingFrom[i] = foot[i]; swingT[i] = 0.7; }
                 }
             }
@@ -356,16 +366,49 @@ public class WalkerController {
         // weak knees let it sag, never below what the knees can fold to
         double hk = knees ? height : 1;
         if (knees) { double s = Math.max(0, Math.min(1, kneeCap / (M * g))); hk = minR + (hk - minR) * s; }
-        for (int i : planted) {
-            StructureModel.LegChain L = m.legChains.get(i);
+        // From the feet up: each planted leg wants its hip at its standing height above its own foot. The body stays level
+        // if the legs can take up the difference (knees bend, legs stretch); only what they can't take up tilts the body.
+        int np = planted.size();
+        double[] hf = new double[np], hr = new double[np], hh = new double[np];
+        double levelH = 0, bodyUpAvg = 0;
+        Vec3 fl0 = Vec3.atLowerCornerOf(m.forward.getNormal()), rl0 = new Vec3(-fl0.z, 0, fl0.x);
+        for (int k = 0; k < np; k++) {
+            StructureModel.LegChain L = m.legChains.get(planted.get(k));
             double legUp = L.hip().y - L.foot().y, bodyUp = m.com.y - L.hip().y;
-            yWant += foot[i].y + footRaise[i] + legUp * (L.joints().size() > 1 ? hk : 1) + bodyUp;
+            levelH += foot[planted.get(k)].y + footRaise[planted.get(k)] + legUp * (L.joints().size() > 1 ? hk : 1) + bodyUp;
+            bodyUpAvg += bodyUp;
         }
-        yWant /= planted.size();
+        levelH /= np; bodyUpAvg /= np;
+        for (int k = 0; k < np; k++) {
+            int i = planted.get(k);
+            StructureModel.LegChain L = m.legChains.get(i);
+            Vec3 d = L.hip().subtract(m.com);
+            hf[k] = d.dot(fl0); hr[k] = d.dot(rl0);
+            double bodyUp = m.com.y - L.hip().y, ground = foot[i].y + footRaise[i], eff = L.effector().y - L.foot().y; // contact height; ankle above the sole
+            double lo, hi;
+            if (L.joints().size() > 1) { lo = ground + eff + minReach(m, L) * 1.02; hi = ground + eff + maxReach(m, L) * 0.97; }
+            else { lo = hi = ground + (L.hip().y - L.foot().y); }
+            hh[k] = Math.max(lo, Math.min(hi, levelH - bodyUp)); // this leg's hip: level if it can, else as close as it reaches
+        }
+        // fit a plane through the hips: height + forward slope + sideways slope (least squares)
+        double sf = 0, sr = 0, sh = 0, sff = 0, srr = 0, sfr = 0, sfh = 0, srh = 0;
+        for (int k = 0; k < np; k++) { sf += hf[k]; sr += hr[k]; sh += hh[k]; sff += hf[k] * hf[k]; srr += hr[k] * hr[k]; sfr += hf[k] * hr[k]; sfh += hf[k] * hh[k]; srh += hr[k] * hh[k]; }
+        double mf = sf / np, mr = sr / np, mh = sh / np;
+        double cff = sff / np - mf * mf, crr = srr / np - mr * mr, cfr = sfr / np - mf * mr, cfh = sfh / np - mf * mh, crh = srh / np - mr * mh;
+        double slopeF = 0, slopeR = 0;
+        double det = cff * crr - cfr * cfr;
+        if (det > 1e-3) { slopeF = (cfh * crr - crh * cfr) / det; slopeR = (crh * cff - cfh * cfr) / det; }
+        else if (crr > 1e-3 && crr >= cff) slopeR = crh / crr;   // feet side by side: only a sideways tilt is known
+        else if (cff > 1e-3) slopeF = cfh / cff;                 // feet one behind the other: only a forward tilt
+        double pitchT = Math.max(-0.4, Math.min(0.4, Math.atan(slopeF))), rollT = Math.max(-0.4, Math.min(0.4, -Math.atan(slopeR)));
+        c.bodyPitch += (pitchT - c.bodyPitch) * 0.15; c.bodyRoll += (rollT - c.bodyRoll) * 0.15;
+        yWant = mh - slopeF * mf - slopeR * mr + bodyUpAvg; // hip plane height under the centre of mass, plus the body above the hips
         if (Double.isNaN(ySmooth) || Math.abs(ySmooth - yWant) > 2) ySmooth = c.getY();
         ySmooth += (yWant - ySmooth) * 0.2; // height follows the feet smoothly
-        double vy = Math.max(-4, Math.min(3, (ySmooth - c.getY()) * 6));
+        double vyT = Math.max(-4, Math.min(3, (ySmooth - c.getY()) * 6));
+        double vy = c.vel.y + Math.max(-3 * dt, Math.min(3 * dt, vyT - c.vel.y)); // up and down gently too (climbing doesn't jolt the joints)
         c.vel = new Vec3(vNew.x, vy, vNew.z);
+        Vec3 beforeMove = c.position();
         c.moveBody(c.vel.scale(dt));
         // legs are struts: never longer than they reach, never shorter than the knees fold
         for (int it = 0; it < 3; it++) {
@@ -389,6 +432,8 @@ public class WalkerController {
             c.setPos(c.getX() + corr.x, c.getY() + corr.y, c.getZ() + corr.z);
         }
         c.onGroundC = true;
+        // legs don't walk through buildings: if a leg would end up inside a wall, the body doesn't move that way
+        if (legInWall(c)) { c.setPos(beforeMove.x, c.getY(), beforeMove.z); c.vel = new Vec3(c.vel.x * 0.3, c.vel.y, c.vel.z * 0.3); }
 
         // ---- 4. IK, legs kept out of the ground, and tipping
         solveAllIK(c);
@@ -538,6 +583,40 @@ public class WalkerController {
         StructureModel.LegChain L = c.model.legChains.get(i);
         return foot[i].add(levelOffset(c, L.foot(), L.effector())).add(0, i < footRaise.length ? footRaise[i] : 0, 0);
     }
+    /** Is any leg block (not the soles) deep inside a wall (a solid column at least two blocks tall)? */
+    private static boolean legInWall(ColossusEntity c) {
+        Matrix4d[] W = c.freshSegWorlds();
+        Level level = c.level();
+        BlockPos.MutableBlockPos mp = new BlockPos.MutableBlockPos();
+        for (StructureModel.LegChain L : c.model.legChains) for (int sgi : legSegs(c.model, L)) {
+            if (sgi == L.footSeg()) continue; // feet touch the ground; they are handled by footing
+            for (BlockPos b : c.model.segs.get(sgi).blocks) {
+                Vector3d p = W[sgi].transformPosition(new Vector3d(b.getX() + .5, b.getY() + .5, b.getZ() + .5));
+                mp.set(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z));
+                if (level.getBlockState(mp).getCollisionShape(level, mp).isEmpty()) continue;
+                mp.move(0, 1, 0);
+                if (!level.getBlockState(mp).getCollisionShape(level, mp).isEmpty()) return true;
+            }
+        }
+        return false;
+    }
+    /** How far the hip should twist (about the vertical) so a planted foot keeps pointing where it landed. */
+    private double twistFor(ColossusEntity c, int i) { return i < footYaw.length && state[i] == State.STANCE ? wrap(c.yaw - footYaw[i]) : 0; }
+    /** Hip twist joint (a vertical-axis Leg joint at the top of a leg): set its angle, return the target turned back for the rest of the leg. */
+    private static Vec3 untwist(StructureModel m, StructureModel.LegChain L, Vec3 t, double tw) {
+        StructureModel.Joint j = m.joints.get(L.joints().get(0));
+        double c = Math.cos(-tw), s = Math.sin(-tw);
+        Vec3 d = t.subtract(j.pivot);
+        return j.pivot.add(d.x * c + d.z * s, d.y, -d.x * s + d.z * c); // about +Y by -tw
+    }
+    static boolean twistHip(StructureModel m, StructureModel.LegChain L) { StructureModel.Joint j = m.joints.get(L.joints().get(0)); return !j.universal && j.axis == net.minecraft.core.Direction.Axis.Y && L.joints().size() > 1; }
+    /** The leg without its top joint (for solving below a hip twist). */
+    static StructureModel.LegChain below(StructureModel m, StructureModel.LegChain L) {
+        List<Integer> js = L.joints().subList(1, L.joints().size());
+        return new StructureModel.LegChain(js, L.footSeg(), L.bodySeg(), m.joints.get(js.get(0)).pivot, L.foot(), L.length(), L.minLen(), L.hipTorque(), L.vCap(), L.mu(), L.group(),
+                Arrays.copyOfRange(L.limits(), 1, L.limits().length), L.kneeTorque(), L.ankle(), L.soles());
+    }
+
     /** Shortest the leg can get: every joint below the hip bent to its limit (same way). */
     private static double minReach(StructureModel m, StructureModel.LegChain L) {
         double best = 0;
@@ -612,11 +691,16 @@ public class WalkerController {
                 Matrix4d inv = new Matrix4d(c.segWorld(L.bodySeg())).invert();
                 Vec3 tw = effectorWorld(c, i);
                 Vector3d t = inv.transformPosition(new Vector3d(tw.x, tw.y, tw.z));
-                Vec3 tl = hipRoll(m, L, new Vec3(t.x, t.y, t.z), state[i] == State.STANCE ? MAX_TURN_PLANTED : MAX_TURN);
+                Vec3 tl = hipRoll(m, L, new Vec3(t.x, t.y, t.z), state[i] == State.STANCE ? MAX_TURN_PLANTED : MAX_TURN, twistFor(c, i));
                 t = new Vector3d(tl.x, tl.y, tl.z);
                 double[] ang = new double[L.joints().size()];
                 for (int k = 0; k < ang.length; k++) { double a = m.ikAngles[L.joints().get(k)]; ang[k] = Double.isNaN(a) ? 0 : a; }
-                solve(m, L, new Vec3(t.x, t.y, t.z), ang, digi);
+                if (twistHip(m, L)) {
+                    Vec3 ut = untwist(m, L, new Vec3(t.x, t.y, t.z), ang[0]);
+                    double[] rest = Arrays.copyOfRange(ang, 1, ang.length);
+                    solve(m, below(m, L), ut, rest, digi);
+                    System.arraycopy(rest, 0, ang, 1, rest.length);
+                } else solve(m, L, new Vec3(t.x, t.y, t.z), ang, digi);
                 for (int k = 0; k < ang.length; k++) { double prev = m.ikPrev[L.joints().get(k)]; m.ikAngles[L.joints().get(k)] = Double.isNaN(prev) ? ang[k] : smooth(prev, ang[k], state[i] == State.STANCE ? MAX_TURN_PLANTED : MAX_TURN); }
             }
             if (!any) break;
@@ -640,12 +724,20 @@ public class WalkerController {
             Vec3 tw = effectorWorld(c, i);
             Vector3d t = inv.transformPosition(new Vector3d(tw.x, tw.y, tw.z));
             boolean free0 = i >= state.length || state[i] != State.STANCE;
-            Vec3 tl = hipRoll(m, L, new Vec3(t.x, t.y, t.z), free0 ? MAX_TURN : MAX_TURN_PLANTED);
+            double twA = twistFor(c, i);
+            Vec3 tl = hipRoll(m, L, new Vec3(t.x, t.y, t.z), free0 ? MAX_TURN : MAX_TURN_PLANTED, twA);
             t = new Vector3d(tl.x, tl.y, tl.z);
             double[] ang = new double[L.joints().size()];
             for (int k = 0; k < ang.length; k++) { double a = m.ikAngles[L.joints().get(k)]; ang[k] = Double.isNaN(a) ? 0 : a; }
             double[] before = ang.clone();
-            solve(m, L, new Vec3(t.x, t.y, t.z), ang, digi);
+            if (twistHip(m, L)) { // hip twist: turn the leg about the vertical, then solve the rest of it
+                double lim = L.limits()[0];
+                ang[0] = smooth(before[0], Math.max(-lim, Math.min(lim, twA)), free0 ? MAX_TURN : MAX_TURN_PLANTED);
+                Vec3 ut = untwist(m, L, new Vec3(t.x, t.y, t.z), ang[0]);
+                double[] rest = Arrays.copyOfRange(ang, 1, ang.length);
+                solve(m, below(m, L), ut, rest, digi);
+                System.arraycopy(rest, 0, ang, 1, rest.length);
+            } else solve(m, L, new Vec3(t.x, t.y, t.z), ang, digi);
             boolean free = i >= state.length || state[i] != State.STANCE; // a planted leg must follow its foot exactly
             for (int k = 0; k < ang.length; k++) m.ikAngles[L.joints().get(k)] = smooth(before[k], ang[k], free ? MAX_TURN : MAX_TURN_PLANTED);
         }
@@ -692,9 +784,15 @@ public class WalkerController {
      * Powered ball hip: tilt the whole leg sideways so the target lies in the leg's swing plane, then return the target turned
      * back into that plane for the planar solvers. Other legs: the target as it is.
      */
-    public static Vec3 hipRoll(StructureModel m, StructureModel.LegChain L, Vec3 t, double maxTurn) {
+    public static Vec3 hipRoll(StructureModel m, StructureModel.LegChain L, Vec3 t, double maxTurn) { return hipRoll(m, L, t, maxTurn, 0); }
+    public static Vec3 hipRoll(StructureModel m, StructureModel.LegChain L, Vec3 t, double maxTurn, double twist) {
         StructureModel.Joint hj = m.joints.get(L.joints().get(0));
         if (!hj.universal || hj.id >= m.ikRoll.length) return t;
+        // a powered ball hip also twists about the vertical so a planted foot keeps its heading while the body turns
+        double lim0 = Math.toRadians(Math.max(5, Math.min(90, hj.amp * 2)));
+        double yw = smooth(Double.isNaN(m.ikYaw[hj.id]) ? 0 : m.ikYaw[hj.id], Math.max(-lim0, Math.min(lim0, twist)), maxTurn);
+        m.ikYaw[hj.id] = yw;
+        { double c0 = Math.cos(-yw), s0 = Math.sin(-yw); Vec3 d0 = t.subtract(hj.pivot); t = hj.pivot.add(d0.x * c0 + d0.z * s0, d0.y, -d0.x * s0 + d0.z * c0); }
         Vec3 f = Vec3.atLowerCornerOf(m.forward.getNormal()), r = new Vec3(-f.z, 0, f.x), d = t.subtract(hj.pivot);
         double lat = d.dot(r) - L.foot().subtract(hj.pivot).dot(r); // sideways offset compared with the built leg
         double roll = -Math.atan2(lat, Math.max(0.3, -d.y));

@@ -144,7 +144,7 @@ public class StructureModel {
     /** Powered ball joints: how far each tilts its foot to match the ground (radians, about the right and forward axes). */
     public double[] ballPitch = new double[0], ballRoll = new double[0];
     /** Sideways angle of each powered hip (radians, from the IK). */
-    public double[] ikRoll = new double[0];
+    public double[] ikRoll = new double[0], ikYaw = new double[0];
     /** The walker's step clock (cycles) and how much it's walking (0..1): shoulders swing in time. */
     public double walkClock, walkAmount;
     double rollAngle(Joint j, double time) { return j.id < ikRoll.length && !Double.isNaN(ikRoll[j.id]) ? ikRoll[j.id] : 0; }
@@ -630,7 +630,7 @@ public class StructureModel {
             while (cur > 0 && guard++ < 1000) {
                 Seg sg = segs.get(cur); if (sg.parentJoint < 0) break;
                 Joint j = joints.get(sg.parentJoint);
-                if (isLegMode(j.mode) && (!j.ball || j.universal) && j.axis != Direction.Axis.Y) chain.add(0, j.id); // plain ball joints level themselves, never IK
+                if (isLegMode(j.mode) && (!j.ball || j.universal) && (j.axis != Direction.Axis.Y || (!chain.isEmpty() && j.universal == false))) chain.add(0, j.id); // plain ball joints level themselves, never IK; a vertical one above the leg twists it
                 cur = Math.max(0, j.parentSeg); body = cur;
                 if (!chain.isEmpty() && !isLegMode(j.mode) && !j.ball) break;
             }
@@ -664,7 +664,7 @@ public class StructureModel {
             while (c2 > 0 && g2++ < 1000) { legSegs.add(c2); Seg sg = segs.get(c2); if (sg.parentJoint < 0 || sg.parentJoint == hipJ.id) break; c2 = Math.max(0, joints.get(sg.parentJoint).parentSeg); }
         }
         assignGroups();
-        ballPitch = new double[joints.size()]; ballRoll = new double[joints.size()]; ikRoll = new double[joints.size()];
+        ballPitch = new double[joints.size()]; ballRoll = new double[joints.size()]; ikRoll = new double[joints.size()]; ikYaw = new double[joints.size()];
         ikAngles = new double[joints.size()]; Arrays.fill(ikAngles, Double.NaN); ikPrev = ikAngles.clone();
     }
 
@@ -832,8 +832,8 @@ public class StructureModel {
             Matrix4d parent = j.parentSeg >= 0 && out[j.parentSeg] != null ? out[j.parentSeg] : new Matrix4d();
             if (j.universal) { // powered hip/shoulder: sideways (about forward), then forward/back (about its hinge axis)
                 Vec3 f = Vec3.atLowerCornerOf(forward.getNormal()), a = axisVec(j.axis);
-                double roll = rollAngle(j, time), pitch = angle(j, walkPhase, walkBlend, spin, time);
-                out[s.id] = new Matrix4d(parent).translate(j.pivot.x, j.pivot.y, j.pivot.z).rotate(roll, f.x, f.y, f.z).rotate(pitch, a.x, a.y, a.z).translate(-j.pivot.x, -j.pivot.y, -j.pivot.z);
+                double roll = rollAngle(j, time), pitch = angle(j, walkPhase, walkBlend, spin, time), yawA = j.id < ikYaw.length ? ikYaw[j.id] : 0;
+                out[s.id] = new Matrix4d(parent).translate(j.pivot.x, j.pivot.y, j.pivot.z).rotate(yawA, 0, 1, 0).rotate(roll, f.x, f.y, f.z).rotate(pitch, a.x, a.y, a.z).translate(-j.pivot.x, -j.pivot.y, -j.pivot.z);
                 continue;
             }
             if (j.ball) { // undo the parent's turning (within the limit) so the part below stays level

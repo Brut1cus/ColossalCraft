@@ -59,6 +59,10 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private static final EntityDataAccessor<Boolean> INFINITE = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Float> TILT = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Float> TILT_DIR = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> PITCH = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> ROLL = SynchedEntityData.defineId(ColossusEntity.class, EntityDataSerializers.FLOAT);
+    /** Body attitude from the feet (radians): pitch raises the front, roll lowers the right side. The walker sets it. */
+    public double bodyPitch, bodyRoll, prevBodyPitch, prevBodyRoll;
     /** Most a fallen walker leans (radians). */
     public static final double MAX_TILT = 1.45;
 
@@ -95,6 +99,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public final WalkerController walker = new WalkerController();
     /** Each thruster's throttle this tick (0..127), shared with clients for exhaust and sound. */
     private byte[] thrOut = new byte[0];
+    private Vec3 lastVAct = Vec3.ZERO, accelSmooth = Vec3.ZERO;
     /** Client: thruster throttles (0..1) from the server. */
     public float[] thrustLevels() {
         byte[] b = entityData.get(IK).getByteArray("T");
@@ -142,7 +147,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder b) {
-        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f).define(HELD, java.util.Optional.empty()).define(IK, new CompoundTag()).define(JUMP, -1f);
+        b.define(YAW, 0f).define(WALK, 0f).define(BLEND, 0f).define(SPIN, 0f).define(ENERGY, 0f).define(HOVER, true).define(INFINITE, false).define(TILT, 0f).define(TILT_DIR, 0f).define(PITCH, 0f).define(ROLL, 0f).define(HELD, java.util.Optional.empty()).define(IK, new CompoundTag()).define(JUMP, -1f);
     }
     public boolean hover() { return entityData.get(HOVER); }
     public float syncedEnergy() { return entityData.get(ENERGY); }
@@ -157,16 +162,20 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public Matrix4d base(Vec3 pos, double yw, double tl) {
         Matrix4d m = new Matrix4d().translate(pos.x, pos.y, pos.z).rotateY(-yw);
         if (tl != 0) { Vec3 a = tiltAxis(); m.rotate(tl, a.x, a.y, a.z); }
+        if (bodyPitch != 0 || bodyRoll != 0) { // the walker tilts its body to fit its feet
+            Vec3 f = Vec3.atLowerCornerOf(model.forward.getNormal()), r = new Vec3(-f.z, 0, f.x);
+            m.rotate(bodyRoll, f.x, f.y, f.z).rotate(bodyPitch, r.x, r.y, r.z);
+        }
         return m.translate(-model.com.x, -model.com.y, -model.com.z);
     }
     public Vec3 toWorld(Vec3 local, Vec3 pos, double yw) {
-        if (tilt != 0) { Vector3d v = base(pos, yw, tilt).transformPosition(new Vector3d(local.x, local.y, local.z)); return new Vec3(v.x, v.y, v.z); }
+        if (tilt != 0 || bodyPitch != 0 || bodyRoll != 0) { Vector3d v = base(pos, yw, tilt).transformPosition(new Vector3d(local.x, local.y, local.z)); return new Vec3(v.x, v.y, v.z); }
         Vec3 c = model.com; double dx = local.x - c.x, dy = local.y - c.y, dz = local.z - c.z;
         double cs = Math.cos(yw), sn = Math.sin(yw);
         return new Vec3(pos.x + dx * cs - dz * sn, pos.y + dy, pos.z + dx * sn + dz * cs);
     }
     public Vec3 toLocal(Vec3 world, Vec3 pos, double yw) {
-        if (tilt != 0) { Vector3d v = base(pos, yw, tilt).invert().transformPosition(new Vector3d(world.x, world.y, world.z)); return new Vec3(v.x, v.y, v.z); }
+        if (tilt != 0 || bodyPitch != 0 || bodyRoll != 0) { Vector3d v = base(pos, yw, tilt).invert().transformPosition(new Vector3d(world.x, world.y, world.z)); return new Vec3(v.x, v.y, v.z); }
         double dx = world.x - pos.x, dy = world.y - pos.y, dz = world.z - pos.z;
         double cs = Math.cos(yw), sn = Math.sin(yw);
         return new Vec3(model.com.x + dx * cs + dz * sn, model.com.y + dy, model.com.z - dx * sn + dz * cs);
@@ -247,6 +256,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         if (level().isClientSide) {
             Vec3 last = clientLastPos == null ? position() : clientLastPos;
             Matrix4d[] before = segWorlds(last, yaw, tilt, art);
+            prevBodyPitch = bodyPitch; prevBodyRoll = bodyRoll; bodyPitch = entityData.get(PITCH); bodyRoll = entityData.get(ROLL);
+            if (tickCount < 3) { prevBodyPitch = bodyPitch; prevBodyRoll = bodyRoll; }
             yaw = entityData.get(YAW); walkPhase = entityData.get(WALK); walkBlend = entityData.get(BLEND); spin = entityData.get(SPIN); tilt = entityData.get(TILT);
             float td = entityData.get(TILT_DIR); tiltDir = td == -999 ? Double.NaN : td;
             if (tickCount < 3) { prevYaw = yaw; prevWalkPhase = walkPhase; prevSpin = spin; prevTilt = tilt; }
@@ -258,7 +269,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             }
             model.ikT = 1;
             int[] rl = ik.getIntArray("RL");
-            for (int i = 0; i < model.ikRoll.length; i++) model.ikRoll[i] = i < rl.length ? Float.intBitsToFloat(rl[i]) : 0;
+            for (int i = 0; i < model.ikRoll.length; i++) { model.ikRoll[i] = 2 * i + 1 < rl.length ? Float.intBitsToFloat(rl[2 * i]) : 0; model.ikYaw[i] = 2 * i + 1 < rl.length ? Float.intBitsToFloat(rl[2 * i + 1]) : 0; }
             model.walkClock = ik.getDouble("WC"); model.walkAmount = ik.getDouble("WA");
             int[] bt = ik.getIntArray("BT");
             for (int i = 0; i < model.ballPitch.length; i++) { model.ballPitch[i] = 2 * i + 1 < bt.length ? Float.intBitsToFloat(bt[2 * i]) : 0; model.ballRoll[i] = 2 * i + 1 < bt.length ? Float.intBitsToFloat(bt[2 * i + 1]) : 0; }
@@ -270,9 +281,14 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             return;
         }
         Matrix4d[] before = segWorlds(position(), yaw, tilt, art);
-        Vec3 v0 = vel;
+        Vec3 p0 = position();
         physics();
-        Vec3 accel = vel.subtract(v0).scale(20);
+        // acceleration from how the body really moved (smoothed over a few ticks): what the joints actually feel
+        Vec3 vAct = position().subtract(p0).scale(20);
+        Vec3 aRaw = vAct.subtract(lastVAct).scale(20); lastVAct = vAct;
+        if (aRaw.length() > 30) aRaw = aRaw.normalize().scale(30);
+        accelSmooth = accelSmooth.scale(0.9).add(aRaw.scale(0.1)); // joints feel sustained loads, not one-tick jitter
+        Vec3 accel = accelSmooth;
         art = model.transforms(walkPhase, walkBlend, spin, tickCount);
         setBoundingBox(makeBoundingBox());
         carry(before, segWorlds(position(), yaw, tilt, art), yaw - prevYaw);
@@ -285,6 +301,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         }
         entityData.set(YAW, (float) yaw); entityData.set(WALK, (float) walkPhase); entityData.set(BLEND, (float) walkBlend);
         entityData.set(SPIN, (float) spin); entityData.set(ENERGY, (float) energy); entityData.set(TILT, (float) tilt); entityData.set(TILT_DIR, (float) (Double.isNaN(tiltDir) ? -999 : tiltDir));
+        entityData.set(PITCH, (float) bodyPitch); entityData.set(ROLL, (float) bodyRoll);
     }
 
     private Player pilot() { return getFirstPassenger() instanceof Player p ? p : null; }
@@ -391,8 +408,14 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         }
 
         double I = M * (r * r + 1) / 3;
-        yawRate += (-inTurn * turnTorque * ratio - torqueY * ratio) / I * dt;
-        yawRate = Math.max(-1.5, Math.min(1.5, yawRate)) * (inTurn == 0 && Math.abs(torqueY) < 1 ? 0.8 : 0.95);
+        if (useWalker) { // a walker turns as fast as its steps can follow, easing in and out
+            double want = -inTurn * walker.turnRateMax * Math.max(0.2, ratio);
+            yawRate += Math.max(-1.2 * dt, Math.min(1.2 * dt, want - yawRate));
+        } else {
+            yawRate += (-inTurn * turnTorque * ratio - torqueY * ratio) / I * dt;
+            yawRate = Math.max(-1.5, Math.min(1.5, yawRate)) * (inTurn == 0 && Math.abs(torqueY) < 1 ? 0.8 : 0.95);
+        }
+        if (!useWalker) { bodyPitch *= 0.8; bodyRoll *= 0.8; if (Math.abs(bodyPitch) + Math.abs(bodyRoll) < 1e-4) { bodyPitch = 0; bodyRoll = 0; } }
 
         // ---- Jump Drive: charges slowly from the power supply, lets it all go at once
         double cap = model.jumpDrives * com.colossalcraft.block.SimpleParts.JumpDriveBlock.CAPACITY;
@@ -455,7 +478,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         spinRate += (targetSpin - spinRate) * 0.05; spin += spinRate;
 
         if (!useWalker) moveWithCollision(vel.scale(dt));
-        rotateWithCollision(yaw + yawRate * dt);
+        if (useWalker) { bodyOnly = true; try { rotateWithCollision(yaw + yawRate * dt); } finally { bodyOnly = false; } } // a walker's legs follow its feet; only the body can be blocked
+        else rotateWithCollision(yaw + yawRate * dt);
         // share the IK angles and foot states with clients
         CompoundTag ik = new CompoundTag();
         if (useWalker && model.ikAngles != null) {
@@ -468,7 +492,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             if (any) { int[] bt = new int[model.ballPitch.length * 2]; for (int i = 0; i < model.ballPitch.length; i++) { bt[2 * i] = Float.floatToIntBits((float) model.ballPitch[i]); bt[2 * i + 1] = Float.floatToIntBits((float) model.ballRoll[i]); } ik.putIntArray("BT", bt); }
         }
         if (useWalker) { // powered hips: sideways angles; shoulders: the step clock
-            int[] rl = new int[model.ikRoll.length]; for (int i = 0; i < rl.length; i++) rl[i] = Float.floatToIntBits((float) model.ikRoll[i]);
+            int[] rl = new int[model.ikRoll.length * 2]; for (int i = 0; i < model.ikRoll.length; i++) { rl[2 * i] = Float.floatToIntBits((float) model.ikRoll[i]); rl[2 * i + 1] = Float.floatToIntBits((float) model.ikYaw[i]); }
             ik.putIntArray("RL", rl); ik.putDouble("WC", model.walkClock); ik.putDouble("WA", model.walkAmount);
         }
         boolean firing = false; for (byte b : thrOut) firing |= b != 0;
@@ -652,7 +676,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             int cx = (int) Math.floor(s.getCenter().x), cy = (int) Math.floor(s.getCenter().y), cz = (int) Math.floor(s.getCenter().z);
             for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
                 List<AABB> l = world.get(BlockPos.asLong(cx + x, cy + y, cz + z));
-                if (l != null) for (AABB w : l) if (w.intersects(s)) { yawRate = 0; return; }
+                if (l != null) for (AABB w : l) if (w.intersects(s)) { yawRate *= 0.5; return; }
             }
         }
         yaw = newYaw;
@@ -1190,6 +1214,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         tag.putDouble("VX", vel.x); tag.putDouble("VY", vel.y); tag.putDouble("VZ", vel.z);
         tag.putLong("Energy", energy); tag.putLong("EnergyStart", energyStart); tag.putBoolean("Hover", hover());
         tag.putDouble("Walk", walkPhase); tag.putDouble("Spin", spin); tag.putDouble("Tilt", tilt);
+        tag.putDouble("BodyPitch", bodyPitch); tag.putDouble("BodyRoll", bodyRoll);
     }
     @Override protected void readAdditionalSaveData(CompoundTag tag) {
         HolderGetter<Block> hg = level().holderLookup(Registries.BLOCK);
@@ -1206,6 +1231,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         vel = new Vec3(tag.getDouble("VX"), tag.getDouble("VY"), tag.getDouble("VZ"));
         energy = tag.getLong("Energy"); energyStart = tag.getLong("EnergyStart");
         entityData.set(HOVER, tag.getBoolean("Hover")); walkPhase = tag.getDouble("Walk"); spin = tag.getDouble("Spin"); tilt = prevTilt = tag.getDouble("Tilt"); entityData.set(TILT, (float) tilt);
+        bodyPitch = tag.getDouble("BodyPitch"); bodyRoll = tag.getDouble("BodyRoll");
         entityData.set(YAW, (float) yaw);
         if (!blocks.isEmpty()) rebuild();
     }

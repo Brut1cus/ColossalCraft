@@ -73,6 +73,11 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         var axis = e.tiltAxis();
         Matrix4d baseM = new Matrix4d().rotateY(-yaw);
         if (tl != 0) baseM.rotate(tl, axis.x, axis.y, axis.z);
+        double bp = Mth.lerp(pt, e.prevBodyPitch, e.bodyPitch), br = Mth.lerp(pt, e.prevBodyRoll, e.bodyRoll);
+        if (bp != 0 || br != 0) { // the walker's body tilted to fit its feet
+            var fw = net.minecraft.world.phys.Vec3.atLowerCornerOf(m.forward.getNormal());
+            baseM.rotate(br, fw.x, fw.y, fw.z).rotate(bp, -fw.z, 0, fw.x);
+        }
         baseM.translate(-m.com.x, -m.com.y, -m.com.z);
         double[] angles = new double[m.joints.size()];
         double wp = Mth.lerp(pt, e.prevWalkPhase, e.walkPhase), wb = Mth.lerp(pt, e.prevWalkBlend, e.walkBlend), spn = Mth.lerp(pt, e.prevSpin, e.spin);

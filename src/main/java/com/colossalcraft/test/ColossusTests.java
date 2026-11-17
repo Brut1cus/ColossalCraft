@@ -730,7 +730,7 @@ public class ColossusTests {
         h.runAfterDelay(30, () -> { ColossusEntity c = find(h); start[0] = c.getZ(); start[1] = c.getY(); c.autopilot = true; c.setInput(1, 0, false, false); lastV[0] = c.vel; });
         for (int t = 31; t <= 200; t++) { int tt = t; h.runAfterDelay(t, () -> {
             ColossusEntity c = find(h);
-            if (c.getZ() - start[0] < -4.5) c.setInput(0, 0, false, false); // stop before the edge of the test area, then stand
+            if (c.getZ() - start[0] < -1.5) c.setInput(0, 0, false, false); // stop before the edge of the test area (its walls stop legs now), then stand
             net.minecraft.world.phys.Vec3 dv = c.vel.subtract(lastV[0]); lastV[0] = c.vel;
             jitter[0] += dv.length();
             maxAcc[0] = Math.max(maxAcc[0], Math.sqrt(dv.x * dv.x + dv.z * dv.z) * 20);
@@ -777,7 +777,7 @@ public class ColossusTests {
         h.runAfterDelay(30, () -> { ColossusEntity c = find(h); y0[0] = c.getY(); z0s[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
         for (int t = 31; t <= 230; t++) { int tt = t; h.runAfterDelay(t, () -> {
             ColossusEntity c = find(h);
-            if (c.getZ() - z0s[0] < -5.0) c.setInput(0, 0, false, false); // on the step: stop before the edge
+            if (c.getZ() - z0s[0] < -3.2) c.setInput(0, 0, false, false); // on the step: stop before the edge
             double p = WalkerController.maxLegPenetration(c);
             if (p > 0.15) deepTicks[0]++;
             if (p > pen[0]) { pen[0] = p; ColossalCraft.LOG.info("[test] step t={} penetration {} feet {}", tt, p, c.walker.status); }
@@ -1052,5 +1052,79 @@ public class ColossusTests {
         StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
         h.assertTrue(m.joints.size() == 1 && m.joints.get(0).ball && m.joints.get(0).k == 2, "a 1x1 ball half + socket should be one ball joint, got " + m.joints.size());
         h.succeed();
+    }
+
+    /** How far each planted foot really is from where the walker planted it (0 = sole on its spot). */
+    static double footGap(ColossusEntity c) {
+        var W = c.freshSegWorlds(); double worst = 0;
+        for (int i = 0; i < c.model.legChains.size() && i < c.walker.state.length; i++) {
+            if (c.walker.state[i] != WalkerController.State.STANCE) continue;
+            var L = c.model.legChains.get(i);
+            var v = W[L.footSeg()].transformPosition(new org.joml.Vector3d(L.foot().x, L.foot().y, L.foot().z));
+            worst = Math.max(worst, Math.abs(v.y - c.walker.foot[i].y));
+        }
+        return worst;
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 260)
+    public static void unevenGroundKeepsBothFeetDown(GameTestHelper h) {
+        bigMech(h, true);
+        for (int x = 9; x <= 12; x++) for (int z = 0; z <= 4; z++) h.setBlock(x, 1, z, Blocks.STONE); // the right side of the path is a block higher (a gap so it is not part of the mech)
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 10, 7)), null), "assemble failed");
+        double[] z0 = {0}, gap = {0}, roll = {0}; int[] lifted = {0};
+        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        for (int t = 31; t <= 230; t++) h.runAfterDelay(t, () -> {
+            ColossusEntity c = find(h);
+            if (c.getZ() - z0[0] < -3.0) c.setInput(0, 0, false, false);
+            double g = footGap(c); gap[0] = Math.max(gap[0], g); if (g > 0.3) lifted[0]++;
+            roll[0] = Math.max(roll[0], Math.abs(c.bodyRoll));
+        });
+        h.runAfterDelay(232, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] uneven ground: worst foot gap {} (ticks over 0.3: {}), max body roll {} rad, feet {} y {}", gap[0], lifted[0], roll[0], c.walker.foot[0].y + "/" + c.walker.foot[1].y, c.getY());
+            h.assertTrue(c.tilt == 0, "fell over on uneven ground");
+            h.assertTrue(Math.abs(c.walker.foot[0].y - c.walker.foot[1].y) > 0.9, "one foot should be up on the higher side");
+            h.assertTrue(lifted[0] <= 3, "a planted foot hung off its ground for " + lifted[0] + " ticks (worst " + gap[0] + ")");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 160)
+    public static void walkerTurnsSmoothly(GameTestHelper h) {
+        walker(h, false, true);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] y0 = {0}, lastRate = {0}, jerk = {0};
+        h.runAfterDelay(20, () -> { ColossusEntity c = find(h); y0[0] = c.yaw; c.autopilot = true; c.setInput(0, 1, false, false); });
+        for (int t = 21; t <= 140; t++) h.runAfterDelay(t, () -> { ColossusEntity c = find(h); jerk[0] = Math.max(jerk[0], Math.abs(c.yawRate - lastRate[0])); lastRate[0] = c.yawRate; });
+        h.runAfterDelay(142, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] turning: turned {} rad, max yaw-rate change {} per tick, tilt {}", c.yaw - y0[0], jerk[0], c.tilt);
+            h.assertTrue(Math.abs(c.yaw - y0[0]) > 0.3, "should turn in place, turned " + (c.yaw - y0[0]));
+            h.assertTrue(jerk[0] <= 1.2 * 0.05 + 1e-6, "the turn should ease in, not jerk: " + jerk[0]);
+            h.assertTrue(c.tilt == 0, "fell over while turning");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 160)
+    public static void poweredHipsTwistWhenTurning(GameTestHelper h) {
+        walker(h, false, true);
+        for (int x : new int[]{6, 8}) h.setBlock(x, 5, 7, ModRegistry.POWERED_BALL_JOINT.get());
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        hc.joints = new CompoundTag();
+        for (StructureModel.Joint j : r.model.joints) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.LEG); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] tw = {0};
+        h.runAfterDelay(20, () -> { ColossusEntity c = find(h); c.autopilot = true; c.setInput(0, 1, false, false); });
+        for (int t = 21; t <= 140; t++) h.runAfterDelay(t, () -> { ColossusEntity c = find(h); for (double v : c.model.ikYaw) tw[0] = Math.max(tw[0], Math.abs(v)); });
+        h.runAfterDelay(142, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] powered hips twist up to {} rad while turning", tw[0]);
+            h.assertTrue(tw[0] > 0.03, "powered ball hips should twist to keep planted feet pointing where they landed");
+            h.assertTrue(c.tilt == 0, "fell over");
+            h.succeed();
+        });
     }
 }
