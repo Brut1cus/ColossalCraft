@@ -93,6 +93,7 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
                     drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL_SPIN_TOO, m.blocks.get(p).getValue(net.minecraft.world.level.block.DirectionalBlock.FACING).getAxis(),
                             sp == null ? 0 : angles[(int) sp[0]] * sp[1], sp == null ? 1 : sp[2]);
                 else if (sp != null || isClusterMember(m, p)) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.STATIC, null, 0);
+                else if (isGyro(m.blocks.get(p))) drawGyro(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp);
                 else drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL, null, 0);
             }
             ps.popPose();
@@ -159,6 +160,25 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         super.render(e, yawIgnored, pt, ps, buf, light);
     }
 
+    private static boolean isGyro(BlockState st) { return st.getBlock() instanceof com.colossalcraft.block.SimpleParts.GyroBlock || st.getBlock() == com.colossalcraft.ModRegistry.GYRO_ROTOR.get(); }
+    /** Gyro: the frame stays put; with power the outer ring turns about Y, the gimbal about X and the rotor spins fast about Z. */
+    private void drawGyro(ColossusEntity e, StructureModel m, BlockPos p, Matrix4d local, PoseStack ps, MultiBufferSource buf, float pt, int light,
+                          double ex, double ey, double ez, net.minecraft.client.multiplayer.ClientLevel level, BlockPos.MutableBlockPos lp) {
+        BlockState st = m.blocks.get(p);
+        Vector3d w = local.transformPosition(new Vector3d(p.getX() + .5, p.getY() + .5, p.getZ() + .5));
+        lp.set(ex + w.x, ey + w.y, ez + w.z);
+        int li = level == null ? light : LevelRenderer.getLightColor(level, lp);
+        boolean on = e.syncedEnergy() > 0 || e.syncedInfinite();
+        double t = (e.tickCount + pt) * (on ? 1 : 0) + (p.getX() * 7 + p.getZ() * 3);
+        ps.pushPose();
+        ps.translate(p.getX(), p.getY(), p.getZ());
+        drawQuads(st, ps, buf, li, Part.STATIC);
+        org.joml.Vector3f c = new org.joml.Vector3f(0.5f, 0.5f, 0.5f);
+        spinGroup(st, ps, buf, li, Part.SPIN, c, new org.joml.Vector3f(0, 1, 0), t * 0.12);
+        spinGroup(st, ps, buf, li, Part.SPIN2, c, new org.joml.Vector3f(1, 0, 0), t * 0.07);
+        spinGroup(st, ps, buf, li, Part.BALL, c, new org.joml.Vector3f(0, 0, 1), t * 0.9);
+        ps.popPose();
+    }
     enum Part { ALL, STATIC, SPIN, SPIN2, BALL, ALL_SPIN_TOO, ALL_TINTED }
     private void drawJointPart(ColossusEntity e, StructureModel m, StructureModel.Joint j, Matrix4d local, Part part, PoseStack ps, MultiBufferSource buf, float pt, int light,
                                double ex, double ey, double ez, net.minecraft.client.multiplayer.ClientLevel level, BlockPos.MutableBlockPos lp) {

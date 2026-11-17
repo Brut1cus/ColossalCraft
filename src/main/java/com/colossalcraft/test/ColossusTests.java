@@ -309,12 +309,21 @@ public class ColossusTests {
     }
 
     @GameTest(template = "empty16", timeoutTicks = 140)
-    public static void walkerWithHeavyOverhangTips(GameTestHelper h) {
+    public static void walkerWithHeavyOverhangBalances(GameTestHelper h) {
         walker(h, false, true);
         for (int x = 5; x <= 9; x++) for (int z = 2; z <= 4; z++) h.setBlock(x, 6, z, Blocks.IRON_BLOCK);
         StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
         ColossalCraft.LOG.info("[test] overhang com={} support={} offset={}", r.model.com, r.model.support, r.model.balanceOffset);
         h.assertTrue(r.model.footingOk() && !r.model.balanced(), "should be unbalanced");
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); ColossalCraft.LOG.info("[test] overhang walker tilt={} feet={}", c.tilt, c.walker.status); h.assertTrue(c.tilt == 0, "a walker should balance itself (lean, step under the weight): tilt " + c.tilt); h.succeed(); });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 120)
+    public static void statueWithHeavyOverhangTips(GameTestHelper h) {
+        walker(h, false, true);
+        h.setBlock(7, 7, 6, Blocks.AIR); // no Locomotion Controller: nothing balances it
+        for (int x = 5; x <= 9; x++) for (int z = 2; z <= 4; z++) h.setBlock(x, 6, z, Blocks.IRON_BLOCK);
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
         h.runAfterDelay(80, () -> { ColossusEntity c = find(h); h.assertTrue(c.tilt > 1.0 && Math.sin(c.tiltDir) < -0.9, "should tip towards the overhang (-Z): tilt " + c.tilt + " dir " + c.tiltDir); h.succeed(); });
     }
@@ -917,6 +926,9 @@ public class ColossusTests {
     public static void stepControllerAvoidsDangerousGround(GameTestHelper h) {
         walker(h, false, true);
         h.setBlock(8, 7, 8, ModRegistry.STEP_CONTROLLER.get());
+        h.setBlock(6, 7, 7, ModRegistry.FLUX_ACCUMULATOR.get()); // enough power for the controller and full-speed steps
+        CompoundTag fe = new CompoundTag(); fe.putLong("Energy", 4_000_000);
+        h.getBlockEntity(new BlockPos(6, 7, 7)).loadWithComponents(fe, h.getLevel().registryAccess());
         // magma right where the feet would normally land, with safe ground beside it
         for (int z = 2; z <= 5; z++) { h.setBlock(6, 0, z, Blocks.MAGMA_BLOCK); h.setBlock(8, 0, z, Blocks.MAGMA_BLOCK); }
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
@@ -972,6 +984,20 @@ public class ColossusTests {
         StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
         h.assertTrue(m.joints.size() == 1 && m.joints.get(0).ball && m.joints.get(0).size == 2, "a 2x2x2 ball joint expected: " + m.joints.size() + " joints");
         h.assertTrue(m.joints.get(0).k == 8 && !m.joints.get(0).childSegs.isEmpty(), "both layers in one joint, holding the foot");
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16")
+    public static void stepSpeedIsCappedByPower(GameTestHelper h) {
+        walker(h, false, true); // an Ember Boiler: little power
+        StructureModel weak = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        h.setBlock(6, 7, 7, ModRegistry.FLUX_ACCUMULATOR.get());
+        CompoundTag fe = new CompoundTag(); fe.putLong("Energy", 4_000_000);
+        h.getBlockEntity(new BlockPos(6, 7, 7)).loadWithComponents(fe, h.getLevel().registryAccess());
+        StructureModel strong = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        ColossalCraft.LOG.info("[test] power cap weak={} strong={} legs={} CJ/t", weak.powerSpeedCap(), strong.powerSpeedCap(), weak.legMotorPower());
+        h.assertTrue(weak.powerSpeedCap() < strong.powerSpeedCap(), "more engine output should allow faster steps");
+        h.assertTrue(weak.stepSpeed(false) <= weak.powerSpeedCap() + 1e-9, "step rate must not go past the power cap");
         h.succeed();
     }
 }

@@ -93,6 +93,15 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     public boolean autopilot;
     /** Physics walker (feet, balance, gait, IK). */
     public final WalkerController walker = new WalkerController();
+    /** Each thruster's throttle this tick (0..127), shared with clients for exhaust and sound. */
+    private byte[] thrOut = new byte[0];
+    /** Client: thruster throttles (0..1) from the server. */
+    public float[] thrustLevels() {
+        byte[] b = entityData.get(IK).getByteArray("T");
+        float[] f = new float[model == null ? 0 : model.thrusterList.size()];
+        for (int i = 0; i < f.length && i < b.length; i++) f[i] = b[i] / 127f;
+        return f;
+    }
     /** A broken-off piece (no Hull Core): it falls as one rigid body and turns back into blocks once it comes to rest. */
     public boolean wreck;
     private int restTicks;
@@ -248,10 +257,13 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
                 for (int i = 0; i < model.ikAngles.length; i++) model.ikAngles[i] = i < bits.length ? Float.intBitsToFloat(bits[i]) : Double.NaN;
             }
             model.ikT = 1;
+            int[] bt = ik.getIntArray("BT");
+            for (int i = 0; i < model.ballPitch.length; i++) { model.ballPitch[i] = 2 * i + 1 < bt.length ? Float.intBitsToFloat(bt[2 * i]) : 0; model.ballRoll[i] = 2 * i + 1 < bt.length ? Float.intBitsToFloat(bt[2 * i + 1]) : 0; }
             art = model.transforms(walkPhase, walkBlend, spin, tickCount);
             clientLastPos = position();
             clientSpeed = clientSpeed * 0.7 + position().distanceTo(last) * 20 * 0.3;
             com.colossalcraft.client.ClientHooks.carryLocalPlayer(this, before, segWorlds(position(), yaw, tilt, art), yaw - prevYaw);
+            com.colossalcraft.client.ThrusterEffects.tick(this);
             return;
         }
         Matrix4d[] before = segWorlds(position(), yaw, tilt, art);
@@ -307,7 +319,11 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         Vec3 fwL = Vec3.atLowerCornerOf(model.forward.getNormal());
         Matrix4d[] W = segWorlds(position(), yaw, tilt, art);
         Vec3 thrust = Vec3.ZERO; double torqueY = 0, draw = 0;
+        if (thrOut.length != model.thrusterList.size()) thrOut = new byte[model.thrusterList.size()];
+        Arrays.fill(thrOut, (byte) 0);
+        int ti = -1;
         for (StructureModel.Thruster t : model.thrusterList) {
+            ti++;
             Vec3 pl = Vec3.atLowerCornerOf(t.push().getNormal());
             double thr;
             if (t.push() == Direction.UP) thr = vT;
@@ -320,6 +336,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
                 thr = inTurn * m > 0 ? Math.abs(inTurn) : 0;
             }
             if (thr <= 0) continue;
+            thrOut[ti] = (byte) Math.max(1, Math.min(127, Math.round(thr * 127)));
             Vector3d dw = W[Math.min(t.seg(), W.length - 1)].transformDirection(new Vector3d(pl.x, pl.y, pl.z)).normalize();
             Vec3 f = new Vec3(dw.x, dw.y, dw.z).scale(t.force() * thr);
             Vec3 r = blockWorldCenter(t.pos()).subtract(position());
@@ -342,7 +359,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         double hT = Math.abs(inFwd);
         double groundF = onGroundC ? model.driveForce : 0;
         if (subFrac > 0.05 && !onGroundC) groundF += model.driveForce * 0.5; // motors as propellers in water
-        draw += hT * (model.drivePower + (walkers ? model.walkPower() : 0));
+        draw += hT * model.drivePower;
+        if (model.legged && !model.legChains.isEmpty()) draw += model.legMotorPower() * model.stepSpeed(inSprint) / 0.5 * Math.max(hT, Math.abs(inTurn) * 0.5); // legs: power grows with step rate
+        else draw += hT * (walkers ? model.walkPower() : 0);
         double r = Math.max(1, model.radius);
         double turnTorque = model.gyroCap * 0.6 + (onGroundC ? model.driveForce * r * 0.3 : 0);
         draw += Math.abs(inTurn) * model.gyroPower;
@@ -359,7 +378,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         double vh = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
         double lift = model.sails * 0.5 * 1.225 * vh * vh * LS;
         boolean powered = model.output > 0 && (model.infinite || energy > 0) && ratio > 0;
-        boolean stable = !model.legged || (model.footingOk() && powered && model.balanced());
+        // a walker with a Locomotion Controller balances itself (leans, settles, catch steps); statues need their weight over their feet
+        boolean stable = !model.legged || (model.footingOk() && powered && (model.balanced() || (walker.usable(model) && model.locoControllers > 0)));
         boolean useWalker = walker.usable(model) && model.legged && model.locoControllers > 0 && stable && tilt < 0.1;
         if (!useWalker) {
             walker.release(model);
@@ -440,6 +460,12 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             for (int i = 0; i < bits.length; i++) bits[i] = Float.floatToIntBits((float) model.ikAngles[i]);
             ik.putIntArray("A", bits); ik.putString("S", walker.status);
         }
+        if (useWalker) { // powered ankles: foot tilt for clients
+            boolean any = false; for (int i = 0; i < model.ballPitch.length; i++) any |= model.ballPitch[i] != 0 || model.ballRoll[i] != 0;
+            if (any) { int[] bt = new int[model.ballPitch.length * 2]; for (int i = 0; i < model.ballPitch.length; i++) { bt[2 * i] = Float.floatToIntBits((float) model.ballPitch[i]); bt[2 * i + 1] = Float.floatToIntBits((float) model.ballRoll[i]); } ik.putIntArray("BT", bt); }
+        }
+        boolean firing = false; for (byte b : thrOut) firing |= b != 0;
+        if (firing) ik.putByteArray("T", thrOut.clone());
         entityData.set(IK, ik);
     }
 

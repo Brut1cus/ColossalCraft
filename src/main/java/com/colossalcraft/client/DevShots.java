@@ -83,8 +83,18 @@ public final class DevShots {
             case 42 -> server(sp -> { for (int i = 0; i < ModRegistry.GEARBOXES.size(); i++) sp.serverLevel().setBlockAndUpdate(base.offset(-6 + i * 2, 1, -6), ModRegistry.GEARBOXES.get(i).get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.WEST));
                 sp.serverLevel().setBlockAndUpdate(base.offset(-6, 2, -6), ModRegistry.BALL_JOINT.get().defaultBlockState());
                 sp.serverLevel().setBlockAndUpdate(base.offset(-2, 2, -6), ModRegistry.LOCOMOTION_CONTROLLER.get().defaultBlockState());
-                sp.serverLevel().setBlockAndUpdate(base.offset(0, 2, -6), ModRegistry.JUMP_DRIVE.get().defaultBlockState()); });
-            case 43 -> server(sp -> look(sp, base.offset(-1, 3, -10), base.offset(-3, 1, -6)));
+                sp.serverLevel().setBlockAndUpdate(base.offset(0, 2, -6), ModRegistry.JUMP_DRIVE.get().defaultBlockState());
+                var lv2 = sp.serverLevel();
+                // size-based parts: a 2x2 bearing (axis Z), a 2x2 motor (axis Z), a 2x2x2 ball joint, a gyro
+                for (int du = 0; du < 2; du++) for (int dv = 0; dv < 2; dv++) {
+                    lv2.setBlockAndUpdate(base.offset(-8 + du, 1 + dv, -8), ModRegistry.BEARING.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z));
+                    lv2.setBlockAndUpdate(base.offset(-5 + du, 1 + dv, -8), ModRegistry.MOTOR.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z));
+                    lv2.setBlockAndUpdate(base.offset(-2 + du, 1, -9 + dv), ModRegistry.SOCKET.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.UP, true));
+                    lv2.setBlockAndUpdate(base.offset(-2 + du, 2, -9 + dv), ModRegistry.BALL_HALF.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.UP, false));
+                }
+                lv2.setBlockAndUpdate(base.offset(1, 1, -8), ModRegistry.SMALL_GYRO.get().defaultBlockState());
+                lv2.setBlockAndUpdate(base.offset(3, 1, -8), ModRegistry.POWERED_BALL_JOINT.get().defaultBlockState()); });
+            case 43 -> server(sp -> look(sp, base.offset(-2, 4, -13), base.offset(-3, 1, -7)));
             case 50 -> shot("0a_gearboxes");
             case 51 -> server(sp -> { for (int i = 0; i < 4; i++) { sp.serverLevel().removeBlock(base.offset(-6 + i * 2, 1, -6), false); sp.serverLevel().removeBlock(base.offset(-6 + i * 2, 2, -6), false); } });
             case 52 -> server(sp -> look(sp, base.offset(1, 9, -1), base.offset(0, 8, 1)));

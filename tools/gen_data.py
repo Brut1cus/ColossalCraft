@@ -267,10 +267,26 @@ for n, cas, core, nm, cn, kn in [
     ('fusion_torus', 'containment_casing', 'plasma_coil', 'Fusion Torus', 'Magnetic Containment Casing', 'Plasma Coil'),
     ('zero_point_core', 'singularity_casing', 'vacuum_lattice', 'Zero-Point Core', 'Singularity Casing', 'Vacuum Lattice'),
     ('gyro_array', 'gyro_casing', 'gyro_rotor', 'Gyro Array', 'Gyro Casing', 'Gyro Rotor')]:
-    cube_all(cas, name=cn); cube_all(core, name=kn); controller(n, cas, nm)
+    cube_all(cas, name=cn); (cube_all(core, name=kn) if core != 'gyro_rotor' else None); controller(n, cas, nm)
 cube_all('null_singularity', name='Null Singularity')
 controller('grand_gyroscope', 'gyro_casing', 'Grand Gyroscope')
-cube_all('small_gyro', name='Pocket Gyro')
+# Gyros: a frame (fixed), an outer ring turning about Y (tint 9), a gimbal ring about X (tint 10) and a fast rotor disc about Z (tint 11)
+def gyro_model(n, frame_tex, name):
+    def el(lo, hi, t, tint=None):
+        return {'from': lo, 'to': hi, 'faces': {f: dict({'texture': t, 'uv': fit_uv(f, lo, hi)}, **({'tintindex': tint} if tint is not None else {})) for f in ('north', 'south', 'east', 'west', 'up', 'down')}}
+    els = [el([0, 0, 0], [16, 2, 16], '#frame'), el([0, 14, 0], [16, 16, 16], '#frame')]
+    for x, z in ((0, 0), (14, 0), (0, 14), (14, 14)): els.append(el([x, 2, z], [x + 2, 14, z + 2], '#frame'))
+    # outer ring in the XY plane (spins about Y)
+    els += [el([2.5, 2.5, 7.5], [13.5, 3.5, 8.5], '#ring', 9), el([2.5, 12.5, 7.5], [13.5, 13.5, 8.5], '#ring', 9), el([2.5, 3.5, 7.5], [3.5, 12.5, 8.5], '#ring', 9), el([12.5, 3.5, 7.5], [13.5, 12.5, 8.5], '#ring', 9)]
+    # gimbal in the YZ plane (about X)
+    els += [el([7.5, 4, 4], [8.5, 5, 12], '#ring', 10), el([7.5, 11, 4], [8.5, 12, 12], '#ring', 10), el([7.5, 5, 4], [8.5, 11, 5], '#ring', 10), el([7.5, 5, 11], [8.5, 11, 12], '#ring', 10)]
+    # rotor disc + hub (about Z)
+    els += [el([5, 5, 7], [11, 11, 9], '#disc', 11), el([7, 7, 5], [9, 9, 11], '#ring', 11)]
+    w(f'{A}/models/block/{n}.json', {'parent': 'minecraft:block/block', 'textures': {'frame': tex(frame_tex), 'ring': tex('gyro_ring'), 'disc': tex('gyro_disc'), 'particle': tex(frame_tex)}, 'elements': els})
+    w(f'{A}/blockstates/{n}.json', {'variants': {'': {'model': f'{NS}:block/{n}'}}})
+    blocks.append(n); NAMES[n] = name
+gyro_model('small_gyro', 'small_gyro', 'Pocket Gyro')
+gyro_model('gyro_rotor', 'gyro_casing', 'Gyro Rotor')
 # --- thrusters (6 directions, nozzle = north face of model) ---
 D6 = {'north': {}, 'south': {'y': 180}, 'east': {'y': 90}, 'west': {'y': 270}, 'up': {'x': 270}, 'down': {'x': 90}}
 for n, nm in [('steam_vent', 'Steam Vent'), ('blaze_jet', 'Blaze Jet'), ('arc_thruster', 'Arc Thruster'), ('ion_lance', 'Ion Lance'), ('graviton_lens', 'Graviton Lens')]:

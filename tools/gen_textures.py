@@ -268,4 +268,10 @@ for gy in range(3, 13, 3):
 for (x, y) in ((5, 9), (6, 9), (5, 10), (6, 10), (9, 5), (10, 5), (9, 6), (10, 6)): px(sf, x, y, hx(0x9dffbf))   # two footprints
 for (x, y) in ((9, 9), (10, 9), (9, 10), (10, 10)): px(sf, x, y, hx(0xffd45c))                                  # the next step
 save(sf, B, 'step_controller_front')
+gr = base(hx(0xc9a24a), 736, 0.06)
+for x in range(16): px(gr, x, 7, hx(0xf2d27a)); px(gr, x, 8, hx(0x8a6a2a))
+save(gr, B, 'gyro_ring')
+gd2 = base(hx(0x5c6670), 737); circle(gd2, 8, 8, 7, hx(0x8a96a2)); circle(gd2, 8, 8, 7, hx(0xffb43a), False)
+for k in range(4): px(gd2, 8 + (3 if k == 0 else -3 if k == 1 else 0), 8 + (3 if k == 2 else -3 if k == 3 else 0), hx(0x2c2c2c))
+save(gd2, B, 'gyro_disc')
 print('loco textures done')

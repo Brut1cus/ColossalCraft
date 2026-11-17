@@ -38,9 +38,10 @@ public class StructureModel {
     public static final String GAIT = "_gait";
     /** Reserved key for Locomotion Controller settings (IK solver, gait type, keys). */
     public static final String LOCO = "_loco";
-    public static final String[] IK_MODES = {"Analytic 2-link", "FABRIK", "CCD"};
-    public static final String[] GAIT_MODES = {"Biped", "Biped (digitigrade)", "Quadruped", "Spider", "Custom"};
-    public static final int GAIT_BIPED = 0, GAIT_DIGI = 1, GAIT_QUAD = 2, GAIT_SPIDER = 3, GAIT_CUSTOM = 4;
+    public static final String[] IK_MODES = {"Auto", "Analytic 2-link", "Analytic 3-link", "FABRIK", "CCD"};
+    public static final int IK_AUTO = 0, IK_ANALYTIC2 = 1, IK_ANALYTIC3 = 2, IK_FABRIK = 3, IK_CCD = 4;
+    public static final String[] GAIT_MODES = {"Biped", "Biped (digitigrade)", "Quadruped", "Spider", "Custom", "Triped", "Wave"};
+    public static final int GAIT_BIPED = 0, GAIT_DIGI = 1, GAIT_QUAD = 2, GAIT_SPIDER = 3, GAIT_CUSTOM = 4, GAIT_TRIPED = 5, GAIT_WAVE = 6;
     public int ikMode = 0, gaitMode = 0, locoControllers, jumpDrives;
     /** Steps per second (one full leg cycle). */
     public double gaitSpeed = 0.5;
@@ -50,7 +51,13 @@ public class StructureModel {
     /** Share of each step cycle a foot is on the ground. */
     public double duty() {
         if (gaitDutyCfg > 0) return gaitDutyCfg;
-        return switch (gaitMode) { case GAIT_QUAD -> 0.7; case GAIT_SPIDER, GAIT_CUSTOM -> 0.65; default -> 0.6; };
+        int n = Math.max(1, legChains.size());
+        return switch (gaitMode) {
+            case GAIT_QUAD -> 0.7; case GAIT_SPIDER, GAIT_CUSTOM -> 0.65;
+            case GAIT_TRIPED -> 0.75;                                   // one leg of three up at a time
+            case GAIT_WAVE -> Math.max(0.6, 1 - 0.9 / n);              // one leg up at a time: slow and very steady
+            default -> 0.6;
+        };
     }
     /** Grip of a block from its slipperiness (vanilla friction: 0.6 normal, 0.98 ice). */
     public static double grip(double friction) { return Math.max(0.02, Math.min(1.5, 2.5 * (1 - friction))); }
@@ -122,6 +129,10 @@ public class StructureModel {
     public final Set<Integer> footSegs = new TreeSet<>();
     /** Blocks of big ball joints that move with the child part (the rest stay with the parent). */
     public final Set<BlockPos> ballChildSide = new HashSet<>();
+    /** Powered ball joints: how far each tilts its foot to match the ground (radians, about the right and forward axes). */
+    public double[] ballPitch = new double[0], ballRoll = new double[0];
+    /** Ankle torque of powered ball joints that carry a foot: it lets a walker balance a little further out, like a gyro. */
+    public double ankleTorque() { double t = 0; for (Joint j : joints) if (j.powered && j.footShare > 0) t += j.motorTorque; return t; }
     /**
      * A leg for the walker controller: joints set to Leg on the way from the body down to a foot (top first).
      * hip/foot are rest positions (local). length = hip to foot. minLen < length if the leg has a knee.
@@ -625,6 +636,7 @@ public class StructureModel {
             while (c2 > 0 && g2++ < 1000) { legSegs.add(c2); Seg sg = segs.get(c2); if (sg.parentJoint < 0 || sg.parentJoint == hipJ.id) break; c2 = Math.max(0, joints.get(sg.parentJoint).parentSeg); }
         }
         assignGroups();
+        ballPitch = new double[joints.size()]; ballRoll = new double[joints.size()];
         ikAngles = new double[joints.size()]; Arrays.fill(ikAngles, Double.NaN); ikPrev = ikAngles.clone();
     }
 
@@ -637,6 +649,17 @@ public class StructureModel {
         int[] grp = new int[n];
         switch (gaitMode) {
             case GAIT_CUSTOM -> { for (int i = 0; i < n; i++) grp[i] = Math.max(0, Math.min(3, legChains.get(i).group())); }
+            case GAIT_TRIPED -> { // three groups going round the body (three legs: one at a time)
+                Integer[] idx = new Integer[n]; for (int i = 0; i < n; i++) idx[i] = i;
+                Arrays.sort(idx, Comparator.comparingDouble(i -> { Vec3 d = legChains.get(i).foot().subtract(com); return Math.atan2(d.z, d.x); }));
+                for (int k = 0; k < n; k++) grp[idx[k]] = k % 3;
+            }
+            case GAIT_WAVE -> { // one leg at a time: right side back to front, then left side back to front
+                Integer[] idx = new Integer[n]; for (int i = 0; i < n; i++) idx[i] = i;
+                Arrays.sort(idx, Comparator.comparingDouble((Integer i) -> legChains.get(i).foot().subtract(com).dot(right) < 0 ? 1 : 0)
+                        .thenComparingDouble(i -> legChains.get(i).foot().subtract(com).dot(f)));
+                for (int k = 0; k < n; k++) grp[idx[k]] = k;
+            }
             case GAIT_SPIDER -> { // alternating tripods/waves going round the body
                 Integer[] idx = new Integer[n]; for (int i = 0; i < n; i++) idx[i] = i;
                 Arrays.sort(idx, Comparator.comparingDouble(i -> { Vec3 d = legChains.get(i).foot().subtract(com); return Math.atan2(d.z, d.x); }));
@@ -723,6 +746,23 @@ public class StructureModel {
     public boolean hasWalkers() { for (Joint j : joints) if ((j.mode == WALK_A || j.mode == WALK_B || j.mode == PROGRAM) && !j.stalled()) return true; return false; }
     public double walkDrive() { double d = 0; for (Joint j : joints) if ((j.mode == WALK_A || j.mode == WALK_B || j.mode == PROGRAM) && !j.stalled()) d += j.motorDrive; return d; }
     public double walkPower() { double d = 0; for (Joint j : joints) if (j.active()) d += j.motorPower; return d; }
+    /** Power the leg motors use at full effort (CJ/t): their draw at 0.5 steps a second. */
+    public double legMotorPower() {
+        double p = 0; Set<Integer> seen = new HashSet<>();
+        for (LegChain L : legChains) for (int j : L.joints()) if (seen.add(j)) p += joints.get(j).motorPower;
+        return p;
+    }
+    /** Fastest step rate (cycles/s) the engines can feed, after gyros, Step Controllers and powered ball joints. */
+    public double powerSpeedCap() {
+        double legs = legMotorPower();
+        if (legs <= 0) return 4;
+        double base = gyroPower + stepControllers * StepControllerBlock.POWER;
+        for (Joint j : joints) if (j.powered) base += j.motorPower;
+        double spare = output - base;
+        return Math.max(0.05, Math.min(4, 0.5 * spare / legs));
+    }
+    /** Step rate actually used: the Locomotion Controller's setting, but no faster than the power allows. */
+    public double stepSpeed(boolean sprint) { return Math.min(gaitSpeed * (sprint ? 1.6 : 1), powerSpeedCap()); }
     public double maxDraw() { double d = drivePower + gyroPower + walkPower(); for (double v : thrustPow) d += v; return d; }
 
     /** Hinge angle (radians) for a joint given the animation state. */
@@ -762,6 +802,10 @@ public class StructureModel {
             Matrix4d parent = j.parentSeg >= 0 && out[j.parentSeg] != null ? out[j.parentSeg] : new Matrix4d();
             if (j.ball) { // undo the parent's turning (within the limit) so the part below stays level
                 org.joml.Quaterniond q = parent.getNormalizedRotation(new org.joml.Quaterniond()).invert();
+                if (j.powered && j.id < ballPitch.length && (ballPitch[j.id] != 0 || ballRoll[j.id] != 0)) { // a powered ankle tilts the foot to the ground
+                    Vec3 f = Vec3.atLowerCornerOf(forward.getNormal()), r = new Vec3(-f.z, 0, f.x);
+                    q.mul(new org.joml.Quaterniond().rotateAxis(ballPitch[j.id], r.x, r.y, r.z).rotateAxis(ballRoll[j.id], f.x, f.y, f.z));
+                }
                 double angQ = 2 * Math.acos(Math.min(1, Math.abs(q.w))), lim = Math.toRadians(Math.max(5, Math.min(90, j.amp * 2)));
                 if (angQ > lim) q = new org.joml.Quaterniond().slerp(q, lim / angQ);
                 out[s.id] = new Matrix4d(parent).translate(j.pivot.x, j.pivot.y, j.pivot.z).rotate(q).translate(-j.pivot.x, -j.pivot.y, -j.pivot.z);

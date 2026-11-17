@@ -88,7 +88,7 @@ public class HullCoreScreen extends Screen {
             Button b = Button.builder(Component.literal(TABS[i]), x -> { tab = ti; scroll = 0; rebuild(); }).bounds(l + 6, t + 28 + i * 24, NAV - 10, 20).build();
             b.active = tab != i; addRenderableWidget(b);
         }
-        if (!loco()) { // the Locomotion Controller only sets up legs; hover and building live on the Hull Core
+        if (!loco() && data.getInt("Thrusters") > 0) { // hover needs thrusters; the Locomotion Controller only sets up legs
             Button hover = Button.builder(Component.literal("Hover: " + (data.getBoolean("Hover") ? "ON" : "OFF")), x -> send(3, -1, 0)).bounds(l + 6, t + H - 76, NAV - 10, 18).build();
             hover.setTooltip(Tooltip.create(Component.literal("Hover assist: thrusters hold height on their own when you don't press up/down.")));
             addRenderableWidget(hover);
@@ -153,10 +153,10 @@ public class HullCoreScreen extends Screen {
     private void gaitWidgets(int x, int y) {
         int ik = data.getInt("IKMode"), gm = data.getInt("GaitMode");
         Button b1 = Button.builder(Component.literal("IK: " + com.colossalcraft.colossus.StructureModel.IK_MODES[ik]), z -> send(11, -1, ik + 1)).bounds(x, y + 10, 156, 15).build();
-        b1.setTooltip(Tooltip.create(Component.literal("Analytic 2-link: exact hip+knee solution (falls back to FABRIK for longer legs). FABRIK: fast, any number of joints in the leg's plane. CCD: works with any joint axes.")));
+        b1.setTooltip(Tooltip.create(Component.literal("Auto: picks per leg (2 joints: Analytic 2-link, 3 joints: Analytic 3-link, more: FABRIK, mixed axes: CCD). Analytic 2-link: exact hip+knee. Analytic 3-link: hip, knee and ankle with the foot kept flat. FABRIK: any number of joints in the leg's plane. CCD: any joint axes.")));
         addRenderableWidget(b1);
         Button b2 = Button.builder(Component.literal("Gait: " + com.colossalcraft.colossus.StructureModel.GAIT_MODES[gm]), z -> send(12, -1, gm + 1)).bounds(x + 160, y + 10, 156, 15).build();
-        b2.setTooltip(Tooltip.create(Component.literal("Biped: left/right. Digitigrade: knees bend backwards like a bird. Quadruped: diagonal pairs step together. Spider: every other leg round the body. Custom: set each leg's step group in Joints.")));
+        b2.setTooltip(Tooltip.create(Component.literal("Biped: left/right. Digitigrade: knees bend backwards like a bird. Quadruped: diagonal pairs step together. Spider: every other leg round the body. Custom: set each leg's step group in Joints. Triped: three legs (or groups of three) step in turn round the body. Wave: one leg at a time, slow and steady.")));
         addRenderableWidget(b2);
         int gs = (int) Math.round(data.getDouble("GaitSpeed") * 100), st = (int) Math.round(data.getDouble("GaitStride") * 100),
                 lf = (int) Math.round(data.getDouble("GaitLift") * 100), du = (int) Math.round(data.getDouble("GaitDuty") * 100);
@@ -187,8 +187,11 @@ public class HullCoreScreen extends Screen {
         double reachH = Double.MAX_VALUE, legLen = 1;
         for (Tag tg : legs) { CompoundTag lt = (CompoundTag) tg; reachH = Math.min(reachH, lt.getFloat("Len") * Math.sin(Math.min(lt.getFloat("Lim"), Math.toRadians(60)))); legLen = Math.max(legLen, lt.getFloat("Len")); }
         if (legs.isEmpty()) reachH = 1;
+        double cap = data.contains("PowerCap") ? data.getDouble("PowerCap") : 99, setSpeed = speed;
+        speed = Math.min(speed, cap); // the engines decide how fast the legs can really step
         double stride = Math.min(1.6 * reachH, strideF * 1.2 * reachH), cycle = 1 / Math.max(0.05, speed), v = stride / (duty * cycle);
-        g.drawString(font, String.format("Speed %.2f /s", speed), x, y + 33, TXT, false);
+        g.drawString(font, setSpeed > cap + 1e-6 ? String.format("Speed %.2f/s (power %.2f)", setSpeed, cap) : String.format("Speed %.2f /s", speed), x, y + 33, setSpeed > cap + 1e-6 ? WARN : TXT, false);
+        if (setSpeed > cap + 1e-6) tips.add(new Tip(x, y + 32, x + 118, y + 42, "The engines can only feed the leg motors for " + String.format("%.2f", cap) + " steps a second. Add engines (or fewer gyros/controllers) to step faster."));
         g.drawString(font, String.format("Stride %.0f%% (%.1f b)", strideF * 100, stride), x + 160, y + 33, TXT, false);
         g.drawString(font, String.format("Lift %.0f%% (%.1f b)", liftF * 100, liftF * legLen), x, y + 49, TXT, false);
         g.drawString(font, String.format("Stance %.0f%%%s", duty * 100, data.getBoolean("GaitDutyAuto") ? " auto" : ""), x + 160, y + 49, TXT, false);

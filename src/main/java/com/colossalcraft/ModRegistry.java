@@ -109,9 +109,9 @@ public final class ModRegistry {
 
     // ---- gyros ----
     static { cat = Cat.PROPULSION; }
-    public static final DeferredBlock<GyroBlock> SMALL_GYRO = block("small_gyro", p -> new GyroBlock(20_000, p), metal());
+    public static final DeferredBlock<GyroBlock> SMALL_GYRO = block("small_gyro", p -> new GyroBlock(20_000, p), metal().noOcclusion());
     public static final DeferredBlock<Block> GYRO_CASING = block("gyro_casing", Block::new, metal());
-    public static final DeferredBlock<Block> GYRO_ROTOR = block("gyro_rotor", Block::new, metal());
+    public static final DeferredBlock<Block> GYRO_ROTOR = block("gyro_rotor", Block::new, metal().noOcclusion());
     public static final DeferredBlock<ControllerBlock> GYRO_ARRAY = block("gyro_array", p -> new ControllerBlock(MultiblockDef.GYRO_ARRAY, null, 600_000, p), metal());
     public static final DeferredBlock<ControllerBlock> GRAND_GYROSCOPE = block("grand_gyroscope", p -> new ControllerBlock(MultiblockDef.GRAND_GYRO, null, 6_000_000, p), metal());
 
