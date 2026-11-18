@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/singularity_casing"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/singularity_casing"}}}

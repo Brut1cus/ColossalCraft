@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/ender_coil"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/ender_coil"}}}

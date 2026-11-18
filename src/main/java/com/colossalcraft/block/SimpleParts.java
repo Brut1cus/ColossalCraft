@@ -32,14 +32,8 @@ public final class SimpleParts {
         public boolean ball() { return this == BALL || this == POWERED_BALL; }
     }
 
-    /** Grid assembly state: assembly side (1..4), this block's place in it, and "keep separate" (placed while sneaking). */
-    public static final net.minecraft.world.level.block.state.properties.IntegerProperty SIZE = net.minecraft.world.level.block.state.properties.IntegerProperty.create("size", 1, 4);
-    public static final net.minecraft.world.level.block.state.properties.IntegerProperty GU = net.minecraft.world.level.block.state.properties.IntegerProperty.create("gu", 0, 3);
-    public static final net.minecraft.world.level.block.state.properties.IntegerProperty GV = net.minecraft.world.level.block.state.properties.IntegerProperty.create("gv", 0, 3);
+    /** Grid assembly state: the place in the assembly is {@link Cells}; LONE = "keep separate" (placed while sneaking). */
     public static final net.minecraft.world.level.block.state.properties.BooleanProperty LONE = net.minecraft.world.level.block.state.properties.BooleanProperty.create("lone");
-    /** Ball joint assemblies also stack: HT = how many layers high (1..size), GH = this block's layer in it. */
-    public static final net.minecraft.world.level.block.state.properties.IntegerProperty HT = net.minecraft.world.level.block.state.properties.IntegerProperty.create("ht", 1, 4);
-    public static final net.minecraft.world.level.block.state.properties.IntegerProperty GH = net.minecraft.world.level.block.state.properties.IntegerProperty.create("gh", 0, 3);
 
     /** Blocks that join their neighbours into square grids (bearings, motors) or boxes (ball joints). */
     public interface GridBlock {
@@ -82,8 +76,8 @@ public final class SimpleParts {
 
     /** Bearing: the main hinge joint. Bearings side by side (across their axis) join into 2x2, 3x3 and 4x4 assemblies. */
     public static class BearingBlock extends JointBlock implements GridBlock {
-        public BearingBlock(Properties p) { super(JointShape.FULL, p); registerDefaultState(defaultBlockState().setValue(SIZE, 1).setValue(GU, 0).setValue(GV, 0).setValue(LONE, false)); }
-        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIZE, GU, GV, LONE); }
+        public BearingBlock(Properties p) { super(JointShape.FULL, p); registerDefaultState(defaultBlockState().setValue(Cells.CELL, 0).setValue(LONE, false)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(Cells.CELL, LONE); }
         @Override public BlockState getStateForPlacement(BlockPlaceContext c) { BlockState s = super.getStateForPlacement(c); return s == null ? null : s.setValue(LONE, c.isSecondaryUseActive()); }
         public Direction.Axis[] plane(BlockState s) { return across(s.getValue(AXIS)); }
         @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) { super.onPlace(s, l, p, old, m); Grid.placed(l, p, old.getBlock() != this); }
@@ -95,12 +89,12 @@ public final class SimpleParts {
      *  A flat 2x1x2 turns +-45 degrees, a 2x2x2 cube +-90 (range = 90 * layers / side). Sneak to keep one separate. */
     public static class BallJointBlock extends JointBlock implements GridBlock {
         private static final VoxelShape SMALL = Block.box(2, 0, 2, 14, 16, 14);
-        public BallJointBlock(JointShape sh, Properties p) { super(sh, p); registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y).setValue(SIZE, 1).setValue(GU, 0).setValue(GV, 0).setValue(HT, 1).setValue(GH, 0).setValue(LONE, false)); }
-        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIZE, GU, GV, HT, GH, LONE); }
+        public BallJointBlock(JointShape sh, Properties p) { super(sh, p); registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y).setValue(Cells.BOX, 0).setValue(LONE, false)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(Cells.BOX, LONE); }
         @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(LONE, c.isSecondaryUseActive()); }
         public Direction.Axis[] plane(BlockState s) { return new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z}; }
         @Override public boolean stacks() { return true; }
-        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return s.getValue(SIZE) == 1 && s.getValue(HT) == 1 ? SMALL : Shapes.block(); }
+        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return s.getValue(Cells.BOX) == 0 ? SMALL : Shapes.block(); }
         @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) { super.onPlace(s, l, p, old, m); Grid.placed(l, p, old.getBlock() != this); }
         @Override protected void onRemove(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState now, boolean m) { boolean gone = now.getBlock() != this; Grid.removed(l, p, s, gone); super.onRemove(s, l, p, now, m); }
         @Override protected BlockState rotate(BlockState s, Rotation r) { return s; }
@@ -110,8 +104,8 @@ public final class SimpleParts {
 
     /** Servo motor. AXIS = its shaft. Motors side by side (across their axis) join into 2x2, 3x3, 4x4 motors: one shaft, n^n the torque. */
     public static class MotorBlock extends RotatedPillarBlock implements GridBlock {
-        public MotorBlock(Properties p) { super(p); registerDefaultState(defaultBlockState().setValue(SIZE, 1).setValue(GU, 0).setValue(GV, 0).setValue(LONE, false)); }
-        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(SIZE, GU, GV, LONE); }
+        public MotorBlock(Properties p) { super(p); registerDefaultState(defaultBlockState().setValue(Cells.CELL, 0).setValue(LONE, false)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(Cells.CELL, LONE); }
         @Override public BlockState getStateForPlacement(BlockPlaceContext c) { BlockState s = super.getStateForPlacement(c); return s == null ? null : s.setValue(LONE, c.isSecondaryUseActive()); }
         public Direction.Axis[] plane(BlockState s) { return across(s.getValue(AXIS)); }
         @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) { super.onPlace(s, l, p, old, m); Grid.placed(l, p, old.getBlock() != this); }
@@ -225,9 +219,19 @@ public final class SimpleParts {
     }
 
     /** One-block gyro. */
-    public static class GyroBlock extends Block {
+    /** Gyro: a reaction wheel. Gyros next to each other join into one big gyro (an n x n square, up to n layers high, like ball joints):
+     *  n^n the capacity, times layers / side. Optional for walkers; a helper for ships, jets and hovering craft. */
+    public static class GyroBlock extends Block implements GridBlock {
         public final double capacity;
-        public GyroBlock(double cap, Properties p) { super(p); capacity = cap; }
+        public GyroBlock(double cap, Properties p) { super(p); capacity = cap; registerDefaultState(defaultBlockState().setValue(Cells.BOX, 0).setValue(LONE, false)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(Cells.BOX, LONE); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(LONE, c.isSecondaryUseActive()); }
+        public Direction.Axis[] plane(BlockState s) { return new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z}; }
+        @Override public boolean stacks() { return true; }
+        @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) { super.onPlace(s, l, p, old, m); Grid.placed(l, p, old.getBlock() != this); }
+        @Override protected void onRemove(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState now, boolean m) { boolean gone = now.getBlock() != this; Grid.removed(l, p, s, gone); super.onRemove(s, l, p, now, m); }
+        /** Capacity of the whole assembly this block starts (counted once, at its first block). */
+        public double assemblyCapacity(BlockState s) { int n = Cells.size(s); return capacity * com.colossalcraft.tier.Parts.scale(n) * Cells.height(s) / n; }
     }
 
     /** Lift surface. */

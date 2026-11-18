@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/jump_drive"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/jump_drive"}}}

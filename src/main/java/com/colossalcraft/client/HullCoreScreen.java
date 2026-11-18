@@ -181,7 +181,8 @@ public class HullCoreScreen extends Screen {
                 lf = (int) Math.round(data.getDouble("GaitLift") * 100), du = (int) Math.round(data.getDouble("GaitDuty") * 100);
         boolean auto = data.getBoolean("GaitDutyAuto");
         // label | - | + in a 2x2 grid
-        stepper(x, y + 30, z -> send(9, -1, gs - (gs > 50 ? 10 : 5)), z -> send(9, -1, gs + (gs >= 50 ? 10 : 5)), "Step cycles per second. Faster steps = faster walking.");
+        int pace = (int) Math.round(data.getDouble("GaitPace") * 100);
+        stepper(x, y + 30, z -> send(9, -1, pace - 10), z -> send(9, -1, pace + 10), "Pace: share of the legs' natural step rate. Big legs step slowly (like a pendulum): the natural rate comes from leg length. Faster than 100% looks hurried and needs more power.");
         stepper(x + 160, y + 30, z -> send(16, 0, st - 5), z -> send(16, 0, st + 5), "Stride: how far each foot travels per step, as a share of the leg's reach. Longer = faster, but needs more balance.");
         stepper(x, y + 46, z -> send(16, 1, lf - 5), z -> send(16, 1, lf + 5), "Step height: how high a foot lifts, as a share of the leg's length. Higher clears steps and rough ground.");
         stepper(x + 160, y + 46, z -> send(16, 2, auto ? du - 5 : du - 5 < 50 ? 0 : du - 5), z -> send(16, 2, Math.max(50, du) + 5),
@@ -220,7 +221,7 @@ public class HullCoreScreen extends Screen {
         double cap = data.contains("PowerCap") ? data.getDouble("PowerCap") : 99, setSpeed = speed;
         speed = Math.min(speed, cap); // the engines decide how fast the legs can really step
         double stride = Math.min(1.6 * reachH, strideF * 1.2 * reachH), cycle = 1 / Math.max(0.05, speed), v = stride / (duty * cycle);
-        g.drawString(font, setSpeed > cap + 1e-6 ? String.format("Speed %.2f/s (power %.2f)", setSpeed, cap) : String.format("Speed %.2f /s", speed), x, y + 33, setSpeed > cap + 1e-6 ? WARN : TXT, false);
+        g.drawString(font, setSpeed > cap + 1e-6 ? String.format("Pace %.0f%% (power %.2f/s)", data.getDouble("GaitPace") * 100, cap) : String.format("Pace %.0f%% (%.2f/s)", data.getDouble("GaitPace") * 100, speed), x, y + 33, setSpeed > cap + 1e-6 ? WARN : TXT, false);
         if (setSpeed > cap + 1e-6) tips.add(new Tip(x, y + 32, x + 118, y + 42, "The engines can only feed the leg motors for " + String.format("%.2f", cap) + " steps a second. Add engines (or fewer gyros/controllers) to step faster."));
         g.drawString(font, String.format("Stride %.0f%% (%.1f b)", strideF * 100, stride), x + 160, y + 33, TXT, false);
         g.drawString(font, String.format("Lift %.0f%% (%.1f b)", liftF * 100, liftF * legLen), x, y + 49, TXT, false);
@@ -636,14 +637,12 @@ public class HullCoreScreen extends Screen {
         check(g, x, cy, overloaded ? 2 : 0, "Joints hold the weight", "A joint above 100% load will snap. Use a stronger material or a bigger joint (more joint blocks side by side)."); cy += 12;
         check(g, x, cy, stalled ? 1 : 0, "Motors strong enough", "A moving joint needs a Servo Motor touching it with enough torque to lift its limb."); cy += 12;
         if (data.getBoolean("Legged")) {
-            check(g, x, cy, data.getDouble("CoreGyro") > 0 ? 0 : 2, "Gyro in the core part", "Walkers balance from the Hull Core's part. Put a Pocket Gyro (or a gyro structure) in it. It needs power."); cy += 12;
             StringBuilder ft = new StringBuilder("Balance is passed up from the feet: every joint from each foot to the Hull Core needs a strong enough Servo Motor.");
             boolean legsOk = true;
             for (Tag f : list("Feet")) { CompoundTag fc = (CompoundTag) f; legsOk &= fc.getBoolean("Ok"); ft.append("\nFoot part ").append(fc.getInt("Seg")).append(": ").append(fc.getBoolean("Ok") ? "OK" : fc.getString("Problem")); }
             check(g, x, cy, legsOk ? 0 : 2, "Motors up every leg", ft.toString()); cy += 12;
             check(g, x, cy, data.getBoolean("Balanced") ? 0 : 2, "Weight over the feet", String.format("The centre of mass must sit over the feet (the gyro widens that area a little). Now %.1f blocks outside. See the Top view in Joints.", data.getDouble("BalanceOff"))); cy += 12;
         }
-        if (walkers) { check(g, x, cy, data.getDouble("Gyro") >= mass ? 0 : 1, "Gyros strong enough", "Walkers need gyro capacity at least equal to their mass to walk at full speed."); cy += 12; }
 
         int gx = x + 170, gw = W - NAV - 8 - 176;
         g.drawString(font, "STATUS", gx, y, DIM, false);

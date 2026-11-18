@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/hull_core"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/hull_core"}}}

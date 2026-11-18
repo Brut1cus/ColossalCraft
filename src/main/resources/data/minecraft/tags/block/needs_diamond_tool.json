@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "colossalcraft:obsidian_slab",
+    "colossalcraft:obsidian_vertical_slab",
+    "colossalcraft:obsidian_stairs"
+  ]
+}

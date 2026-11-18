@@ -25,12 +25,8 @@
     "colossalcraft:singularity_casing",
     "colossalcraft:vacuum_lattice",
     "colossalcraft:zero_point_core",
-    "colossalcraft:gyro_casing",
-    "colossalcraft:gyro_array",
     "colossalcraft:null_singularity",
-    "colossalcraft:grand_gyroscope",
     "colossalcraft:small_gyro",
-    "colossalcraft:gyro_rotor",
     "colossalcraft:steam_vent",
     "colossalcraft:blaze_jet",
     "colossalcraft:arc_thruster",
@@ -46,6 +42,10 @@
     {
       "id": "colossalcraft:kinetic_dynamo",
       "required": false
-    }
+    },
+    "colossalcraft:obsidian_slab",
+    "colossalcraft:obsidian_vertical_slab",
+    "colossalcraft:obsidian_stairs",
+    "colossalcraft:diamond_stonecutter"
   ]
 }

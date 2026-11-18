@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/null_singularity"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/null_singularity"}}}

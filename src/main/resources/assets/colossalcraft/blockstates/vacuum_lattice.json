@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/vacuum_lattice"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/vacuum_lattice"}}}

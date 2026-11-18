@@ -24,12 +24,8 @@
   "block.colossalcraft.singularity_casing": "Singularity Casing",
   "block.colossalcraft.vacuum_lattice": "Vacuum Lattice",
   "block.colossalcraft.zero_point_core": "Zero-Point Core",
-  "block.colossalcraft.gyro_casing": "Gyro Casing",
-  "block.colossalcraft.gyro_array": "Gyro Array",
   "block.colossalcraft.null_singularity": "Null Singularity",
-  "block.colossalcraft.grand_gyroscope": "Grand Gyroscope",
-  "block.colossalcraft.small_gyro": "Pocket Gyro",
-  "block.colossalcraft.gyro_rotor": "Gyro Rotor",
+  "block.colossalcraft.small_gyro": "Gyro",
   "block.colossalcraft.steam_vent": "Steam Vent",
   "block.colossalcraft.blaze_jet": "Blaze Jet",
   "block.colossalcraft.arc_thruster": "Arc Thruster",
@@ -66,6 +62,11 @@
   "block.colossalcraft.locomotion_controller": "Locomotion Controller",
   "block.colossalcraft.jump_drive": "Jump Drive",
   "key.colossalcraft.loco": "Colossus: Open Locomotion Controller",
+  "key.colossalcraft.brake": "Colossus: Brake wheels (default)",
   "key.colossalcraft.jump": "Colossus: Jump Drive (default)",
-  "key.colossalcraft.brake": "Colossus: Brake wheels (default)"
+  "block.colossalcraft.diamond_stonecutter": "Diamond Stonecutter",
+  "block.colossalcraft.obsidian_slab": "Obsidian Slab",
+  "block.colossalcraft.obsidian_vertical_slab": "Obsidian Vertical Slab",
+  "block.colossalcraft.obsidian_stairs": "Obsidian Stairs",
+  "container.colossalcraft.diamond_stonecutter": "Diamond Stonecutter"
 }

@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/gantry_scaffold"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/gantry_scaffold"}}}

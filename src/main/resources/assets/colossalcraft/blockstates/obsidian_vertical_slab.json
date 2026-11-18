@@ -1,0 +1,1 @@
+{"variants":{"facing=north":{"model":"colossalcraft:block/obsidian_vertical_slab","uvlock":true},"facing=east":{"model":"colossalcraft:block/obsidian_vertical_slab","uvlock":true,"y":90},"facing=south":{"model":"colossalcraft:block/obsidian_vertical_slab","uvlock":true,"y":180},"facing=west":{"model":"colossalcraft:block/obsidian_vertical_slab","uvlock":true,"y":270}}}

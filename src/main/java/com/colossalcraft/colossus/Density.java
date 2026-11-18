@@ -55,9 +55,10 @@ public final class Density extends SimpleJsonResourceReloadListener {
         for (var t : TAGS) if (s.is(t.getKey())) return t.getValue();
         Block b = s.getBlock();
         ResourceLocation id = BuiltInRegistries.BLOCK.getKey(b);
-        if (id.getNamespace().equals(com.colossalcraft.ColossalCraft.MODID)) return id.getPath().equals("sky_sail") ? 300 : 3000; // light alloy parts
+        if (id.getNamespace().equals(com.colossalcraft.ColossalCraft.MODID)) return id.getPath().equals("sky_sail") ? 300 : id.getPath().contains("obsidian") ? 2600 : 3000; // light alloy parts
         if (b == Blocks.IRON_BLOCK) return 7870; if (b == Blocks.GOLD_BLOCK) return 19300; if (b == Blocks.NETHERITE_BLOCK) return 25000;
-        if (b == Blocks.DIAMOND_BLOCK) return 3500; if (b == Blocks.OBSIDIAN || b == Blocks.CRYING_OBSIDIAN) return 2600;
+        // storage blocks of precious things are heavy (a walker built of them needs much bigger joints than a stone one)
+        if (b == Blocks.DIAMOND_BLOCK || b == Blocks.EMERALD_BLOCK) return 9000; if (b == Blocks.REDSTONE_BLOCK) return 8000; if (b == Blocks.LAPIS_BLOCK) return 7000; if (b == Blocks.OBSIDIAN || b == Blocks.CRYING_OBSIDIAN) return 2600;
         if (b == Blocks.COPPER_BLOCK) return 8960;
         if (s.is(BlockTags.WOOL) || s.is(BlockTags.WOOL_CARPETS)) return 120;
         Double byName = byName(id.getPath());

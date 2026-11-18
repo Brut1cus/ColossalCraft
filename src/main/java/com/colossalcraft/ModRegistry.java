@@ -35,6 +35,14 @@ public final class ModRegistry {
     public static final DeferredRegister<net.minecraft.world.inventory.MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, ColossalCraft.MODID);
     public static final DeferredHolder<net.minecraft.world.inventory.MenuType<?>, net.minecraft.world.inventory.MenuType<EngineMenu>> ENGINE_MENU =
             MENUS.register("engine", () -> net.neoforged.neoforge.common.extensions.IMenuTypeExtension.create(EngineMenu::new));
+    public static final DeferredHolder<net.minecraft.world.inventory.MenuType<?>, net.minecraft.world.inventory.MenuType<com.colossalcraft.block.Cutting.Menu>> DIAMOND_CUTTER_MENU =
+            MENUS.register("diamond_stonecutter", () -> new net.minecraft.world.inventory.MenuType<>(com.colossalcraft.block.Cutting.Menu::new, net.minecraft.world.flag.FeatureFlags.VANILLA_SET));
+    public static final DeferredRegister<net.minecraft.world.item.crafting.RecipeType<?>> RECIPE_TYPES = DeferredRegister.create(Registries.RECIPE_TYPE, ColossalCraft.MODID);
+    public static final DeferredRegister<net.minecraft.world.item.crafting.RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister.create(Registries.RECIPE_SERIALIZER, ColossalCraft.MODID);
+    public static final DeferredHolder<net.minecraft.world.item.crafting.RecipeType<?>, net.minecraft.world.item.crafting.RecipeType<com.colossalcraft.block.Cutting.Recipe>> DIAMOND_CUTTING =
+            RECIPE_TYPES.register("diamond_cutting", () -> net.minecraft.world.item.crafting.RecipeType.simple(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(ColossalCraft.MODID, "diamond_cutting")));
+    public static final DeferredHolder<net.minecraft.world.item.crafting.RecipeSerializer<?>, net.minecraft.world.item.crafting.RecipeSerializer<com.colossalcraft.block.Cutting.Recipe>> DIAMOND_CUTTING_SERIALIZER =
+            RECIPE_SERIALIZERS.register("diamond_cutting", com.colossalcraft.block.Cutting::serializer);
     public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, ColossalCraft.MODID);
 
     public static final List<DeferredBlock<?>> ALL_BLOCKS = new ArrayList<>();
@@ -107,10 +115,6 @@ public final class ModRegistry {
     // ---- gyros ----
     static { cat = Cat.PROPULSION; }
     public static final DeferredBlock<GyroBlock> SMALL_GYRO = block("small_gyro", p -> new GyroBlock(20_000, p), metal().noOcclusion());
-    public static final DeferredBlock<Block> GYRO_CASING = block("gyro_casing", Block::new, metal());
-    public static final DeferredBlock<Block> GYRO_ROTOR = block("gyro_rotor", Block::new, metal().noOcclusion());
-    public static final DeferredBlock<ControllerBlock> GYRO_ARRAY = block("gyro_array", p -> new ControllerBlock(MultiblockDef.GYRO_ARRAY, null, 600_000, p), metal());
-    public static final DeferredBlock<ControllerBlock> GRAND_GYROSCOPE = block("grand_gyroscope", p -> new ControllerBlock(MultiblockDef.GRAND_GYRO, null, 6_000_000, p), metal());
 
     // ---- thrusters & aero ----
     public static final DeferredBlock<ThrusterBlock> STEAM_VENT = block("steam_vent", p -> new ThrusterBlock(ThrusterTier.STEAM, p), metal().noOcclusion());
@@ -128,6 +132,15 @@ public final class ModRegistry {
 
     // ---- items ----
     static { cat = Cat.MATERIALS; }
+    // obsidian armour pieces: only the Diamond Stonecutter can cut obsidian
+    public static final DeferredBlock<com.colossalcraft.block.Cutting.DiamondStonecutterBlock> DIAMOND_STONECUTTER = block("diamond_stonecutter", com.colossalcraft.block.Cutting.DiamondStonecutterBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(net.minecraft.world.level.block.Blocks.STONECUTTER));
+    public static final DeferredBlock<net.minecraft.world.level.block.SlabBlock> OBSIDIAN_SLAB = block("obsidian_slab", net.minecraft.world.level.block.SlabBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(net.minecraft.world.level.block.Blocks.OBSIDIAN));
+    public static final DeferredBlock<com.colossalcraft.block.Cutting.VerticalSlabBlock> OBSIDIAN_VERTICAL_SLAB = block("obsidian_vertical_slab", com.colossalcraft.block.Cutting.VerticalSlabBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(net.minecraft.world.level.block.Blocks.OBSIDIAN));
+    public static final DeferredBlock<net.minecraft.world.level.block.StairBlock> OBSIDIAN_STAIRS = block("obsidian_stairs", p -> new net.minecraft.world.level.block.StairBlock(net.minecraft.world.level.block.Blocks.OBSIDIAN.defaultBlockState(), p),
+            BlockBehaviour.Properties.ofFullCopy(net.minecraft.world.level.block.Blocks.OBSIDIAN));
     public static final DeferredItem<Item> COLOSSTEEL_BLEND = item("colossteel_blend");
     public static final DeferredItem<Item> COLOSSTEEL_INGOT = item("colossteel_ingot");
     public static final DeferredItem<Item> REACTOR_ALLOY = item("reactor_alloy");
@@ -140,7 +153,7 @@ public final class ModRegistry {
     @SuppressWarnings("DataFlowIssue")
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PowerBlockEntity>> POWER_BE = BES.register("power", () ->
             BlockEntityType.Builder.of(PowerBlockEntity::new, EMBER_BOILER.get(), BLAZE_COMBUSTOR.get(), REDSTONE_DYNAMO.get(), ION_DRIVE.get(),
-                    FISSION_REACTOR.get(), FUSION_TORUS.get(), ZERO_POINT_CORE.get(), GYRO_ARRAY.get(), GRAND_GYROSCOPE.get()).build(null));
+                    FISSION_REACTOR.get(), FUSION_TORUS.get(), ZERO_POINT_CORE.get()).build(null));
     @SuppressWarnings("DataFlowIssue")
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HullCoreBlockEntity>> HULL_CORE_BE = BES.register("hull_core", () ->
             BlockEntityType.Builder.of(HullCoreBlockEntity::new, HULL_CORE.get()).build(null));
@@ -171,6 +184,6 @@ public final class ModRegistry {
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB_MATERIALS = tab(Cat.MATERIALS, "materials", () -> new ItemStack(COLOSSTEEL_INGOT.get()), "propulsion");
 
     public static void register(IEventBus bus) {
-        BLOCKS.register(bus); ITEMS.register(bus); BES.register(bus); ENTITIES.register(bus); TABS.register(bus); MENUS.register(bus);
+        BLOCKS.register(bus); ITEMS.register(bus); BES.register(bus); ENTITIES.register(bus); TABS.register(bus); MENUS.register(bus); RECIPE_TYPES.register(bus); RECIPE_SERIALIZERS.register(bus);
     }
 }

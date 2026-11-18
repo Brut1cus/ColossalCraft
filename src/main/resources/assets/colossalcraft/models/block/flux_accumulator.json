@@ -1,6 +1,1 @@
-{
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "colossalcraft:block/flux_accumulator"
-  }
-}
+{"parent":"minecraft:block/cube_all","textures":{"all":"colossalcraft:block/flux_accumulator"}}

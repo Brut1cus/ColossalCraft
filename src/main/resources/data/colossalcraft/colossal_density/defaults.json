@@ -2,7 +2,10 @@
   "values": {
     "minecraft:iron_block": 7870,
     "minecraft:gold_block": 19300,
-    "minecraft:diamond_block": 3500,
-    "#minecraft:logs": 650
+    "minecraft:diamond_block": 9000,
+    "#minecraft:logs": 650,
+    "minecraft:emerald_block": 9000,
+    "minecraft:redstone_block": 8000,
+    "minecraft:lapis_block": 7000
   }
 }

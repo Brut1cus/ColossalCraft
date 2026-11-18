@@ -93,7 +93,7 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             for (BlockPos p : s.blocks) {
                 Integer jid = m.jointOf.get(p);
                 double[] sp = m.spinParts.get(p);
-                if (jid != null && !m.joints.get(jid).childSegs.isEmpty()) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.STATIC, null, 0);
+                if (jid != null && (!m.joints.get(jid).childSegs.isEmpty() || m.joints.get(jid).mergedInto >= 0)) drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.STATIC, null, 0);
                 else if (m.blocks.get(p).getBlock() instanceof com.colossalcraft.block.SimpleParts.GearboxBlock)
                     drawBlock(e, m, p, local, ps, buf, pt, light, ex, ey, ez, level, lp, Part.ALL_SPIN_TOO, m.blocks.get(p).getValue(net.minecraft.world.level.block.DirectionalBlock.FACING).getAxis(),
                             sp == null ? 0 : angles[(int) sp[0]] * sp[1], sp == null ? 1 : sp[2]);
@@ -106,8 +106,9 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         // bearings: the outer housing turns with the part it moves, the inner shaft stays with the parent.
         // Ball joints: each base stays flat on the part it touches, the ball swivels halfway between them.
         for (StructureModel.Joint j : m.joints) {
-            if (j.childSegs.isEmpty()) continue;
-            int cs = j.childSegs.get(0);
+            java.util.List<Integer> kids = j.mergedInto >= 0 ? m.joints.get(j.mergedInto).childSegs : j.childSegs; // a parallel joint turns with its partner
+            if (kids.isEmpty()) continue;
+            int cs = kids.get(0);
             Matrix4d local = segM[cs];
             if (!j.ball) { drawJointPart(e, m, j, local, Part.SPIN, ps, buf, pt, light, ex, ey, ez, level, lp); continue; }
             Matrix4d parent = segM[Math.max(0, j.parentSeg)];
@@ -156,7 +157,7 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         super.render(e, yawIgnored, pt, ps, buf, light);
     }
 
-    private static boolean isGyro(BlockState st) { return st.getBlock() instanceof com.colossalcraft.block.SimpleParts.GyroBlock || st.getBlock() == com.colossalcraft.ModRegistry.GYRO_ROTOR.get(); }
+    private static boolean isGyro(BlockState st) { return st.getBlock() instanceof com.colossalcraft.block.SimpleParts.GyroBlock; }
     /** Gyro: the frame stays put; with power the outer ring turns about Y, the gimbal about X and the rotor spins fast about Z. */
     private void drawGyro(ColossusEntity e, StructureModel m, BlockPos p, Matrix4d local, PoseStack ps, MultiBufferSource buf, float pt, int light,
                           double ex, double ey, double ez, net.minecraft.client.multiplayer.ClientLevel level, BlockPos.MutableBlockPos lp) {
@@ -169,7 +170,10 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
         ps.pushPose();
         ps.translate(p.getX(), p.getY(), p.getZ());
         drawQuads(st, ps, buf, li, Part.STATIC);
-        org.joml.Vector3f c = new org.joml.Vector3f(0.5f, 0.5f, 0.5f);
+        // a big gyro: every block holds a slice of one big ring and rotor, all turning round the assembly's centre
+        int n = com.colossalcraft.block.Cells.size(st), hgt = com.colossalcraft.block.Cells.height(st);
+        org.joml.Vector3f c = new org.joml.Vector3f(n / 2f - com.colossalcraft.block.Cells.gu(st), hgt / 2f - com.colossalcraft.block.Cells.gh(st), n / 2f - com.colossalcraft.block.Cells.gv(st));
+        BlockPos o = com.colossalcraft.block.Grid.origin(p, st); t = (e.tickCount + pt) * (on ? 1 : 0) + (o.getX() * 7 + o.getZ() * 3);
         spinGroup(st, ps, buf, li, Part.SPIN, c, new org.joml.Vector3f(0, 1, 0), t * 0.12);
         spinGroup(st, ps, buf, li, Part.SPIN2, c, new org.joml.Vector3f(1, 0, 0), t * 0.07);
         spinGroup(st, ps, buf, li, Part.BALL, c, new org.joml.Vector3f(0, 0, 1), t * 0.9);

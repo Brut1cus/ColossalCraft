@@ -5,7 +5,7 @@ NS = 'colossalcraft'
 A = f'{R}/assets/{NS}'; D = f'{R}/data/{NS}'
 def w(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w') as f: json.dump(obj, f, indent=2)
+    with open(path, 'w') as f: json.dump(obj, f, indent=None if '/models/block/' in path or '/blockstates/' in path else 2, separators=(',', ':') if '/models/block/' in path or '/blockstates/' in path else None)
 def tex(n): return f'{NS}:block/{n}'
 NAMES = {}
 blocks = []
@@ -118,17 +118,17 @@ def cell_box(axis, n, gu, gv, ra, ru, rv, texv, tint=None):
         faces[f] = {'texture': texv, 'uv': fit_uv(f, lo, hi)}
         if tint is not None: faces[f]['tintindex'] = tint
     return {'from': lo, 'to': hi, 'faces': faces}
+# Grid places, numbered exactly like Java's Cells: CELL = (n, gu, gv) for squares, BOX = (n, h, gu, gv, gh) for boxes.
+GMAX = 6
+CELLS = [(n, u, v) for n in range(1, GMAX + 1) for u in range(n) for v in range(n)]
+BOXES = [(n, h, u, v, gh) for n in range(1, GMAX + 1) for h in range(1, n + 1) for gh in range(h) for u in range(n) for v in range(n)]
 def grid_variants(n_name, make_model, extra_keys, item_key):
-    # blockstate: every property combination -> its model (impossible combinations show the 1x1 model)
+    # blockstate: axis x cell -> its model (lone doesn't change the look, so it's left out of the keys)
     v = {}
-    props = {'axis': 'xyz', 'size': [1, 2, 3, 4], 'gu': [0, 1, 2, 3], 'gv': [0, 1, 2, 3], 'lone': ['false', 'true']}
-    props.update(extra_keys)
-    names = sorted(props)
-    for combo in itertools.product(*[props[k] for k in names]):
-        d = dict(zip(names, combo))
-        size, gu, gv = d['size'], d['gu'], d['gv']
-        if gu >= size or gv >= size: size, gu, gv = 1, 0, 0
-        v[','.join(f'{k}={str(d[k]).lower()}' for k in names)] = {'model': f'{NS}:block/' + make_model(d, size, gu, gv)}
+    for axis in 'xyz':
+        for i, (size, gu, gv) in enumerate(CELLS):
+            d = {'axis': axis}
+            v[f'axis={axis},cell={i}'] = {'model': f'{NS}:block/' + make_model(d, size, gu, gv)}
     w(f'{A}/blockstates/{n_name}.json', {'variants': v})
     w(f'{A}/models/item/{n_name}.json', {'parent': f'{NS}:block/{item_key}'})
 # Bearing: outer housing turns with the joint (tint 9); the inner shaft (fixed to the parent) is as thick as the square.
@@ -223,10 +223,8 @@ def ball_box_model(kind, n, gu, gv, h, gh):
     return name
 for n, title in (('ball_joint', 'Ball Joint'), ('powered_ball_joint', 'Powered Ball Joint')):
     v = {}
-    for size, gu, gv, ht, gh in itertools.product([1, 2, 3, 4], [0, 1, 2, 3], [0, 1, 2, 3], [1, 2, 3, 4], [0, 1, 2, 3]):
-        ok = gu < size and gv < size and ht <= size and gh < ht
-        mn = ball_box_model(n, size, gu, gv, ht, gh) if ok else ball_box_model(n, 1, 0, 0, 1, 0)
-        v[f'gh={gh},gu={gu},gv={gv},ht={ht},size={size}'] = {'model': f'{NS}:block/{mn}'}
+    for i, (size, ht, gu, gv, gh) in enumerate(BOXES):
+        v[f'box={i}'] = {'model': f'{NS}:block/{ball_box_model(n, size, gu, gv, ht, gh)}'}
     w(f'{A}/blockstates/{n}.json', {'variants': v})
     w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}_1_1_0_0_0'}); blocks.append(n); NAMES[n] = title
 def axis_box(axis, ra, ru, rv, tx, spin=False):
@@ -261,28 +259,49 @@ for n, cas, core, nm, cn, kn in [
     ('ion_drive', 'void_casing', 'ender_coil', 'Ender Ion Drive', 'Void Casing', 'Ender Coil'),
     ('fission_reactor', 'leadlined_casing', 'fuel_rod_assembly', 'Fission Reactor', 'Lead-Lined Casing', 'Fuel Rod Assembly'),
     ('fusion_torus', 'containment_casing', 'plasma_coil', 'Fusion Torus', 'Magnetic Containment Casing', 'Plasma Coil'),
-    ('zero_point_core', 'singularity_casing', 'vacuum_lattice', 'Zero-Point Core', 'Singularity Casing', 'Vacuum Lattice'),
-    ('gyro_array', 'gyro_casing', 'gyro_rotor', 'Gyro Array', 'Gyro Casing', 'Gyro Rotor')]:
-    cube_all(cas, name=cn); (cube_all(core, name=kn) if core != 'gyro_rotor' else None); controller(n, cas, nm)
+    ('zero_point_core', 'singularity_casing', 'vacuum_lattice', 'Zero-Point Core', 'Singularity Casing', 'Vacuum Lattice')]:
+    cube_all(cas, name=cn); cube_all(core, name=kn); controller(n, cas, nm)
 cube_all('null_singularity', name='Null Singularity')
-controller('grand_gyroscope', 'gyro_casing', 'Grand Gyroscope')
 # Gyros: a frame (fixed), an outer ring turning about Y (tint 9), a gimbal ring about X (tint 10) and a fast rotor disc about Z (tint 11)
 def gyro_model(n, frame_tex, name):
+    # one big gyro per n x h x n box: the 1x1 layout stretched over the box (frame, ring about Y, gimbal about X, rotor about Z), cut per block
     def el(lo, hi, t, tint=None):
         return {'from': lo, 'to': hi, 'faces': {f: dict({'texture': t, 'uv': fit_uv(f, lo, hi)}, **({'tintindex': tint} if tint is not None else {})) for f in ('north', 'south', 'east', 'west', 'up', 'down')}}
-    els = [el([0, 0, 0], [16, 2, 16], '#frame'), el([0, 14, 0], [16, 16, 16], '#frame')]
-    for x, z in ((0, 0), (14, 0), (0, 14), (14, 14)): els.append(el([x, 2, z], [x + 2, 14, z + 2], '#frame'))
-    # outer ring in the XY plane (spins about Y)
-    els += [el([2.5, 2.5, 7.5], [13.5, 3.5, 8.5], '#ring', 9), el([2.5, 12.5, 7.5], [13.5, 13.5, 8.5], '#ring', 9), el([2.5, 3.5, 7.5], [3.5, 12.5, 8.5], '#ring', 9), el([12.5, 3.5, 7.5], [13.5, 12.5, 8.5], '#ring', 9)]
-    # gimbal in the YZ plane (about X)
-    els += [el([7.5, 4, 4], [8.5, 5, 12], '#ring', 10), el([7.5, 11, 4], [8.5, 12, 12], '#ring', 10), el([7.5, 5, 4], [8.5, 11, 5], '#ring', 10), el([7.5, 5, 11], [8.5, 11, 12], '#ring', 10)]
-    # rotor disc + hub (about Z)
-    els += [el([5, 5, 7], [11, 11, 9], '#disc', 11), el([7, 7, 5], [9, 9, 11], '#ring', 11)]
-    w(f'{A}/models/block/{n}.json', {'parent': 'minecraft:block/block', 'textures': {'frame': tex(frame_tex), 'ring': tex('gyro_ring'), 'disc': tex('gyro_disc'), 'particle': tex(frame_tex)}, 'elements': els})
-    w(f'{A}/blockstates/{n}.json', {'variants': {'': {'model': f'{NS}:block/{n}'}}})
+    base = [([0, 0, 0], [16, 2, 16], '#frame', None), ([0, 14, 0], [16, 16, 16], '#frame', None)]
+    for x, z in ((0, 0), (14, 0), (0, 14), (14, 14)): base.append(([x, 2, z], [x + 2, 14, z + 2], '#frame', None))
+    base += [([2.5, 2.5, 7.5], [13.5, 3.5, 8.5], '#ring', 9), ([2.5, 12.5, 7.5], [13.5, 13.5, 8.5], '#ring', 9), ([2.5, 3.5, 7.5], [3.5, 12.5, 8.5], '#ring', 9), ([12.5, 3.5, 7.5], [13.5, 12.5, 8.5], '#ring', 9)]
+    base += [([7.5, 4, 4], [8.5, 5, 12], '#ring', 10), ([7.5, 11, 4], [8.5, 12, 12], '#ring', 10), ([7.5, 5, 4], [8.5, 11, 5], '#ring', 10), ([7.5, 5, 11], [8.5, 11, 12], '#ring', 10)]
+    base += [([5, 5, 7], [11, 11, 9], '#disc', 11), ([7, 7, 5], [9, 9, 11], '#ring', 11)]
+    tx = {'frame': tex(frame_tex), 'ring': tex('gyro_ring'), 'disc': tex('gyro_disc'), 'particle': tex(frame_tex)}
+    done = {}
+    def box(size, ht, gu, gv, gh):
+        key = (size, ht, gu, gv, gh)
+        if key in done: return done[key]
+        mn = f'{n}_{size}_{ht}_{gu}_{gv}_{gh}'
+        els = []
+        for lo, hi, t, tint in base:
+            # frame bars stay a block thick at the edges; everything else stretches with the box
+            sx, sy = size, ht
+            L = [lo[0] * sx, lo[1] * sy, lo[2] * sx]; Hh = [hi[0] * sx, hi[1] * sy, hi[2] * sx]
+            if t == '#frame':
+                L = [lo[0] if lo[0] < 8 else 16 * sx - (16 - lo[0]), lo[1] if lo[1] < 8 else 16 * sy - (16 - lo[1]), lo[2] if lo[2] < 8 else 16 * sx - (16 - lo[2])]
+                Hh = [hi[0] if hi[0] <= 8 else 16 * sx - (16 - hi[0]), hi[1] if hi[1] <= 8 else 16 * sy - (16 - hi[1]), hi[2] if hi[2] <= 8 else 16 * sx - (16 - hi[2])]
+                if hi[0] - lo[0] == 16: L[0], Hh[0] = 0, 16 * sx
+                if hi[2] - lo[2] == 16: L[2], Hh[2] = 0, 16 * sx
+                if hi[1] - lo[1] == 12: L[1], Hh[1] = 2, 16 * sy - 2
+            a = [max(L[0] - 16 * gu, 0), max(L[1] - 16 * gh, 0), max(L[2] - 16 * gv, 0)]
+            b2 = [min(Hh[0] - 16 * gu, 16), min(Hh[1] - 16 * gh, 16), min(Hh[2] - 16 * gv, 16)]
+            if a[0] >= b2[0] or a[1] >= b2[1] or a[2] >= b2[2]: continue
+            els.append(el([round(v, 3) for v in a], [round(v, 3) for v in b2], t, tint))
+        model(mn, els, tx)
+        done[key] = mn; return mn
+    v = {}
+    for i, (size, ht, gu, gv, gh) in enumerate(BOXES): v[f'box={i}'] = {'model': f'{NS}:block/{box(size, ht, gu, gv, gh)}'}
+    w(f'{A}/blockstates/{n}.json', {'variants': v})
+    w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}_1_1_0_0_0'})
     blocks.append(n); NAMES[n] = name
-gyro_model('small_gyro', 'small_gyro', 'Pocket Gyro')
-gyro_model('gyro_rotor', 'gyro_casing', 'Gyro Rotor')
+gyro_model('small_gyro', 'small_gyro', 'Gyro')
+
 # --- thrusters (6 directions, nozzle = north face of model) ---
 D6 = {'north': {}, 'south': {'y': 180}, 'east': {'y': 90}, 'west': {'y': 270}, 'up': {'x': 270}, 'down': {'x': 90}}
 for n, nm in [('steam_vent', 'Steam Vent'), ('blaze_jet', 'Blaze Jet'), ('arc_thruster', 'Arc Thruster'), ('ion_lance', 'Ion Lance'), ('graviton_lens', 'Graviton Lens')]:
@@ -298,7 +317,7 @@ w(f'{A}/blockstates/sky_sail.json', {'variants': {'': {'model': f'{NS}:block/sky
 blocks.append('sky_sail'); NAMES['sky_sail'] = 'Sky Sail'
 
 for b in blocks:
-    if b not in ('bearing', 'motor', 'slab_joint', 'panel_joint', 'pin_joint', 'ball_joint', 'powered_ball_joint'): item_from_block(b)
+    if b not in ('small_gyro', 'bearing', 'motor', 'slab_joint', 'panel_joint', 'pin_joint', 'ball_joint', 'powered_ball_joint'): item_from_block(b)
 ITEMS = {'colossteel_blend': 'Colossteel Blend', 'colossteel_ingot': 'Colossteel Ingot', 'reactor_alloy': 'Reactor Alloy',
          'neutronium_ingot': 'Neutronium Ingot', 'enriched_fuel_cell': 'Enriched Fuel Cell', 'deuterium_cell': 'Deuterium Cell'}
 for i in ITEMS: w(f'{A}/models/item/{i}.json', {'parent': 'minecraft:item/generated', 'textures': {'layer0': f'{NS}:item/{i}'}})
@@ -369,10 +388,6 @@ shaped('vacuum_lattice', ['NGN', 'GEG', 'NGN'], {'N': NE, 'G': 'minecraft:glass'
 shaped('null_singularity', ['DND', 'NSN', 'DND'], {'D': 'minecraft:dragon_breath', 'N': NE, 'S': 'minecraft:nether_star'})
 shaped('zero_point_core', ['DHD', 'NFN', 'DND'], {'D': 'minecraft:dragon_breath', 'H': 'minecraft:dragon_head', 'N': NE, 'F': 'fusion_torus'})
 shaped('small_gyro', ['SIS', 'ICI', 'SIS'], {'S': S, 'I': 'minecraft:iron_ingot', 'C': 'minecraft:compass'})
-shaped('gyro_casing', ['SIS', 'I I', 'SIS'], {'S': S, 'I': 'minecraft:iron_ingot'}, 8)
-shaped('gyro_rotor', ['SGS', 'GMG', 'SGS'], {'S': S, 'G': 'small_gyro', 'M': 'motor'}, 2)
-shaped('gyro_array', ['SRS', 'RGR', 'SRS'], {'S': S, 'R': 'gyro_rotor', 'G': 'small_gyro'})
-shaped('grand_gyroscope', ['DRD', 'RAR', 'DRD'], {'D': 'minecraft:diamond_block', 'R': 'gyro_rotor', 'A': 'gyro_array'})
 shaped('steam_vent', ['SBS', 'S S', 'SFS'], {'S': S, 'B': 'minecraft:iron_bars', 'F': 'minecraft:furnace'}, 2)
 shaped('blaze_jet', ['SBS', 'BVB', 'SBS'], {'S': S, 'B': 'minecraft:blaze_rod', 'V': 'steam_vent'})
 shaped('arc_thruster', ['SLS', 'RJR', 'SLS'], {'S': S, 'L': 'minecraft:lightning_rod', 'R': 'minecraft:redstone_block', 'J': 'blaze_jet'})
@@ -502,3 +517,58 @@ w(f'{D}/tags/block/natural_ground.json', {'values': ['#minecraft:dirt', '#minecr
     'minecraft:sculk', 'minecraft:soul_sand', 'minecraft:soul_soil', 'minecraft:mycelium', 'minecraft:podzol', 'minecraft:mud', 'minecraft:bedrock',
     '#minecraft:flowers']})
 print('gear data done')
+
+# --- obsidian pieces (cut only in the Diamond Stonecutter) and the Diamond Stonecutter ---
+OB = 'minecraft:block/obsidian'
+w(f'{A}/models/block/obsidian_slab.json', {'parent': 'minecraft:block/slab', 'textures': {'bottom': OB, 'top': OB, 'side': OB}})
+w(f'{A}/models/block/obsidian_slab_top.json', {'parent': 'minecraft:block/slab_top', 'textures': {'bottom': OB, 'top': OB, 'side': OB}})
+w(f'{A}/blockstates/obsidian_slab.json', {'variants': {'type=bottom': {'model': f'{NS}:block/obsidian_slab'}, 'type=top': {'model': f'{NS}:block/obsidian_slab_top'}, 'type=double': {'model': 'minecraft:block/obsidian'}}})
+w(f'{A}/models/item/obsidian_slab.json', {'parent': f'{NS}:block/obsidian_slab'})
+for kind, parent in (('', 'stairs'), ('_inner', 'inner_stairs'), ('_outer', 'outer_stairs')):
+    w(f'{A}/models/block/obsidian_stairs{kind}.json', {'parent': f'minecraft:block/{parent}', 'textures': {'bottom': OB, 'top': OB, 'side': OB}})
+FY = {'east': 0, 'south': 90, 'west': 180, 'north': 270}
+sv = {}
+for f, y in FY.items():
+    for half in ('bottom', 'top'):
+        for shape in ('straight', 'inner_left', 'inner_right', 'outer_left', 'outer_right'):
+            m = 'obsidian_stairs' + ('_inner' if shape.startswith('inner') else '_outer' if shape.startswith('outer') else '')
+            yy = y
+            if half == 'bottom' and shape.endswith('left'): yy = y - 90
+            if half == 'top' and shape.endswith('right'): yy = y + 90
+            d = {'model': f'{NS}:block/{m}'}
+            if half == 'top': d['x'] = 180
+            if yy % 360: d['y'] = yy % 360
+            if half == 'top' or yy % 360: d['uvlock'] = True
+            sv[f'facing={f},half={half},shape={shape}'] = d
+w(f'{A}/blockstates/obsidian_stairs.json', {'variants': sv})
+w(f'{A}/models/item/obsidian_stairs.json', {'parent': f'{NS}:block/obsidian_stairs'})
+w(f'{A}/models/block/obsidian_vertical_slab.json', {'parent': 'minecraft:block/block', 'textures': {'all': OB, 'particle': OB}, 'elements': [cube_el([0, 0, 0], [16, 16, 8], {'*': '#all'})]})
+w(f'{A}/blockstates/obsidian_vertical_slab.json', {'variants': {f'facing={f}': dict({'model': f'{NS}:block/obsidian_vertical_slab', 'uvlock': True}, **({'y': r} if r else {})) for f, r in (('north', 0), ('east', 90), ('south', 180), ('west', 270))}})
+w(f'{A}/models/item/obsidian_vertical_slab.json', {'parent': f'{NS}:block/obsidian_vertical_slab'})
+w(f'{A}/models/block/diamond_stonecutter.json', {'parent': 'minecraft:block/stonecutter', 'textures': {'saw': tex('diamond_saw'), 'particle': 'minecraft:block/stonecutter_bottom', 'bottom': 'minecraft:block/stonecutter_bottom', 'top': 'minecraft:block/stonecutter_top', 'side': 'minecraft:block/stonecutter_side'}})
+w(f'{A}/blockstates/diamond_stonecutter.json', {'variants': {f'facing={f}': dict({'model': f'{NS}:block/diamond_stonecutter'}, **({'y': r} if r else {})) for f, r in (('north', 0), ('east', 90), ('south', 180), ('west', 270))}})
+w(f'{A}/models/item/diamond_stonecutter.json', {'parent': f'{NS}:block/diamond_stonecutter'})
+for b in ('diamond_stonecutter', 'obsidian_vertical_slab', 'obsidian_stairs'):
+    w(f'{D}/loot_table/blocks/{b}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{b}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
+w(f'{D}/loot_table/blocks/obsidian_slab.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:obsidian_slab',
+    'functions': [{'function': 'minecraft:set_count', 'count': 2, 'add': False, 'conditions': [{'condition': 'minecraft:block_state_property', 'block': f'{NS}:obsidian_slab', 'properties': {'type': 'double'}}]}, {'function': 'minecraft:explosion_decay'}]}]}]})
+OBS = [f'{NS}:obsidian_slab', f'{NS}:obsidian_vertical_slab', f'{NS}:obsidian_stairs']
+w(f'{R}/data/minecraft/tags/block/needs_diamond_tool.json', {'replace': False, 'values': OBS})
+pk = json.load(open(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json'))
+pk['values'] = [v for v in pk['values'] if v not in OBS + [f'{NS}:diamond_stonecutter']] + OBS + [f'{NS}:diamond_stonecutter']
+w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', pk)
+w(f'{R}/data/minecraft/tags/block/slabs.json', {'replace': False, 'values': [f'{NS}:obsidian_slab']})
+w(f'{R}/data/minecraft/tags/block/stairs.json', {'replace': False, 'values': [f'{NS}:obsidian_stairs']})
+w(f'{R}/data/minecraft/tags/item/slabs.json', {'replace': False, 'values': [f'{NS}:obsidian_slab']})
+w(f'{R}/data/minecraft/tags/item/stairs.json', {'replace': False, 'values': [f'{NS}:obsidian_stairs']})
+for out, n in (('obsidian_slab', 2), ('obsidian_vertical_slab', 2), ('obsidian_stairs', 1)):
+    w(f'{D}/recipe/{out}.json', {'type': f'{NS}:diamond_cutting', 'ingredient': {'item': 'minecraft:obsidian'}, 'result': {'id': f'{NS}:{out}', 'count': n}})
+w(f'{D}/recipe/obsidian_vertical_slab_from_slab.json', {'type': f'{NS}:diamond_cutting', 'ingredient': {'item': f'{NS}:obsidian_slab'}, 'result': {'id': f'{NS}:obsidian_vertical_slab', 'count': 1}})
+w(f'{D}/recipe/obsidian_slab_from_vertical.json', {'type': f'{NS}:diamond_cutting', 'ingredient': {'item': f'{NS}:obsidian_vertical_slab'}, 'result': {'id': f'{NS}:obsidian_slab', 'count': 1}})
+w(f'{D}/recipe/obsidian_from_slabs.json', {'type': 'minecraft:crafting_shaped', 'pattern': ['S', 'S'], 'key': {'S': {'item': f'{NS}:obsidian_slab'}}, 'result': {'id': 'minecraft:obsidian', 'count': 1}})
+w(f'{D}/recipe/diamond_stonecutter.json', {'type': 'minecraft:crafting_shaped', 'pattern': [' D ', 'SSS'], 'key': {'D': {'item': 'minecraft:diamond'}, 'S': {'item': 'minecraft:stone'}}, 'result': {'id': f'{NS}:diamond_stonecutter', 'count': 1}})
+lang = json.load(open(f'{A}/lang/en_us.json'))
+lang.update({f'block.{NS}.diamond_stonecutter': 'Diamond Stonecutter', f'block.{NS}.obsidian_slab': 'Obsidian Slab', f'block.{NS}.obsidian_vertical_slab': 'Obsidian Vertical Slab',
+             f'block.{NS}.obsidian_stairs': 'Obsidian Stairs', 'container.colossalcraft.diamond_stonecutter': 'Diamond Stonecutter', 'key.colossalcraft.brake': 'Colossus: Brake wheels (default)'})
+w(f'{A}/lang/en_us.json', lang)
+print('obsidian data done')

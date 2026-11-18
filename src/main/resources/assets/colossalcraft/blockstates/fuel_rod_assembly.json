@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/fuel_rod_assembly"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/fuel_rod_assembly"}}}

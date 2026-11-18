@@ -6,7 +6,7 @@ public final class Config {
     public static final ModConfigSpec SPEC;
     public static final ModConfigSpec.DoubleValue MASS_SCALE, MAX_SPEED, LIFT_SCALE;
     public static final ModConfigSpec.IntValue MAX_BLOCKS, MAX_SEGMENT_BLOCKS;
-    public static final ModConfigSpec.BooleanValue GROUND_CRUSHING, ENTITY_CRUSHING, JOINT_BREAKING;
+    public static final ModConfigSpec.BooleanValue GROUND_CRUSHING, ENTITY_CRUSHING, JOINT_BREAKING, FOOT_CRUSHING, IMPACT_DAMAGE;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -19,6 +19,8 @@ public final class Config {
         GROUND_CRUSHING = b.comment("Heavy landings break weak blocks below.").define("groundCrushing", true);
         ENTITY_CRUSHING = b.comment("Moving Colossi hurt mobs/players they hit.").define("entityCrushing", true);
         JOINT_BREAKING = b.comment("Overloaded joints snap off.").define("jointBreaking", true);
+        FOOT_CRUSHING = b.comment("Walker feet crush weaker blocks they step on or into (by weight and toughness; trees fall whole). Natural ground is never dug out.").define("footCrushing", true);
+        IMPACT_DAMAGE = b.comment("Hard landings and crashes break the Colossus' own blocks by their toughness. Turn off on slow servers.").define("impactDamage", true);
         b.pop();
         SPEC = b.build();
     }

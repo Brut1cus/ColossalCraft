@@ -3,9 +3,6 @@ package com.colossalcraft.colossus;
 import com.colossalcraft.block.*;
 import com.colossalcraft.block.SimpleParts.*;
 import com.colossalcraft.block.Grid;
-import static com.colossalcraft.block.SimpleParts.SIZE;
-import static com.colossalcraft.block.SimpleParts.GU;
-import static com.colossalcraft.block.SimpleParts.GV;
 import com.colossalcraft.tier.EngineTier;
 import com.colossalcraft.tier.Parts;
 import net.minecraft.core.BlockPos;
@@ -44,6 +41,11 @@ public class StructureModel {
     public int ikMode = 0, gaitMode = 0, locoControllers, jumpDrives;
     /** Steps per second (one full leg cycle). */
     public double gaitSpeed = 0.5;
+    /** Pace (Locomotion Controller): share of the legs' natural step rate. Natural rate: bigger legs step slower
+     *  (like a pendulum: about 1.8 * sqrt(g / leg length) / 2pi steps a second; a person's leg gives ~1/s, a 40 m leg one step in ~7 s). */
+    public double gaitPace = 1.0, naturalRate = 0.5;
+    /** Whole-body inertia tensor about the centre of mass (kg*m^2, row-major 3x3). */
+    public final double[] inertia = new double[9];
     /** Gait shape (Locomotion Controller): stride as a share of the legs' reach, step height as a share of leg length,
      *  stance share of each cycle (0 = the gait type's default). */
     public double gaitStride = 0.45, gaitLift = 0.2, gaitDutyCfg = 0;
@@ -83,6 +85,8 @@ public class StructureModel {
         public int height = 1, romCap = 180;
         /** How far it can fold either way before its limb hits the rest of the Colossus (radians). */
         public double fold = Math.PI, foldPos = Math.PI, foldNeg = Math.PI;
+        /** A parallel joint (same hinge line, same two parts) works as part of this joint: its strength and motors add to it. -1 = none. */
+        public int mergedInto = -1;
         /** The joint angle held inside its range of motion and inside each fold side (knees fold one way only as far as they fit). */
         public double clampAngle(double a) { double rom = Math.toRadians(Math.max(2, Math.min(180, amp * 2))); return Math.max(-Math.min(rom, foldNeg), Math.min(Math.min(rom, foldPos), a)); }
         /** Turn limit either way (radians): the range of motion set in the Joints tab, but never into the Colossus itself. */
@@ -250,6 +254,13 @@ public class StructureModel {
         if (blocks.isEmpty()) return;
         mass = Math.max(mass, 1);
         com = new Vec3(mx / mass, my / mass, mz / mass);
+        // how hard the whole body is to turn: inertia about its centre of mass (each block a solid cube of its mass)
+        for (var e : bm.entrySet()) {
+            double m = e.getValue(), x = e.getKey().getX() + .5 - com.x, y = e.getKey().getY() + .5 - com.y, z = e.getKey().getZ() + .5 - com.z, self = m / 6.0;
+            inertia[0] += m * (y * y + z * z) + self; inertia[4] += m * (x * x + z * z) + self; inertia[8] += m * (x * x + y * y) + self;
+            inertia[1] -= m * x * y; inertia[2] -= m * x * z; inertia[5] -= m * y * z;
+        }
+        inertia[3] = inertia[1]; inertia[6] = inertia[2]; inertia[7] = inertia[5];
         localBounds = new AABB(x0, y0, z0, x1 + 1, y1 + 1, z1 + 1);
         for (BlockPos p : blocks.keySet()) {
             double dx = p.getX() + .5 - com.x, dz = p.getZ() + .5 - com.z, dy = p.getY() + .5 - com.y;
@@ -290,7 +301,7 @@ public class StructureModel {
                     BlockPos n = p.relative(d); BlockState ns = blocks.get(n);
                     if (ns == null || !jointPos.contains(n) || grouped.contains(n) || !(ns.getBlock() instanceof JointBlock nb) || ns.getValue(RotatedPillarBlock.AXIS) != ax0) continue;
                     boolean ok = jb0 instanceof BearingBlock
-                            ? nb instanceof BearingBlock && ns.getValue(SIZE).equals(s0.getValue(SIZE)) && flat(Grid.origin(n, ns), ax0).equals(o0)
+                            ? nb instanceof BearingBlock && Cells.size(ns) == Cells.size(s0) && flat(Grid.origin(n, ns), ax0).equals(o0)
                             : !(nb instanceof BearingBlock) && !nb.shape.ball();
                     if (ok) { grouped.add(n); q.add(n); }
                 }
@@ -306,8 +317,8 @@ public class StructureModel {
             boolean bj = jb instanceof BallJointBlock;
             j.shape = jb.shape;
             j.axis = bj ? Direction.Axis.Y : ss.getValue(RotatedPillarBlock.AXIS);
-            j.size = jb instanceof BearingBlock || bj ? ss.getValue(SIZE) : 1;
-            j.height = bj ? Math.max(1, Math.min(j.size, ss.getValue(SimpleParts.HT))) : 1;
+            j.size = jb instanceof BearingBlock || bj ? Cells.size(ss) : 1;
+            j.height = bj ? Math.max(1, Math.min(j.size, Cells.height(ss))) : 1;
             double px = 0, py = 0, pz = 0;
             for (BlockPos p : g) { j.blocks.add(p); clusterOf.put(p, j.id); px += p.getX() + .5; py += p.getY() + .5; pz += p.getZ() + .5; }
             if (jb instanceof BearingBlock || bj) {
@@ -373,6 +384,24 @@ public class StructureModel {
             }
         }
         for (int i = 0; i < comps.size(); i++) if (newId[i] < 0) { newId[i] = segs.size(); segs.add(comps.get(i)); } // safety
+        // parallel joints: a second assembly on the same hinge line between the same two parts works together with the first
+        // (their strength adds up), instead of sitting idle
+        for (Joint j : joints) {
+            if (!j.childSegs.isEmpty() || j.parentSeg < 0 || j.ball) continue;
+            Set<Integer> tj = new HashSet<>(); for (int o : touch.get(j.id)) tj.add(newId[o]);
+            Vec3 a = axisVec(j.axis);
+            for (Joint k : joints) {
+                if (k == j || k.childSegs.isEmpty() || k.ball || k.axis != j.axis || k.mergedInto >= 0) continue;
+                Set<Integer> tk = new HashSet<>(k.childSegs); tk.add(k.parentSeg);
+                if (!tk.containsAll(tj) || tj.size() < 2) continue;
+                Vec3 d = j.pivot.subtract(k.pivot);
+                if (d.cross(a).length() > 0.75) continue; // not on the same hinge line
+                j.mergedInto = k.id;
+                k.area += j.area; k.forceCap += j.forceCap; k.momentCap += j.momentCap; k.k += j.k;
+                j.mode = k.mode; j.amp = k.amp;
+                break;
+            }
+        }
         for (int i = 0; i < segs.size(); i++) segs.get(i).id = i;
         for (Seg s : segs) for (BlockPos p : s.blocks) segOf.put(p, s.id);
         for (Joint j : joints) { int ps = Math.max(0, j.parentSeg); for (BlockPos p : j.blocks) { segOf.put(p, ps); } if (j.parentSeg >= 0) segs.get(ps).blocks.addAll(j.blocks); }
@@ -395,7 +424,7 @@ public class StructureModel {
 
         if (cfg.contains(GAIT)) {
             CompoundTag gc = cfg.getCompound(GAIT);
-            if (gc.contains("Speed")) gaitSpeed = Math.max(0.05, gc.getInt("Speed") / 100.0);
+            if (gc.contains("Speed")) gaitPace = Math.max(0.05, Math.min(4, gc.getInt("Speed") / 100.0));
             if (gc.contains("Stride")) gaitStride = Math.max(0.2, Math.min(1.0, gc.getInt("Stride") / 100.0));
             if (gc.contains("Lift")) gaitLift = Math.max(0.05, Math.min(0.5, gc.getInt("Lift") / 100.0));
             if (gc.contains("Height")) gaitHeight = Math.max(0.5, Math.min(1.0, gc.getInt("Height") / 100.0));
@@ -411,16 +440,16 @@ public class StructureModel {
             for (BlockPos jp : j.blocks) for (Direction d : Direction.values()) {
                 BlockPos n = jp.relative(d); BlockState ns = blocks.get(n);
                 if (ns == null) continue;
-                if (ns.getBlock() instanceof MotorBlock) motorGear.putIfAbsent(n, new double[]{j.id, 1, 1});
-                else if (ns.getBlock() instanceof GearboxBlock g && !seen.containsKey(n)) { double r = gearRatio(g, ns, d); seen.put(n, new double[]{r, g.efficiency}); gq.add(n); spinParts.put(n, new double[]{j.id, r, r}); }
+                if (ns.getBlock() instanceof MotorBlock) motorGear.putIfAbsent(n, new double[]{j.mergedInto >= 0 ? j.mergedInto : j.id, 1, 1});
+                else if (ns.getBlock() instanceof GearboxBlock g && !seen.containsKey(n)) { double r = gearRatio(g, ns, d); seen.put(n, new double[]{r, g.efficiency}); gq.add(n); spinParts.put(n, new double[]{j.mergedInto >= 0 ? j.mergedInto : j.id, r, r}); }
             }
             while (!gq.isEmpty()) {
                 BlockPos gp = gq.poll(); double[] cur = seen.get(gp);
                 for (Direction d : Direction.values()) {
                     BlockPos n = gp.relative(d); BlockState ns = blocks.get(n);
                     if (ns == null) continue;
-                    if (ns.getBlock() instanceof MotorBlock) motorGear.putIfAbsent(n, new double[]{j.id, cur[0], cur[1]});
-                    else if (ns.getBlock() instanceof GearboxBlock g && !seen.containsKey(n) && seen.size() < 64) { double r = gearRatio(g, ns, d); seen.put(n, new double[]{cur[0] * r, cur[1] * g.efficiency}); gq.add(n); spinParts.put(n, new double[]{j.id, cur[0] * r, r}); }
+                    if (ns.getBlock() instanceof MotorBlock) motorGear.putIfAbsent(n, new double[]{j.mergedInto >= 0 ? j.mergedInto : j.id, cur[0], cur[1]});
+                    else if (ns.getBlock() instanceof GearboxBlock g && !seen.containsKey(n) && seen.size() < 64) { double r = gearRatio(g, ns, d); seen.put(n, new double[]{cur[0] * r, cur[1] * g.efficiency}); gq.add(n); spinParts.put(n, new double[]{j.mergedInto >= 0 ? j.mergedInto : j.id, cur[0] * r, r}); }
                 }
             }
         }
@@ -443,7 +472,9 @@ public class StructureModel {
                 Direction push = s.getValue(ThrusterBlock.FACING).getOpposite();
                 thrustCap[push.ordinal()] += tb.tier.force; thrustPow[push.ordinal()] += tb.tier.power; thrusters++;
                 thrusterList.add(new Thruster(p, push, tb.tier.force, tb.tier.power, segOf.getOrDefault(p, 0)));
-            } else if (b instanceof GyroBlock gb) { gyroCap += gb.capacity; gyroPower += gb.capacity / 3000.0; segGyro.merge(segOf.getOrDefault(p, 0), gb.capacity, Double::sum); }
+            } else if (b instanceof GyroBlock gb) {
+                if (Cells.gu(s) == 0 && Cells.gv(s) == 0 && Cells.gh(s) == 0) { double cap = gb.assemblyCapacity(s); gyroCap += cap; gyroPower += cap / 3000.0; segGyro.merge(segOf.getOrDefault(p, 0), cap, Double::sum); }
+            }
             else if (b instanceof SailBlock && !(b instanceof RotorBladeBlock)) sails++;
             else if (b instanceof LocomotionControllerBlock) locoControllers++;
             else if (b instanceof JumpDriveBlock) jumpDrives++;
@@ -456,7 +487,7 @@ public class StructureModel {
             if (!(e.getValue().getBlock() instanceof MotorBlock) || doneM.contains(e.getKey())) continue;
             BlockState m0 = e.getValue();
             Direction.Axis ax = m0.getValue(RotatedPillarBlock.AXIS);
-            int n = m0.getValue(SIZE);
+            int n = Cells.size(m0);
             BlockPos o0 = flat(Grid.origin(e.getKey(), m0), ax);
             List<BlockPos> cl = new ArrayList<>(); ArrayDeque<BlockPos> mq = new ArrayDeque<>(); mq.add(e.getKey()); doneM.add(e.getKey());
             double cx = 0, cy = 0, cz = 0;
@@ -464,7 +495,7 @@ public class StructureModel {
                 BlockPos p = mq.poll(); cl.add(p); cx += p.getX() + .5; cy += p.getY() + .5; cz += p.getZ() + .5;
                 for (Direction d : Direction.values()) {
                     BlockPos nb = p.relative(d); BlockState ns = blocks.get(nb);
-                    if (ns != null && !doneM.contains(nb) && ns.getBlock() instanceof MotorBlock && ns.getValue(RotatedPillarBlock.AXIS) == ax && ns.getValue(SIZE) == n
+                    if (ns != null && !doneM.contains(nb) && ns.getBlock() instanceof MotorBlock && ns.getValue(RotatedPillarBlock.AXIS) == ax && Cells.size(ns) == n
                             && flat(Grid.origin(nb, ns), ax).equals(o0)) { doneM.add(nb); mq.add(nb); }
                 }
             }
@@ -526,6 +557,11 @@ public class StructureModel {
         foldLimits();
         standLoads();
         footing();
+        if (!legChains.isEmpty()) {
+            double L = 0; for (LegChain c : legChains) L += c.length(); L = Math.max(0.5, L / legChains.size());
+            naturalRate = Math.max(0.04, Math.min(1.5, 1.8 * Math.sqrt(G / L) / (2 * Math.PI)));
+        }
+        gaitSpeed = naturalRate * gaitPace;
     }
     /** How far each leg joint can fold before its limb hits another part of the Colossus (checked in 5 degree steps, both ways). */
     private void foldLimits() {
@@ -649,7 +685,7 @@ public class StructureModel {
             feet.add(new Foot(sg, 0, problem == null, problem == null ? "" : problem));
             pathsOk &= problem == null;
         }
-        footingGyro = coreGyro > 0 && pathsOk ? coreGyro : 0;
+        footingGyro = pathsOk ? Math.max(1, coreGyro) : 0; // walkers balance with their feet; a gyro only helps
     }
     /** Legs: hip joints set to Leg or Program, with a horizontal axis, that have a foot below them. */
     private void setupLegs(int minY) {

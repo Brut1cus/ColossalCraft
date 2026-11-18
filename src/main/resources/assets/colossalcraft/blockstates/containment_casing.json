@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/containment_casing"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/containment_casing"}}}

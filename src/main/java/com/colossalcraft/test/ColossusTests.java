@@ -41,6 +41,10 @@ public class ColossusTests {
             h.setBlock(x, 5, z, ModRegistry.STEAM_VENT.get().defaultBlockState().setValue(DirectionalBlock.FACING, Direction.DOWN));
     }
 
+    static ColossusEntity findNear(GameTestHelper h) {
+        List<ColossusEntity> l = h.getLevel().getEntitiesOfClass(ColossusEntity.class, h.getBounds().inflate(24));
+        return l.isEmpty() ? null : l.get(0);
+    }
     static ColossusEntity find(GameTestHelper h) {
         List<ColossusEntity> l = h.getLevel().getEntitiesOfClass(ColossusEntity.class, h.getBounds());
         return l.isEmpty() ? null : l.get(0);
@@ -86,10 +90,10 @@ public class ColossusTests {
     @GameTest(template = "empty16", timeoutTicks = 140)
     public static void weakJointSnaps(GameTestHelper h) {
         floor(h); ship(h, 25);
-        // a small pin joint (a quarter of a bearing) hanging under the deck edge with an 8-block stone column (~5 t) below it
+        // a small pin joint (a quarter of a bearing) hanging under the deck edge with an 8-block iron column (~16 t) below it
         h.setBlock(5, 5, 5, Blocks.AIR);
         h.setBlock(5, 5, 5, ModRegistry.PIN_JOINT.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
-        for (int y = 1; y <= 4; y++) for (int z = 4; z <= 5; z++) h.setBlock(5, y, z == 5 ? 5 : 4, Blocks.STONE_BRICKS);
+        for (int y = 1; y <= 4; y++) for (int z = 4; z <= 5; z++) h.setBlock(5, y, z == 5 ? 5 : 4, Blocks.IRON_BLOCK); // an iron column: too much for a pin
         h.setBlock(5, 0, 5, Blocks.AIR); h.setBlock(5, 0, 4, Blocks.AIR);
         BlockPos heart = h.absolutePos(new BlockPos(7, 7, 7));
         StructureScan.Result r = StructureScan.scan(h.getLevel(), heart);
@@ -282,12 +286,131 @@ public class ColossusTests {
     }
 
     @GameTest(template = "empty16", timeoutTicks = 140)
-    public static void walkerWithoutGyroFalls(GameTestHelper h) {
+    public static void walkerWithoutGyroStands(GameTestHelper h) {
         walker(h, false, false);
         StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
-        h.assertTrue(r.model.legged && !r.model.footingOk(), "should be legged without footing");
+        h.assertTrue(r.model.legged && r.model.footingOk(), "walkers balance with their feet: no gyro needed");
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
-        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); ColossalCraft.LOG.info("[test] no gyro tilt={}", c.tilt); h.assertTrue(c.tilt > 1.0, "did not fall, tilt " + c.tilt); h.succeed(); });
+        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); h.assertTrue(c.tilt == 0 && c.onGroundC, "should stand without a gyro, tilt " + c.tilt); h.succeed(); });
+    }
+
+    /** The reference walker the motor numbers are set by: two legs of 1x1 columns (hip and knee, 1x1 bearings and 1x1 motors),
+     *  a slab platform. Built of stone it must walk; built of iron it must not (its joints can't carry it). */
+    static void referenceWalker(GameTestHelper h, BlockState legBlock, BlockState deckBlock) {
+        for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) h.setBlock(x, 0, z, ModRegistry.GANTRY_SCAFFOLD.get());
+        for (int x = 4; x <= 10; x++) for (int z = 6; z <= 8; z++) h.setBlock(x, 12, z, deckBlock);
+        h.setBlock(7, 13, 7, ModRegistry.HULL_CORE.get());
+        h.setBlock(7, 13, 8, ModRegistry.PILOT_SEAT.get().defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, Direction.NORTH));
+        h.setBlock(6, 13, 7, ModRegistry.FLUX_ACCUMULATOR.get());
+        CompoundTag t = new CompoundTag(); t.putLong("Energy", 4_000_000);
+        h.getBlockEntity(new BlockPos(6, 13, 7)).loadWithComponents(t, h.getLevel().registryAccess());
+        h.setBlock(7, 13, 6, ModRegistry.LOCOMOTION_CONTROLLER.get());
+        var bearing = ModRegistry.BEARING.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.LONE, true);
+        var motor = ModRegistry.MOTOR.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.LONE, true);
+        for (int side : new int[]{-1, 1}) {
+            int x = side < 0 ? 5 : 9, mx = x + side;
+            h.setBlock(x, 11, 7, bearing); h.setBlock(mx, 11, 7, motor);            // hip under the platform, its motor hangs from the platform
+            for (int y = 8; y <= 10; y++) h.setBlock(x, y, 7, legBlock);           // thigh
+            h.setBlock(mx, 8, 7, legBlock); h.setBlock(mx, 7, 7, motor);           // a nub on the thigh holds the knee motor
+            h.setBlock(x, 7, 7, bearing);                                          // knee
+            for (int y = 2; y <= 6; y++) h.setBlock(x, y, 7, legBlock);            // shin
+            for (int z = 6; z <= 8; z++) h.setBlock(x, 1, z, legBlock);            // foot
+        }
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 13, 7));
+        for (StructureModel.Joint j : r.model.joints) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.LEG); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 320)
+    public static void stoneWalkerWalksOn1x1Motors(GameTestHelper h) {
+        referenceWalker(h, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.STONE_BRICK_SLAB.defaultBlockState());
+        StructureScan.Result rs = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)));
+        StructureModel m = rs.model;
+        ColossalCraft.LOG.info("[test] stone reference walker: mass {} t, legs {}, natural step rate {}/s, joints {}, warnings {}, footingOk {}, balanced {}", m.mass / 1000, m.legChains.size(), m.naturalRate, m.joints.size(), rs.warnings, m.footingOk(), m.balanced());
+        h.assertTrue(m.legChains.size() == 2, "two legs expected, got " + m.legChains.size());
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)), null), "assemble failed");
+        int j0 = m.joints.size(); double[] z0 = {0}, peak = {0};
+        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        for (int t = 31; t <= 300; t++) h.runAfterDelay(t, () -> { ColossusEntity c = find(h); if (c != null) for (int i = 0; i < c.walker.footN.length; i++) peak[0] = Math.max(peak[0], c.walker.footN[i]); });
+        h.runAfterDelay(302, () -> {
+            ColossusEntity c = find(h);
+            ColossalCraft.LOG.info("[test] stone walker walked {} blocks, tilt {}, joints {}/{}, peak foot push {} kN (1x1 bearing holds {} kN)", c == null ? -1 : z0[0] - c.getZ(), c == null ? -1 : c.tilt,
+                    c == null ? 0 : c.model.joints.size(), j0, peak[0] / 1000, com.colossalcraft.tier.Parts.BEARING_FORCE / 1000);
+            h.assertTrue(c != null && c.model.joints.size() == j0, "a stone walker's 1x1 joints should hold");
+            h.assertTrue(c.tilt == 0, "it should not fall, tilt " + c.tilt);
+            h.assertTrue(z0[0] - c.getZ() > 2, "it should walk forward on 1x1 motors, moved " + (z0[0] - c.getZ()));
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 320)
+    public static void ironWalkerIsTooHeavyFor1x1(GameTestHelper h) {
+        referenceWalker(h, Blocks.IRON_BLOCK.defaultBlockState(), Blocks.IRON_BLOCK.defaultBlockState());
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)));
+        ColossalCraft.LOG.info("[test] iron reference walker: mass {} t, warnings {}", r.model.mass / 1000, r.warnings);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)), null), "assemble failed");
+        int j0 = r.model.joints.size();
+        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); if (c != null) { c.autopilot = true; c.setInput(1, 0, false, false); } });
+        h.runAfterDelay(302, () -> {
+            List<ColossusEntity> all = h.getLevel().getEntitiesOfClass(ColossusEntity.class, h.getBounds().inflate(8));
+            ColossusEntity c = all.stream().filter(e -> !e.wreck).findFirst().orElse(null);
+            boolean failed = c == null || c.model.joints.size() < j0 || c.tilt > 0.3 || all.stream().anyMatch(e -> e.wreck);
+            ColossalCraft.LOG.info("[test] iron walker failed={} joints {}/{} tilt {}", failed, c == null ? 0 : c.model.joints.size(), j0, c == null ? -1 : c.tilt);
+            h.assertTrue(failed, "an iron walker on 1x1 joints should not hold up");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16")
+    public static void parallelJointsShareTheLoad(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        var b = ModRegistry.BEARING.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.LONE, true);
+        // two separate bearings on one hinge line (x = 6 and x = 8, same y and z) between the deck and one arm below
+        h.setBlock(6, 5, 7, b); h.setBlock(8, 5, 7, b);
+        for (int x = 6; x <= 8; x++) h.setBlock(x, 4, 7, Blocks.STONE_BRICKS);
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        StructureModel.Joint main = m.joints.stream().filter(j -> !j.childSegs.isEmpty()).findFirst().orElse(null);
+        long merged = m.joints.stream().filter(j -> j.mergedInto >= 0).count();
+        h.assertTrue(main != null && merged == 1, "the second bearing should join the first, merged " + merged);
+        h.assertTrue(Math.abs(main.forceCap - 2 * com.colossalcraft.tier.Parts.BEARING_FORCE) < 1, "two parallel 1x1 bearings carry twice one: " + main.forceCap);
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16")
+    public static void feetCrushByWeightAndToughness(GameTestHelper h) {
+        float wood = com.colossalcraft.colossus.Crushing.hardness(Blocks.OAK_PLANKS.defaultBlockState()), iron = com.colossalcraft.colossus.Crushing.hardness(Blocks.IRON_BLOCK.defaultBlockState());
+        var log = Blocks.OAK_LOG.defaultBlockState();
+        h.assertTrue(!com.colossalcraft.colossus.Crushing.crushes(log, wood, 1e7), "a wooden foot must not crush a log, however heavy");
+        h.assertTrue(com.colossalcraft.colossus.Crushing.crushes(log, iron, 300_000), "a heavy iron foot should crush a log");
+        h.assertTrue(!com.colossalcraft.colossus.Crushing.crushes(log, iron, 20_000), "a light iron foot shouldn't");
+        h.assertTrue(!com.colossalcraft.colossus.Crushing.crushes(Blocks.DIRT.defaultBlockState(), iron, 1e9) && !com.colossalcraft.colossus.Crushing.crushes(Blocks.STONE.defaultBlockState(), iron, 1e9), "walking never digs out the ground");
+        h.assertTrue(com.colossalcraft.colossus.Crushing.crushes(Blocks.POPPY.defaultBlockState(), wood, 10_000), "flowers get flattened");
+        h.assertTrue(com.colossalcraft.colossus.Crushing.toughness(Blocks.OBSIDIAN.defaultBlockState()) > com.colossalcraft.colossus.Crushing.toughness(Blocks.IRON_BLOCK.defaultBlockState())
+                && com.colossalcraft.colossus.Crushing.toughness(Blocks.IRON_BLOCK.defaultBlockState()) > com.colossalcraft.colossus.Crushing.toughness(Blocks.STONE.defaultBlockState())
+                && com.colossalcraft.colossus.Crushing.toughness(Blocks.STONE.defaultBlockState()) > com.colossalcraft.colossus.Crushing.toughness(Blocks.OAK_PLANKS.defaultBlockState()), "armor: obsidian > iron > stone > wood");
+        // a tree: crushing one log brings it all down
+        h.setBlock(7, 1, 7, Blocks.GRASS_BLOCK);
+        for (int y = 2; y <= 5; y++) h.setBlock(7, y, 7, log);
+        for (int x = 6; x <= 8; x++) for (int z = 6; z <= 8; z++) if (x != 7 || z != 7) h.setBlock(x, 5, z, Blocks.OAK_LEAVES);
+        h.setBlock(7, 6, 7, Blocks.OAK_LEAVES);
+        int n = com.colossalcraft.colossus.Crushing.fellTree(h.getLevel(), h.absolutePos(new BlockPos(7, 2, 7)));
+        h.assertTrue(n >= 4 + 9 && h.getBlockState(new BlockPos(7, 5, 7)).isAir() && h.getBlockState(new BlockPos(6, 5, 6)).isAir(), "the whole tree should come down, broke " + n);
+        h.assertTrue(h.getBlockState(new BlockPos(7, 1, 7)).is(Blocks.GRASS_BLOCK), "the ground stays");
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16")
+    public static void obsidianNeedsTheDiamondStonecutter(GameTestHelper h) {
+        var rm = h.getLevel().getRecipeManager();
+        var in = new net.minecraft.world.item.crafting.SingleRecipeInput(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.OBSIDIAN));
+        var diamond = rm.getRecipesFor(ModRegistry.DIAMOND_CUTTING.get(), in, h.getLevel());
+        var vanilla = rm.getRecipesFor(net.minecraft.world.item.crafting.RecipeType.STONECUTTING, in, h.getLevel());
+        h.assertTrue(diamond.size() >= 3, "obsidian should cut into slab, vertical slab and stairs, got " + diamond.size());
+        h.assertTrue(vanilla.isEmpty(), "a normal stonecutter must not cut obsidian");
+        h.setBlock(3, 1, 3, ModRegistry.OBSIDIAN_VERTICAL_SLAB.get().defaultBlockState().setValue(com.colossalcraft.block.Cutting.VerticalSlabBlock.FACING, Direction.EAST));
+        h.assertTrue(h.getBlockState(new BlockPos(3, 1, 3)).getShape(h.getLevel(), h.absolutePos(new BlockPos(3, 1, 3))).bounds().getXsize() < 0.6, "a vertical slab is half a block thick");
+        h.succeed();
     }
 
     @GameTest(template = "empty16", timeoutTicks = 140)
@@ -297,15 +420,6 @@ public class ColossusTests {
         h.assertTrue(r.model.footingOk() && r.model.balanced(), "core gyro walker should be stable: " + r.warnings);
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
         h.runAfterDelay(80, () -> { ColossusEntity c = find(h); h.assertTrue(c.tilt == 0 && c.onGroundC, "should stand, tilt " + c.tilt); h.succeed(); });
-    }
-
-    @GameTest(template = "empty16", timeoutTicks = 140)
-    public static void walkerWithFootGyrosOnlyFalls(GameTestHelper h) {
-        walker(h, true, false);
-        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
-        h.assertTrue(r.model.legged && !r.model.footingOk(), "foot gyros alone should not count now");
-        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
-        h.runAfterDelay(80, () -> { ColossusEntity c = find(h); ColosalCraftLog(c); h.assertTrue(c.tilt > 1.0, "should fall, tilt " + c.tilt); h.succeed(); });
     }
 
     @GameTest(template = "empty16", timeoutTicks = 140)
@@ -337,7 +451,7 @@ public class ColossusTests {
         h.setBlock(9, 5, 7, ModRegistry.MOTOR.get()); // motor touches the gearbox only
         StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
         StructureModel.Joint j = r.model.joints.get(0);
-        h.assertTrue(Math.abs(j.motorTorque - 150_000 * 5 * 0.9) < 1, "torque " + j.motorTorque);
+        h.assertTrue(Math.abs(j.motorTorque - com.colossalcraft.tier.Parts.MOTOR_TORQUE * 5 * 0.9) < 1, "torque " + j.motorTorque);
         h.assertTrue(Math.abs(j.maxSpeed - 60 * 6 / 5.0) < 0.01, "speed " + j.maxSpeed);
         h.succeed();
     }
@@ -458,7 +572,7 @@ public class ColossusTests {
         h.setBlock(8, 5, 7, motor); h.setBlock(8, 5, 8, motor); h.setBlock(8, 4, 7, motor); h.setBlock(8, 4, 8, motor); // 2x2 grid, one touches the joint
         StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
         StructureModel.Joint j = r.model.joints.get(0);
-        h.assertTrue(Math.abs(j.motorTorque - 4 * 150_000) < 1, "a 2x2 motor should give 2^2 = 4x the torque: " + j.motorTorque);
+        h.assertTrue(Math.abs(j.motorTorque - 4 * com.colossalcraft.tier.Parts.MOTOR_TORQUE) < 1, "a 2x2 motor should give 2^2 = 4x the torque: " + j.motorTorque);
         h.assertTrue(r.model.motorClusters.stream().anyMatch(mc -> mc.k() == 4 && mc.n() == 2), "no 2x2 cluster");
         h.succeed();
     }
@@ -897,15 +1011,15 @@ public class ColossusTests {
         h.assertTrue(m.wheels == 4 && m.joints.stream().allMatch(j -> j.wheelGround), "four wheels on the ground expected, got " + m.wheels);
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
         double[] z0 = {0};
-        h.runAfterDelay(30, () -> { ColossusEntity c = find(h); z0[0] = c.getZ(); c.autopilot = true; c.setSpinInput(true, false, false); });
+        h.runAfterDelay(30, () -> { ColossusEntity c = findNear(h); z0[0] = c.getZ(); c.autopilot = true; c.setSpinInput(true, false, false); });
         h.runAfterDelay(110, () -> {
-            ColossusEntity c = find(h);
+            ColossusEntity c = findNear(h);
             ColossalCraft.LOG.info("[test] wheels dz={} rate={} ground={}", c.getZ() - z0[0], c.wheelRate, c.onGroundC);
             h.assertTrue(z0[0] - c.getZ() > 1.5, "the wheels should drive it forward (north), dz=" + (c.getZ() - z0[0]));
             c.setSpinInput(false, false, true);
         });
         h.runAfterDelay(150, () -> {
-            ColossusEntity c = find(h);
+            ColossusEntity c = findNear(h);
             h.assertTrue(Math.abs(c.wheelRate) < 0.01 && c.vel.horizontalDistance() < 0.3, "brake should stop it: rate " + c.wheelRate + " v " + c.vel.horizontalDistance());
             h.succeed();
         });
@@ -1032,17 +1146,17 @@ public class ColossusTests {
         // a 3x3 of bearings under the deck (axis Y: the square spreads in X and Z), a part hanging below it
         for (int x = 6; x <= 8; x++) for (int z = 6; z <= 8; z++) { h.setBlock(x, 5, z, b); h.setBlock(x, 4, z, Blocks.STONE_BRICKS); }
         var s0 = h.getBlockState(new BlockPos(6, 5, 6));
-        h.assertTrue(s0.getValue(com.colossalcraft.block.SimpleParts.SIZE) == 3, "3x3 bearings should form a 3x3 assembly, size " + s0.getValue(com.colossalcraft.block.SimpleParts.SIZE));
-        h.assertTrue(h.getBlockState(new BlockPos(8, 5, 8)).getValue(com.colossalcraft.block.SimpleParts.GU) == 2, "corner should know its place");
+        h.assertTrue(com.colossalcraft.block.Cells.size(s0) == 3, "3x3 bearings should form a 3x3 assembly, size " + com.colossalcraft.block.Cells.size(s0));
+        h.assertTrue(com.colossalcraft.block.Cells.gu(h.getBlockState(new BlockPos(8, 5, 8))) == 2, "corner should know its place");
         StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
         h.assertTrue(m.joints.size() == 1, "one 3x3 joint expected, got " + m.joints.size());
         h.assertTrue(Math.abs(m.joints.get(0).forceCap - com.colossalcraft.tier.Parts.BEARING_FORCE * 27) < 1, "3x3 should hold 3^3 = 27x a 1x1: " + m.joints.get(0).forceCap);
         // take one out: it falls back to the biggest squares that still fit (a 2x2 and 1x1s)
         h.setBlock(8, 5, 8, Blocks.AIR);
-        h.assertTrue(h.getBlockState(new BlockPos(6, 5, 6)).getValue(com.colossalcraft.block.SimpleParts.SIZE) == 2, "should drop to a 2x2");
+        h.assertTrue(com.colossalcraft.block.Cells.size(h.getBlockState(new BlockPos(6, 5, 6))) == 2, "should drop to a 2x2");
         // a bearing placed while sneaking stays on its own
         h.setBlock(8, 5, 8, b.setValue(com.colossalcraft.block.SimpleParts.LONE, true));
-        h.assertTrue(h.getBlockState(new BlockPos(8, 5, 8)).getValue(com.colossalcraft.block.SimpleParts.SIZE) == 1, "a sneak-placed bearing stays 1x1");
+        h.assertTrue(com.colossalcraft.block.Cells.size(h.getBlockState(new BlockPos(8, 5, 8))) == 1, "a sneak-placed bearing stays 1x1");
         h.succeed();
     }
 
@@ -1100,7 +1214,7 @@ public class ColossusTests {
         for (int x = 6; x <= 7; x++) for (int z = 6; z <= 7; z++) h.setBlock(x, 4, z, Blocks.STONE_BRICKS);
         m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
         h.assertTrue(m.joints.size() == 1 && m.joints.get(0).k == 4 && m.joints.get(0).romCap == 45 && m.joints.get(0).amp <= 22, "a flat 2x1x2 ball should be +-45, got " + m.joints.get(0).romCap);
-        h.assertTrue(h.getBlockState(new BlockPos(6, 5, 6)).getValue(com.colossalcraft.block.SimpleParts.HT) == 1, "layer count back to 1");
+        h.assertTrue(com.colossalcraft.block.Cells.height(h.getBlockState(new BlockPos(6, 5, 6))) == 1, "layer count back to 1");
         h.succeed();
     }
 

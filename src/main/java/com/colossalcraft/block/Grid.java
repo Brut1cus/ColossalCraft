@@ -119,15 +119,15 @@ public final class Grid {
             for (int dh = 0; dh < h; dh++) for (int du = 0; du < k; du++) for (int dv = 0; dv < k; dv++) {
                 BlockPos x = c.offset(du, dh, dv);
                 done.add(x);
-                BlockState n = a.get(x).setValue(SimpleParts.SIZE, k).setValue(SimpleParts.GU, du).setValue(SimpleParts.GV, dv).setValue(SimpleParts.HT, h).setValue(SimpleParts.GH, dh);
+                BlockState n = Cells.with(a.get(x), k, du, dv, h, dh);
                 if (n != a.get(x)) a.set(x, n);
             }
         }
     }
-    private static void setH(Access a, BlockPos p, int h, int gh) { BlockState s = a.get(p), n = s.setValue(SimpleParts.HT, h).setValue(SimpleParts.GH, gh); if (n != s) a.set(p, n); }
+    private static void setH(Access a, BlockPos p, int h, int gh) { BlockState s = a.get(p), n = Cells.with(s, 1, 0, 0, h, gh); if (n != s) a.set(p, n); }
     private static int coord(BlockPos p, Direction.Axis a) { return a.choose(p.getX(), p.getY(), p.getZ()); }
     private static void set(Access a, BlockPos p, BlockState s, int k, int u, int v) {
-        BlockState n = s.setValue(SimpleParts.SIZE, k).setValue(SimpleParts.GU, u).setValue(SimpleParts.GV, v);
+        BlockState n = Cells.with(s, k, u, v, 1, 0);
         if (n != s) a.set(p, n);
     }
 
@@ -135,8 +135,8 @@ public final class Grid {
     public static BlockPos origin(BlockPos p, BlockState s) {
         if (!(s.getBlock() instanceof GridBlock gb)) return p;
         Direction.Axis[] pl = gb.plane(s);
-        BlockPos o = p.relative(pl[0], -s.getValue(SimpleParts.GU)).relative(pl[1], -s.getValue(SimpleParts.GV));
-        return gb.stacks() ? o.below(s.getValue(SimpleParts.GH)) : o;
+        BlockPos o = p.relative(pl[0], -Cells.gu(s)).relative(pl[1], -Cells.gv(s));
+        return gb.stacks() ? o.below(Cells.gh(s)) : o;
     }
-    public static int size(BlockState s) { return s.hasProperty(SimpleParts.SIZE) ? s.getValue(SimpleParts.SIZE) : 1; }
+    public static int size(BlockState s) { return Cells.size(s); }
 }

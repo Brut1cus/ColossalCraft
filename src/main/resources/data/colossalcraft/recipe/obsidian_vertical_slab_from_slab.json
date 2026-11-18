@@ -1,0 +1,10 @@
+{
+  "type": "colossalcraft:diamond_cutting",
+  "ingredient": {
+    "item": "colossalcraft:obsidian_slab"
+  },
+  "result": {
+    "id": "colossalcraft:obsidian_vertical_slab",
+    "count": 1
+  }
+}

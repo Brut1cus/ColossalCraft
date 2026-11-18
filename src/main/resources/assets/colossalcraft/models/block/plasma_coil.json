@@ -1,6 +1,1 @@
-{
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "colossalcraft:block/plasma_coil"
-  }
-}
+{"parent":"minecraft:block/cube_all","textures":{"all":"colossalcraft:block/plasma_coil"}}

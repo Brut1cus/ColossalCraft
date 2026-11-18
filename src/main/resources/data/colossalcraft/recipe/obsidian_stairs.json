@@ -1,0 +1,10 @@
+{
+  "type": "colossalcraft:diamond_cutting",
+  "ingredient": {
+    "item": "minecraft:obsidian"
+  },
+  "result": {
+    "id": "colossalcraft:obsidian_stairs",
+    "count": 1
+  }
+}

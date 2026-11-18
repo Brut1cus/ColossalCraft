@@ -1,6 +1,1 @@
-{
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "colossalcraft:block/vacuum_lattice"
-  }
-}
+{"parent":"minecraft:block/cube_all","textures":{"all":"colossalcraft:block/vacuum_lattice"}}

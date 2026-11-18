@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/sky_sail"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/sky_sail"}}}

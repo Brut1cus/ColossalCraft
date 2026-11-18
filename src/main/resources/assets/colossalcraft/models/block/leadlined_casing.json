@@ -1,6 +1,1 @@
-{
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "colossalcraft:block/leadlined_casing"
-  }
-}
+{"parent":"minecraft:block/cube_all","textures":{"all":"colossalcraft:block/leadlined_casing"}}

@@ -1,0 +1,1 @@
+{"parent":"minecraft:block/stonecutter","textures":{"saw":"colossalcraft:block/diamond_saw","particle":"minecraft:block/stonecutter_bottom","bottom":"minecraft:block/stonecutter_bottom","top":"minecraft:block/stonecutter_top","side":"minecraft:block/stonecutter_side"}}

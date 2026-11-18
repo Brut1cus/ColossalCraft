@@ -266,3 +266,15 @@ gd2 = base(hx(0x5c6670), 737); circle(gd2, 8, 8, 7, hx(0x8a96a2)); circle(gd2, 8
 for k in range(4): px(gd2, 8 + (3 if k == 0 else -3 if k == 1 else 0), 8 + (3 if k == 2 else -3 if k == 3 else 0), hx(0x2c2c2c))
 save(gd2, B, 'gyro_disc')
 print('loco textures done')
+
+# Diamond Stonecutter blade: a steel disc with a ring of diamond teeth
+saw = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+for x in range(16):
+    for y in range(16):
+        d = math.hypot(x - 7.5, y - 7.5)
+        if d <= 7.6:
+            if d > 6.0: col = (120, 238, 230, 255) if (x + y) % 2 == 0 else (60, 190, 200, 255)   # diamond teeth
+            elif d > 5.2: col = (160, 168, 176, 255)
+            else: col = (128, 134, 142, 255) if (x * 3 + y) % 5 else (150, 156, 164, 255)
+            saw.putpixel((x, y), col)
+saw.save(os.path.join(os.path.dirname(__file__), '..', 'src/main/resources/assets/colossalcraft/textures/block/diamond_saw.png'))

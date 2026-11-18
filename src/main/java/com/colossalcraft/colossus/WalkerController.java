@@ -178,7 +178,10 @@ public class WalkerController {
     public double maxTwist(ColossusEntity c) { double w = 0; for (int i = 0; i < state.length; i++) if (state[i] == State.STANCE) w = Math.max(w, Math.abs(wrap(c.yaw - footYaw[i])) - twistCap(c.model, i)); return w; }
     public int steps;
     /** A foot lands: it points a little into the turn, so the body can keep turning over it. */
+    private boolean[] justLanded = new boolean[0];
     private void land(ColossusEntity c, int i) {
+        if (justLanded.length != state.length) justLanded = new boolean[state.length];
+        justLanded[i] = true;
         double lead = turnWant * 0.35;
         double cap = twistCap(c.model, i);
         footYaw[i] = c.yaw + Math.max(-cap * 0.8, Math.min(cap * 0.8, lead));
@@ -380,33 +383,17 @@ public class WalkerController {
             if (dc.length() > 0.6) dc = dc.normalize().scale(0.6);
             vDes = vDes.add(dc);
         }
-        // grip: feet change the body's speed only as fast as friction and hip motors allow
-        double load = M * g / planted.size(), fricSum = 0, capSum = 0, kneeCap = 0; boolean knees = false;
-        double yWant = 0, minR = 1;
+        // the hull's standing height: the Locomotion Controller's setting (raise/lower shift it), but no lower than the knees can hold
+        double load = M * g / planted.size(), kneeCap = 0; boolean knees = false; double minR = 1;
         for (int i : planted) {
             StructureModel.LegChain L = m.legChains.get(i);
-            double mu = Math.min(L.mu(), groundMu(level, foot[i]));
-            double h = Math.max(0.5, H[i].y - foot[i].y);
-            double fric = mu * load; fricSum += fric; capSum += Math.min(fric, L.hipTorque() * ratio / h);
             if (L.joints().size() > 1) {
                 knees = true; minR = Math.min(minR, minReach(m, L) / maxReach(m, L));
-                // the more a knee bends, the more it must hold: how bent can this one be and still carry its share?
                 double hold = L.kneeTorque() * ratio / Math.max(1, load * 0.5 * L.length());
                 kneeCap = Math.max(kneeCap, hold >= 1 ? 0 : Math.sqrt(1 - hold * hold)); // lowest height share it can hold
             }
         }
-        Vec3 dv = vDes.subtract(vh);
-        double aMax = Math.min(capSum / M, A_COMFORT);
-        boolean slip = dv.length() > fricSum / M * dt + 1e-6 && fricSum <= capSum + 1e-6;
-        if (dv.length() > aMax * dt) dv = dv.normalize().scale(aMax * dt);
-        { // and the push changes gradually (no sudden kicks)
-            Vec3 acc = dv.scale(1 / dt), da = acc.subtract(lastAccel);
-            if (da.length() > JERK * dt) acc = lastAccel.add(da.normalize().scale(JERK * dt));
-            if (acc.length() > aMax) acc = acc.normalize().scale(aMax);
-            lastAccel = acc; dv = acc.scale(dt);
-        }
-        Vec3 vNew = vh.add(dv).add(ext.x * dt / M, 0, ext.z * dt / M);
-        for (int i : planted) slipping[i] = slip;
+        double yWant;
         // height: each planted foot holds the body up at its built height (knee legs crouch with raise/lower);
         // weak knees let it sag, never below what the knees can fold to
         // the hull stands at the Locomotion Controller's height (raise/lower move it), never lower than the knees can hold
@@ -449,13 +436,50 @@ public class WalkerController {
         double pitchT = Math.max(-0.4, Math.min(0.4, Math.atan(slopeF))), rollT = Math.max(-0.4, Math.min(0.4, -Math.atan(slopeR)));
         c.bodyPitch += (pitchT - c.bodyPitch) * 0.15; c.bodyRoll += (rollT - c.bodyRoll) * 0.15;
         yWant = mh - slopeF * mf - slopeR * mr + bodyUpAvg; // hip plane height under the centre of mass, plus the body above the hips
-        if (Double.isNaN(ySmooth) || Math.abs(ySmooth - yWant) > 2) ySmooth = c.getY();
-        ySmooth += (yWant - ySmooth) * 0.2; // height follows the feet smoothly
-        double vyT = Math.max(-4, Math.min(3, (ySmooth - c.getY()) * 6));
-        double vy = c.vel.y + Math.max(-3 * dt, Math.min(3 * dt, vyT - c.vel.y)); // up and down gently too (climbing doesn't jolt the joints)
-        c.vel = new Vec3(vNew.x, vy, vNew.z);
+        // ---- forces (Stage 1 physics): the body moves only by what its planted feet push against the ground, plus gravity and thrust.
+        // Each foot pushes up at most what its leg's joints can hold in their current bend, and sideways at most its grip
+        // (friction = grip x the weight on it) and what its hip motor can push. Stopping is the feet pushing back.
+        Matrix4d[] Wl = c.freshSegWorlds();
+        double[] capN = new double[np], muF = new double[np], hipF = new double[np], share = new double[np];
+        double wsum = 0;
+        for (int k = 0; k < np; k++) {
+            int i = planted.get(k); StructureModel.LegChain L = m.legChains.get(i);
+            muF[k] = Math.min(L.mu(), groundMu(level, foot[i]));
+            hipF[k] = L.hipTorque() * ratio / Math.max(0.5, H[i].y - foot[i].y);
+            capN[k] = legSupport(c, i, Wl, ratio);
+            Vec3 d = foot[i].subtract(com); share[k] = 1 / (0.4 + Math.sqrt(d.x * d.x + d.z * d.z)); wsum += share[k]; // a foot nearer the weight carries more
+        }
+        for (int k = 0; k < np; k++) share[k] /= wsum;
+        int SUB = 4; double hs = dt / SUB;
+        Vec3 v = c.vel; double y = c.getY(); Vec3 disp = Vec3.ZERO; boolean slip = false; lastSupport = 0;
+        if (footN.length != n) footN = new double[n];
+        Arrays.fill(footN, 0);
+        for (int sub = 0; sub < SUB; sub++) {
+            // what the legs try to do: reach the wanted speed (gently: jerk-limited, comfortable) and hold the hull at its height
+            Vec3 vhs = new Vec3(v.x, 0, v.z), acc = vDes.subtract(vhs).scale(1 / 0.35);
+            if (acc.length() > A_COMFORT) acc = acc.normalize().scale(A_COMFORT);
+            Vec3 da = acc.subtract(lastAccel);
+            if (da.length() > JERK * hs) acc = lastAccel.add(da.normalize().scale(JERK * hs));
+            lastAccel = acc;
+            double ay = Math.max(-3, Math.min(3, 36 * (yWant - y) - 12 * v.y));
+            double fx = M * acc.x - ext.x, fz = M * acc.z - ext.z, fy = M * (ay + g) - ext.y;
+            // what the feet can really push
+            double Fx = 0, Fy = 0, Fz = 0;
+            for (int k = 0; k < np; k++) {
+                double N = Math.max(0, Math.min(capN[k], fy * share[k]));
+                double hx = fx * share[k], hz = fz * share[k], hl = Math.sqrt(hx * hx + hz * hz), lim = Math.min(muF[k] * N, hipF[k]);
+                if (hl > lim) { if (muF[k] * N <= hipF[k]) { slip = true; slipping[planted.get(k)] = true; } hx *= lim / hl; hz *= lim / hl; }
+                Fx += hx; Fy += N; Fz += hz;
+                if (sub == SUB - 1) footN[planted.get(k)] = N;
+            }
+            lastSupport = Fy;
+            v = v.add((Fx + ext.x) / M * hs, (Fy + ext.y) / M * hs - g * hs, (Fz + ext.z) / M * hs);
+            y += v.y * hs; disp = disp.add(v.scale(hs));
+        }
+        if (!slip) for (int i : planted) slipping[i] = false;
+        c.vel = v;
         Vec3 beforeMove = c.position();
-        c.moveBody(c.vel.scale(dt));
+        c.moveBody(disp);
         // legs are struts: never longer than they reach, never shorter than the knees fold
         for (int it = 0; it < 3; it++) {
             Vec3 corr = Vec3.ZERO; int k = 0;
@@ -476,6 +500,7 @@ public class WalkerController {
             if (k == 0) break;
             corr = corr.scale(1.0 / k);
             c.setPos(c.getX() + corr.x, c.getY() + corr.y, c.getZ() + corr.z);
+            if (corr.y > 0 && c.vel.y < 0) c.vel = new Vec3(c.vel.x, 0, c.vel.z); // folded legs (or the ground) stop the fall
         }
         c.onGroundC = true;
         // legs don't walk through buildings: if a leg would end up inside a wall, the body doesn't move that way
@@ -485,6 +510,8 @@ public class WalkerController {
         solveAllIK(c);
         tiltAnkles(c, fW, rW);
         keepLegsOutOfGround(c);
+        if (justLanded.length == n) { Crushing.feet(c, this, justLanded); Arrays.fill(justLanded, false); } // heavy feet crush what they land on or swing into
+        else Crushing.feet(c, this, new boolean[n]);
         // tipping: the weight must stay over the feet. A foot in mid-step counts where it will land (it is about to catch the weight).
         List<Vec3> feetDown = new ArrayList<>();
         for (int i = 0; i < n; i++) if (state[i] == State.STANCE) feetDown.add(foot[i]); else if (state[i] == State.SWING) feetDown.add(swingTo[i]);
@@ -495,6 +522,33 @@ public class WalkerController {
         for (int i = 0; i < n; i++) sb.append(i == 0 ? "" : " ").append(state[i] == State.STANCE ? (slipping[i] ? "SLIP" : "DOWN") : state[i] == State.SWING ? "STEP" : "AIR");
         status = sb + (waiting ? "  shifting weight" : "");
     }
+
+    /** Upward force the legs pushed last tick (N), for tests and the HUD. */
+    public double lastSupport;
+    /** How hard each leg's foot pushed up last tick (N): what every joint in that leg really carries. */
+    public double[] footN = new double[0];
+    /**
+     * Most a leg can push up on its foot right now: every motor-driven joint in it must hold the foot's push times its lever
+     * (how far, sideways, the foot is from the joint). A straight leg takes it in its bones (the joint's own strength);
+     * the more it bends, the less it can hold. Passive ball joints carry force but no turning.
+     */
+    double legSupport(ColossusEntity c, int i, Matrix4d[] W, double ratio) {
+        StructureModel m = c.model; StructureModel.LegChain L = m.legChains.get(i);
+        double best = Double.MAX_VALUE; Vec3 f = foot[i];
+        for (int jid : L.joints()) {
+            StructureModel.Joint J = m.joints.get(jid);
+            best = Math.min(best, J.forceCap);
+            if ((J.ball && !J.universal) || J.mode == StructureModel.LOCKED) continue;
+            int ps = Math.max(0, J.parentSeg);
+            if (ps >= W.length) continue;
+            Vector3d p = W[ps].transformPosition(new Vector3d(J.pivot.x, J.pivot.y, J.pivot.z));
+            Vec3 ax = StructureModel.axisVec(J.axis); Vector3d a = W[ps].transformDirection(new Vector3d(ax.x, ax.y, ax.z)).normalize();
+            double rx = f.x - p.x, rz = f.z - p.z, lever = Math.abs(-rz * a.x + rx * a.z);
+            if (lever > 0.08) best = Math.min(best, J.motorTorque * ratio / lever);
+        }
+        return best == Double.MAX_VALUE ? M_INF : best;
+    }
+    private static final double M_INF = 1e12;
 
     /** Powered ball ankles tilt planted feet to the slope under them (within their limit); lifted feet ease back to flat. */
     private void tiltAnkles(ColossusEntity c, Vec3 fW, Vec3 rW) {

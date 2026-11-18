@@ -434,7 +434,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             vel = vel.add(F.scale(dt / M));
         }
 
-        double I = M * (r * r + 1) / 3;
+        double I = Math.max(M * 0.5, model.inertia[4]); // real inertia about the vertical (how hard the whole build is to turn)
         if (useWalker) { // a walker turns as fast as its steps can follow, easing in and out
             double want = -inTurn * walker.turnRateMax * Math.max(0.2, ratio);
             walker.turnWant = want;
@@ -718,6 +718,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         } else onGroundC = true;
         setPos(getX() + tx, getY() + ty, getZ() + tz);
         if (hitDown && impactVy < -12) impact(-impactVy);
+        if (hitDown && impactVy < -6) Crushing.impact(this, -impactVy, Direction.DOWN); // the blocks that hit the ground take the blow
     }
 
     private void rotateWithCollision(double newYaw) {
@@ -867,7 +868,20 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         Vec3 geff = accel.add(0, StructureModel.G, 0);
         double cs = Math.cos(yaw), sn = Math.sin(yaw);
         boolean standing = model.legged && tilt == 0 && java.util.Arrays.asList(walker.state).contains(WalkerController.State.STANCE);
+        // standing and walking: each leg's joints carry what its foot really pushes (one foot carries everything while the other steps)
+        boolean[] legLoaded = new boolean[model.joints.size()];
+        if (standing && walker.footN.length == model.legChains.size()) for (int i = 0; i < model.legChains.size(); i++) {
+            double N = walker.footN[i];
+            for (int jid : model.legChains.get(i).joints()) {
+                StructureModel.Joint j = model.joints.get(jid); legLoaded[jid] = true;
+                if (N > j.forceCap) {
+                    if (++overload[jid] % 10 == 1 && level() instanceof ServerLevel sl) { Vec3 c = blockWorldCenter(j.blocks.get(0)); sl.sendParticles(ParticleTypes.CRIT, c.x, c.y, c.z, 12, .4, .4, .4, .1); sl.playSound(null, BlockPos.containing(c), SoundEvents.ANVIL_LAND, SoundSource.BLOCKS, 0.6f, 0.5f); }
+                    if (overload[jid] >= 30) { breakJoint(jid); return; }
+                } else overload[jid] = Math.max(0, overload[jid] - 1);
+            }
+        }
         for (StructureModel.Joint j : model.joints) {
+            if (legLoaded[j.id]) continue;
             if (standing && j.footShare > 0 && j.standRatio * Math.max(0, geff.y) / StructureModel.G > 1) {
                 if (++overload[j.id] >= 30) { breakJoint(j.id); return; }
                 continue;

@@ -17,9 +17,7 @@ public enum MultiblockDef {
     ION_DRIVE(3, () -> ModRegistry.VOID_CASING.get(), () -> ModRegistry.ENDER_COIL.get(), null),
     FISSION(5, () -> ModRegistry.LEADLINED_CASING.get(), () -> ModRegistry.FUEL_ROD_ASSEMBLY.get(), null),
     FUSION(5, () -> ModRegistry.CONTAINMENT_CASING.get(), () -> ModRegistry.PLASMA_COIL.get(), null),
-    ZERO_POINT(5, () -> ModRegistry.SINGULARITY_CASING.get(), () -> ModRegistry.VACUUM_LATTICE.get(), () -> ModRegistry.NULL_SINGULARITY.get()),
-    GYRO_ARRAY(3, () -> ModRegistry.GYRO_CASING.get(), () -> ModRegistry.GYRO_ROTOR.get(), null),
-    GRAND_GYRO(5, () -> ModRegistry.GYRO_CASING.get(), () -> ModRegistry.GYRO_ROTOR.get(), null);
+    ZERO_POINT(5, () -> ModRegistry.SINGULARITY_CASING.get(), () -> ModRegistry.VACUUM_LATTICE.get(), () -> ModRegistry.NULL_SINGULARITY.get());
 
     public final int size;
     private final Supplier<Block> casing, fill, center;

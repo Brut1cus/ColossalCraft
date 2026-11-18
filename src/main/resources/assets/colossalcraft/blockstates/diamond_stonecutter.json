@@ -1,0 +1,1 @@
+{"variants":{"facing=north":{"model":"colossalcraft:block/diamond_stonecutter"},"facing=east":{"model":"colossalcraft:block/diamond_stonecutter","y":90},"facing=south":{"model":"colossalcraft:block/diamond_stonecutter","y":180},"facing=west":{"model":"colossalcraft:block/diamond_stonecutter","y":270}}}

@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "colossalcraft:block/flux_accumulator"
-    }
-  }
-}
+{"variants":{"":{"model":"colossalcraft:block/flux_accumulator"}}}

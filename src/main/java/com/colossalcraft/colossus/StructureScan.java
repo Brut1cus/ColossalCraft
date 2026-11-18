@@ -112,7 +112,6 @@ public final class StructureScan {
                     : "Joint J" + j.id + " motors too weak: " + kilo(j.motorTorque) + " of " + kilo(j.reqTorque) + " N*m needed.");
         }
         if (m.legged) {
-            if (m.coreGyro <= 0) r.warnings.add("It will fall over: put a gyro in the Hull Core's part (walkers balance from the core).");
             for (StructureModel.Foot f : m.feet) if (!f.ok()) r.warnings.add("It will fall over: foot part " + f.seg() + " - " + f.problem() + ".");
             if (!m.balanced()) r.warnings.add(String.format("It will tip over: the centre of mass is %.1f blocks outside its feet. Move weight over the legs or widen the stance.", m.balanceOffset.length()));
             for (StructureModel.LegChain L : m.legChains) {
@@ -127,7 +126,6 @@ public final class StructureScan {
             if (m.legChains.isEmpty() && m.legged) r.warnings.add("No legs found: set the hip (and knee) joints to Leg, with a foot under them.");
             if (m.gaitScale() < 0.999) r.warnings.add(String.format("Joints are geared too slow for the gait: walking runs at %.0f%% speed. Use a lower gear ratio or slow the gait.", m.gaitScale() * 100));
         }
-        if (m.hasWalkers() && m.gyroCap < m.mass) r.warnings.add("Gyros too weak for walking: " + (int) (100 * m.gyroCap / m.mass) + "% stable. Add gyros.");
         boolean anyThrust = false; for (double v : m.thrustCap) anyThrust |= v > 0;
         if (!anyThrust && !m.hasWalkers() && m.driveMotors == 0) r.warnings.add("No thrusters, walking joints or drive motors: it can't move itself.");
     }
@@ -311,7 +309,7 @@ public final class StructureScan {
         t.putInt("IKMode", m.ikMode); t.putInt("GaitMode", m.gaitMode); t.putInt("JumpDrives", m.jumpDrives); t.putInt("LocoControllers", m.locoControllers); t.putBoolean("Smart", m.smartFooting);
         t.putInt("Legs", m.legChains.size());
         if (r.entity != null) t.putFloat("JumpLevel", r.entity.jumpLevel());
-        t.putDouble("GaitSpeed", m.gaitSpeed); t.putDouble("GaitScale", m.gaitScale());
+        t.putDouble("GaitSpeed", m.gaitSpeed); t.putDouble("GaitPace", m.gaitPace); t.putDouble("NaturalRate", m.naturalRate); t.putDouble("GaitScale", m.gaitScale());
         t.putDouble("PowerCap", m.powerSpeedCap()); t.putInt("Thrusters", m.thrusters);
         t.putDouble("GaitHeight", m.gaitHeight); t.putDouble("GaitStride", m.gaitStride); t.putDouble("GaitLift", m.gaitLift); t.putDouble("GaitDuty", m.duty()); t.putBoolean("GaitDutyAuto", m.gaitDutyCfg <= 0);
         t.put("LegGeo", legGeo(m));

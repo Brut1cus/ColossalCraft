@@ -9,7 +9,9 @@
     "DockServerLevelMixin",
     "DockPlayerMixin",
     "DockBlockEntityMixin",
-    "ShipServerPacketMixin"
+    "ShipServerPacketMixin",
+    "DiamondCutterMixin",
+    "PilotPickupMixin"
   ],
   "injectors": {
     "defaultRequire": 1

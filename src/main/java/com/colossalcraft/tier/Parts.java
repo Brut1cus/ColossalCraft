@@ -7,11 +7,13 @@ package com.colossalcraft.tier;
 public final class Parts {
     private Parts() {}
     /** Biggest assembly side. */
-    public static final int MAX = 4;
-    /** A 1x1 bearing: load it can hold straight on (N) and bending it can take (N*m). */
-    public static final double BEARING_FORCE = 120_000, BEARING_MOMENT = 200_000;
+    public static final int MAX = 6;
+    /** A 1x1 bearing: load it can hold straight on (N) and bending it can take (N*m).
+     *  Set so 1x1 parts carry a two-legged stone walker with 1x1 stone legs (about 30 t: one leg takes ~300 kN while the other steps),
+     *  but not the same walker in iron (~100 t): metal, gold and gem-block mechs need bigger joints, gearboxes or more legs. */
+    public static final double BEARING_FORCE = 400_000, BEARING_MOMENT = 700_000;
     /** A 1x1 servo motor: torque (N*m), power (CJ/t), push over ground (N), top speed (RPM). */
-    public static final double MOTOR_TORQUE = 150_000, MOTOR_POWER = 20, MOTOR_DRIVE = 90_000, MOTOR_RPM = 60;
+    public static final double MOTOR_TORQUE = 600_000, MOTOR_POWER = 20, MOTOR_DRIVE = 150_000, MOTOR_RPM = 60;
     /** How much stronger an n x n assembly is than a 1x1. */
     public static double scale(int n) { return Math.pow(Math.max(1, n), Math.max(1, n)); }
 }

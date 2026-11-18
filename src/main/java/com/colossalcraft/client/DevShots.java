@@ -92,7 +92,11 @@ public final class DevShots {
                     lv2.setBlockAndUpdate(base.offset(-2 + du, 1, -9 + dv), ModRegistry.BALL_JOINT.get().defaultBlockState());
                     lv2.setBlockAndUpdate(base.offset(-2 + du, 2, -9 + dv), ModRegistry.BALL_JOINT.get().defaultBlockState());
                 }
-                lv2.setBlockAndUpdate(base.offset(1, 1, -8), ModRegistry.SMALL_GYRO.get().defaultBlockState());
+                for (int gx = 0; gx < 2; gx++) for (int gy = 1; gy <= 2; gy++) for (int gz = 0; gz < 2; gz++) lv2.setBlockAndUpdate(base.offset(1 + gx, gy, -11 + gz), ModRegistry.SMALL_GYRO.get().defaultBlockState()); // a 2x2x2 gyro
+                lv2.setBlockAndUpdate(base.offset(-6, 1, -10), ModRegistry.DIAMOND_STONECUTTER.get().defaultBlockState());
+                lv2.setBlockAndUpdate(base.offset(-5, 1, -10), ModRegistry.OBSIDIAN_SLAB.get().defaultBlockState());
+                lv2.setBlockAndUpdate(base.offset(-4, 1, -10), ModRegistry.OBSIDIAN_STAIRS.get().defaultBlockState());
+                lv2.setBlockAndUpdate(base.offset(-3, 1, -10), ModRegistry.OBSIDIAN_VERTICAL_SLAB.get().defaultBlockState());
                 lv2.setBlockAndUpdate(base.offset(3, 1, -8), ModRegistry.POWERED_BALL_JOINT.get().defaultBlockState()); });
             case 43 -> server(sp -> look(sp, base.offset(-2, 4, -13), base.offset(-3, 1, -7)));
             case 50 -> shot("0a_gearboxes");
