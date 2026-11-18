@@ -288,7 +288,7 @@ public final class StructureScan {
             c.putInt("Id", j.id); c.putInt("Parent", j.parentSeg); c.putString("Tier", j.label()); c.putInt("K", j.k); c.putDouble("Area", j.area); c.putString("Axis", j.axis.getName());
             c.putDouble("Sub", j.subMass); c.putDouble("Ratio", j.staticRatio); c.putDouble("FCap", j.forceCap); c.putDouble("MCap", j.momentCap);
             c.putDouble("Torque", j.motorTorque); c.putDouble("Req", j.reqTorque); c.putDouble("Stand", j.standMass); c.putDouble("StandTq", j.standTorque); c.putDouble("StandRatio", j.standRatio); c.putDouble("Share", j.footShare); c.putInt("Motors", j.motors);
-            c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putInt("RomCap", j.ball ? j.romCap : 180); c.putInt("Fold", (int) Math.round(Math.toDegrees(j.fold))); c.putInt("Height", j.height); c.putBoolean("Stalled", j.stalled());
+            c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putInt("Amp2", j.amp2); c.putBoolean("TwoAxis", j.twoAxis()); c.putInt("RomCap", j.ball ? j.romCap : 180); c.putInt("Fold", (int) Math.round(Math.toDegrees(j.fold))); c.putInt("Height", j.height); c.putBoolean("Stalled", j.stalled());
             BlockPos lp = BlockPos.of(j.key);
             BlockPos wp = r.entity != null ? BlockPos.containing(r.entity.blockWorldCenter(lp)) : r.origin.offset(lp);
             c.putInt("X", wp.getX()); c.putInt("Y", wp.getY()); c.putInt("Z", wp.getZ());

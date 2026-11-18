@@ -80,6 +80,14 @@ The body moves only by real forces: gravity, thrust, and what its **planted feet
 - **Big legs step slowly.** The natural step rate comes from leg length, like a pendulum: about 1.8 × √(g / leg length) ÷ 2π steps a second. A person-sized leg gives about 1 step a second, a 10-block leg about 0.28, a 40-block leg one step every ~7 s. The Gait tab's **Pace** is a share of that natural rate.
 - Walkers don't need gyros: feet, ankles and the gait balance them. A gyro is an optional helper.
 
+## Walker balance (Stage 2: from the feet)
+- **Support area:** the feet can only push where they touch. It's the outline around every planted sole block. Stiff feet (no ankle joint) and **powered ball ankles** can press anywhere on the sole; a foot on a **plain (passive) ball ankle** can't push off its edges, only on the middle half around the point under the ankle. Bigger feet = steadier.
+- **Centre of pressure:** how hard the body can speed up, slow down or lean is limited by where the feet can press: acceleration = √(g / height)² × (centre of mass − centre of pressure), and the centre of pressure must stay inside the support area. Tall walkers on small feet can't start or stop as hard as squat ones on big feet.
+- **Capture point:** where the body would come to rest if the feet stopped it right now (its position plus its speed ÷ √(g / height)). When that point leaves the support area (a shove, an overhang, a hard stop), the walker takes a **catch step** toward it. In the test, a hard shove backwards (1.8 m/s) on the stone reference walker is caught in a step or so and it settles still.
+- **Shifting weight:** a foot only lifts once the weight is sideways over the feet that stay down. It may be ahead of them (it then falls forward and the swinging foot catches it), never behind. Leaning over is only as fast as the body can stop over the foot, so it doesn't overshoot and sway. If one foot can't lift for a while, it steps the other one.
+- **Steps:** each foot keeps to its own track, and never lands further ahead of the standing foot than about a stride (else the body can't get over it).
+- **Tipping:** it falls only when its weight is well outside every place its feet are on or about to land.
+
 ## Walkers: feet first
 A walker stands on its feet and is placed from the lowest point up. Nothing "holds the Hull in the air": the body is wherever its legs put it.
 
@@ -143,6 +151,7 @@ Set a joint to **Spin** and it works like a wheel: with no blades on it, it turn
 ## Ball joints: ankles, hips and shoulders
 - **Ball Joint** (plain): keeps the part below it **level** (a flat foot). Needs no motor and has no mode. Put one between the shin and the foot.
 - **Big ball joints:** Ball Joints next to each other join into **one** joint: an n x n square, up to n layers high (2x1x2, 2x2x2, 3x2x3 ...). It is drawn as one big ball and carries n^n the load. Its **range of motion** grows with height: **±90° × layers / side**, so a flat 2x1x2 turns ±45° and a 2x2x2 cube ±90° any way. Sneak while placing to keep one on its own.
+- **Two-axis joints** (ball joints, Powered Ball Joint hips) have two ranges: **Swing** (forward/back) and **Side** (out to the side). A hip's side range sets how wide a leg can step or how far it can cross under the body; an ankle's sets how far the foot rolls to a side slope. Hips default to ±30° to the side.
 - **Range of motion:** in the Joints tab, the up/down arrows set how far a joint may turn either way, up to ±180° for bearings (shift-click for big steps; balls stop at what their shape allows). Legs fold as far as they can **without hitting the rest of the Colossus**: each side of each joint is checked when it's built, so a knee can fold right back even if a motor blocks it from bending forward. The value turns yellow when it's set past that point.
 - **Powered Ball Joint** (or any ball joint with a Servo Motor touching it) has three modes, set in the Joints tab:
   - **Ankle (Locked):** keeps the foot flat and tilts it to match a slope; helps the walker balance.

@@ -66,6 +66,8 @@ public class HullCoreScreen extends Screen {
     public void setView(int v) { view = v; preset(v); rebuild(); }
     /** Select the lowest-numbered joint that has a foot below it (dev screenshots). */
     public void selectLegJoint() { for (Tag t : list("Joints")) if (((CompoundTag) t).getDouble("Share") > 0 && !((CompoundTag) t).getBoolean("Ball")) { selected = ((CompoundTag) t).getInt("Id"); rebuild(); return; } }
+    /** Select the first ball joint (dev screenshots). */
+    public void selectBallJoint() { for (Tag t : list("Joints")) if (((CompoundTag) t).getBoolean("Ball")) { selected = ((CompoundTag) t).getInt("Id"); rebuild(); return; } }
     public void turnView(double dyaw, double dpitch, double zoom) { camYaw += dyaw; camPitch = Math.max(-90, Math.min(90, camPitch + dpitch)); camZoom *= zoom; }
     private void preset(int v) { camYaw = v == 1 ? 90 : 0; camPitch = v == 2 ? 90 : 0; camZoom = 1; panX = panY = 0; }
     private boolean built() { return data.getBoolean("Built"); }
@@ -127,6 +129,7 @@ public class HullCoreScreen extends Screen {
     private static final int[] MODE_CYCLE = {0, 1, 3, 4};
     /** Where the range-of-motion value is drawn next to its arrows (set by jointWidgets). */
     private int romX = -1, romY, romW; private String romText = "", romTipText = ""; private boolean romWarn;
+    private int rom2X = -1; private String rom2Text = "", rom2Tip = "";
 
     /** Only two small controls: what the joint does, and how far it may turn. */
     private void jointWidgets(int x, int y) {
@@ -140,8 +143,8 @@ public class HullCoreScreen extends Screen {
         int next = cyc[(idx + 1) % cyc.length];
         int by = top() + H - 52, w = (W - NAV - 8 - 174) / 2 - 2;
         boolean ball = j.getBoolean("Ball") && !poweredBall;
-        Button mb = Button.builder(Component.literal(ball ? "Mode: auto" : "Mode: " + MODE_NAMES[mode]), z -> send(1, selected, next)).bounds(x, by, w, 14).build();
-        if (poweredBall) mb = Button.builder(Component.literal("Mode: " + (mode == 1 ? "Hip (Leg)" : mode == 4 ? "Shoulder (Sway)" : "Ankle (Locked)")), z -> send(1, selected, next)).bounds(x, by, w, 14).build();
+        Button mb = Button.builder(Component.literal(ball ? "Mode: auto" : "Mode: " + MODE_NAMES[mode]), z -> send(1, selected, next)).bounds(x, by, w - 20, 14).build();
+        if (poweredBall) mb = Button.builder(Component.literal("Mode: " + (mode == 1 ? "Hip" : mode == 4 ? "Shoulder" : "Ankle")), z -> send(1, selected, next)).bounds(x, by, w - 20, 14).build();
         mb.setTooltip(Tooltip.create(Component.literal(poweredBall ? "Powered ball joint. Ankle (Locked): keeps the foot flat and tilts it to slopes. Hip (Leg): the leg swings forward/back and sideways under IK. Shoulder (Sway): swings an arm in time with the steps."
                 : ball ? "Ball joints level the part below them on their own: no mode to set."
                 : MODE_HELP[mode] + "  (click for " + MODE_NAMES[next] + ")\n\nLocked: rigid, never moves.\nLeg: hips and knees of walking legs.\nSpin: wheels and rotors, turned by the Spin keys.\nSway: gentle idle motion.")));
@@ -158,10 +161,22 @@ public class HullCoreScreen extends Screen {
         up.active = amp < capAmp; dn.active = amp > 1;
         up.setTooltip(Tooltip.create(Component.literal(romTip))); dn.setTooltip(Tooltip.create(Component.literal(romTip)));
         addRenderableWidget(up); addRenderableWidget(dn);
-        romX = x + w + 4; romY = by; romW = w - 30; romText = "\u00B1" + amp * 2 + "\u00B0"; romWarn = amp * 2 > fold; romTipText = romTip;
+        boolean two = j.getBoolean("TwoAxis");
+        romX = x + w - 16; romY = by; romW = w - 10; romText = (two ? "Swing \u00B1" : "Range \u00B1") + amp * 2 + "\u00B0"; romWarn = amp * 2 > fold; romTipText = romTip;
+        rom2X = -1;
+        if (two) { // a two-axis joint: its sideways range on its own row
+            int amp2 = j.getInt("Amp2");
+            String tip2 = "Sideways range: how far this joint may tip out to the side either way (a hip lets the leg step wider or cross under the body; an ankle rolls the foot to a side slope). Shift-click for steps of 10\u00B0.";
+            Button up2 = Button.builder(Component.literal("\u25B2"), z -> send(18, selected, Math.min(capAmp, amp2 + (hasShiftDown() ? 5 : 1)))).bounds(x + w + 4 + w - 28, by - 16, 13, 14).build();
+            Button dn2 = Button.builder(Component.literal("\u25BC"), z -> send(18, selected, Math.max(1, amp2 - (hasShiftDown() ? 5 : 1)))).bounds(x + w + 4 + w - 14, by - 16, 13, 14).build();
+            up2.active = amp2 < capAmp; dn2.active = amp2 > 1;
+            up2.setTooltip(Tooltip.create(Component.literal(tip2))); dn2.setTooltip(Tooltip.create(Component.literal(tip2)));
+            addRenderableWidget(up2); addRenderableWidget(dn2);
+            rom2X = x + w - 16; rom2Text = "Side \u00B1" + amp2 * 2 + "\u00B0"; rom2Tip = tip2;
+        }
         if (data.getInt("GaitMode") == 4 && j.getBoolean("LegHip")) {
             int grp = j.getInt("Group");
-            Button gb = Button.builder(Component.literal("Step group " + (grp + 1)), z -> send(15, selected, grp + 1)).bounds(x, by - 16, w * 2 + 4, 14).build();
+            Button gb = Button.builder(Component.literal("Step group " + (grp + 1)), z -> send(15, selected, grp + 1)).bounds(x, by - (two ? 32 : 16), w * 2 + 4, 14).build();
             gb.setTooltip(Tooltip.create(Component.literal("Custom gait: legs in the same group step together. Groups take turns 1, 2, 3, 4.")));
             addRenderableWidget(gb);
         }
@@ -775,6 +790,7 @@ public class HullCoreScreen extends Screen {
         CompoundTag j = joint(selected);
         if (j == null) return;
         if (romX >= 0) { g.fill(romX, romY, romX + romW, romY + 14, 0xFF14281A); g.drawString(font, romText, romX + 3, romY + 3, romWarn ? WARN : TXT, false); tips.add(new Tip(romX, romY, romX + romW, romY + 14, romTipText)); }
+        if (romX >= 0 && rom2X >= 0) { g.fill(rom2X, romY - 16, rom2X + romW, romY - 2, 0xFF14281A); g.drawString(font, rom2Text, rom2X + 3, romY - 13, TXT, false); tips.add(new Tip(rom2X, romY - 16, rom2X + romW, romY - 2, rom2Tip)); }
         int dx = x + 168, dw = W - NAV - 8 - 174;
         g.drawString(font, "J" + j.getInt("Id") + "  " + j.getString("Tier"), dx, y, HEAD, false);
         String gears = j.getString("Gears");
@@ -809,10 +825,13 @@ public class HullCoreScreen extends Screen {
         int iy = y + 82;
         int rec = j.getInt("RecMode"), cm = j.getInt("Mode"); if (cm == 2) cm = 1; if (cm == 5) cm = 0;
         boolean good = rec < 0 || rec == cm;
-        for (var mln : font.split(Component.literal(j.getString("Role")), dw)) { g.drawString(font, mln, dx, iy, TXT, false); iy += 10; }
+        int textEnd = top() + H - 52 - (j.getBoolean("TwoAxis") ? 18 : 2) - 9; // stop above the controls
+        var roleLines = font.split(Component.literal(j.getString("Role")), dw);
+        for (int li = 0; li < roleLines.size() && iy <= textEnd; li++) { g.drawString(font, roleLines.get(li), dx, iy, TXT, false); iy += 10; }
+        if (roleLines.size() * 10 > textEnd - (y + 82) + 10) tips.add(new Tip(dx, y + 82, dx + dw, iy, j.getString("Role")));
         if (!good) { g.drawString(font, "\u25B6 Set Mode to " + MODE_NAMES[rec] + " (now " + MODE_NAMES[cm] + ")", dx, iy, WARN, false); iy += 10; }
         iy += 1;
-        if (j.getBoolean("LegHip")) {
+        if (j.getBoolean("LegHip") && iy + 33 <= textEnd + 9) {
             g.drawString(font, String.format("Foot grip %.2f%s", j.getDouble("Grip"), j.getDouble("Grip") < 0.3 ? "  (slippery!)" : ""), dx, iy, j.getDouble("Grip") < 0.3 ? WARN : TXT, false); iy += 11;
             g.drawString(font, "Push " + StructureScan.kilo(j.getDouble("Push")) + "N, carries " + StructureScan.tons(j.getDouble("Carry") / 9.81), dx, iy, j.getDouble("Carry") < data.getDouble("Mass") * 9.81 ? WARN : TXT, false); iy += 11;
             g.drawString(font, String.format("Leg %.1f blocks, %d joint%s", j.getDouble("LegLen"), j.getInt("LegJoints"), j.getInt("LegJoints") == 1 ? "" : "s (knee)"), dx, iy, DIM, false); iy += 11;

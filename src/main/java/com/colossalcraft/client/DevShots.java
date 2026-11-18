@@ -114,12 +114,14 @@ public final class DevShots {
             case 113 -> server(sp -> Net.openLocoParked(sp, base.offset(1, 8, 1)));
             case 115 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(0); }
             case 117 -> { if (mc.screen instanceof HullCoreScreen s) { s.setTab(0); s.selectLegJoint(); } }
-            case 130 -> shot("2_joints");
-            case 131 -> { if (mc.screen instanceof HullCoreScreen s) s.turnView(-70, 20, 1.4); }
-            case 132 -> shot("2b_joints_rotated");
-            case 133 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
-            case 135 -> shot("2c_gait");
-            case 136 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(2); }
+            case 127 -> shot("2_joints");
+            case 129 -> { if (mc.screen instanceof HullCoreScreen s) s.selectBallJoint(); }
+            case 132 -> shot("2a_ball_rom");
+            case 133 -> { if (mc.screen instanceof HullCoreScreen s) { s.selectLegJoint(); s.turnView(-70, 20, 1.4); } }
+            case 134 -> shot("2b_joints_rotated");
+            case 135 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(1); }
+            case 136 -> shot("2c_gait");
+            case 137 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(2); }
             case 138 -> shot("2d_keys");
             case 139 -> { if (mc.screen instanceof HullCoreScreen s) s.setTab(3); }
             case 148 -> shot("2e_footing");
@@ -180,7 +182,9 @@ public final class DevShots {
             case 352 -> mc.stop();
             default -> {}
         }
-        if (t > 212 && t < 300) server(sp -> { ColossusEntity c = colossus(); if (c != null) c.setInput(1f, 0f, false, false); if (c != null && t % 10 == 0) ColossalCraft.LOG.info("[devshots] feet {} pos {} tilt {}", c.walker.status, c.position(), c.tilt); if (c != null && t % 20 == 0) ColossalCraft.LOG.info("[devshots] walk t={} pos={} ground={} phase={}", t, c.position(), c.onGroundC, c.walkPhase); });
+        if (t > 145 && t <= 212 && t % 5 == 0) server(sp -> { ColossusEntity c = colossus(); if (c != null && c.walker.foot.length > 1 && c.walker.foot[0] != null) ColossalCraft.LOG.info("[devshots] stand t={} status {} com {} feet {} {} vel {} hull {}", t, c.walker.status, c.position(), c.walker.foot[0], c.walker.foot[1], c.vel,
+                c.walker.supportHull.stream().map(q -> String.format("(%.2f,%.2f)", q[0], q[1])).toList()); });
+        if (t > 212 && t < 300) server(sp -> { ColossusEntity c = colossus(); if (c != null) c.setInput(1f, 0f, false, false); if (c != null && t % 5 == 0) ColossalCraft.LOG.info("[devshots] feet {} pos {} vel {} cp-com {} hull {} tilt {} catches {}", c.walker.status, c.position(), c.vel, c.walker.capture.subtract(c.position()), c.walker.supportHull.size(), c.tilt, c.walker.catchSteps); if (c != null && t % 20 == 0) ColossalCraft.LOG.info("[devshots] walk t={} pos={} ground={} phase={}", t, c.position(), c.onGroundC, c.walkPhase); });
     }
 
     private static void lookAtBlock(ServerPlayer sp, ColossusEntity c, BlockPos local, int side) {

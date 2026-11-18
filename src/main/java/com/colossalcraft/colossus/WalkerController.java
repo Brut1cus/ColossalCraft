@@ -222,7 +222,7 @@ public class WalkerController {
         double reachH = Double.MAX_VALUE;
         for (StructureModel.LegChain L : m.legChains) reachH = Math.min(reachH, L.length() * Math.sin(Math.min(L.limits()[0], Math.toRadians(60))));
         double stride = Math.min(1.6 * reachH, m.gaitStride * 1.2 * reachH);  // foot travel per cycle, relative to the hip
-        double vGait = stride / (duty * cycle);                                  // the speed this gait walks at
+        double vGait = stride / (duty * cycle); lastStride = stride;                                  // the speed this gait walks at
         // the pilot's stick is eased in and out (about 0.6 s from stop to full), so the walker never lurches
         double inRaw = Math.max(-1, Math.min(1, fwd));
         double ramp = Math.abs(inRaw) < Math.abs(inSmooth) ? 0.3 : 0.6; // eases in over 0.6 s, out over 0.3 s (stops promptly)
@@ -278,6 +278,8 @@ public class WalkerController {
         boolean anySwing = false; for (State s : state) anySwing |= s == State.SWING;
         boolean moving = Math.abs(in) > 0.01 || Math.abs(yawRate) > 0.05 || Math.abs(turnWant) > 0.05; // asked to turn: step, so the body can turn
         double turnPlan = Math.abs(turnWant) > Math.abs(yawRate) ? turnWant : yawRate; // where the feet should go: the turn asked for
+        // where the feet aim: under the hip, moved on by the speed asked for (the body leans into it while the feet hold it)
+        Vec3 vPlace = vCmd;
         boolean[] off = new boolean[n]; boolean square = false;
         for (int i = 0; i < n; i++) if (state[i] == State.STANCE) {
             Vec3 d = foot[i].subtract(neutral[i]);
@@ -285,14 +287,23 @@ public class WalkerController {
             square |= off[i];
         }
         waitingGroup = -1;
-        double liftR = 0.5 + margin(m) + (biped ? 0.75 : 0);
+        // a foot lifts only once the weight (and where it is heading) is over the feet that stay down: they must carry it alone
+        double liftR = 0.45 + margin(m) + (biped ? 0.15 : 0);
         Vec3 com = c.position();
-        // catch step: the weight has been outside the feet for a while (a push, an overhang): step the far feet under it
-        if (groups > 1 && !anySwing && outsideTicks > 6) {
+        // ---- balance (Stage 2): the area the feet can press on, and where the body would come to rest (capture point)
+        supportHull = supportArea(c);
+        double footY = 0; int nd = 0; for (int i = 0; i < n; i++) if (state[i] == State.STANCE) { footY += foot[i].y; nd++; }
+        omega = Math.sqrt(g / Math.max(0.5, com.y - (nd > 0 ? footY / nd : com.y - 2)));
+        capture = new Vec3(com.x + c.vel.x / omega, com.y, com.z + c.vel.z / omega);
+        // walking is controlled falling forward: the next step catches it. Only past what a normal step covers is a catch step needed.
+        boolean cpOut = supportHull.size() > 0 && hullDistance(supportHull, capture.x, capture.z) > 0.15 + (moving ? 0.5 * stride : 0);
+        cpOutTicks = cpOut ? cpOutTicks + 1 : 0;
+        // catch step: where the body would come to rest is outside the feet (a push, an overhang, stopping hard): step under it
+        if (groups > 1 && !anySwing && (cpOutTicks > 2 || outsideTicks > 6)) {
             List<Vec3> down = new ArrayList<>(); for (int i = 0; i < n; i++) if (state[i] == State.STANCE) down.add(foot[i]);
             if (down.size() == n) {
                 Vec3 sc = Vec3.ZERO; for (Vec3 f : down) sc = sc.add(f); sc = sc.scale(1.0 / n);
-                Vec3 dir = new Vec3(com.x - sc.x, 0, com.z - sc.z);
+                Vec3 dir = new Vec3(capture.x - sc.x, 0, capture.z - sc.z); // towards where the body would come to rest
                 if (dir.lengthSqr() > 1e-4) {
                     int bestG = -1; double best = Double.NEGATIVE_INFINITY;
                     for (int G = 0; G < groups; G++) { double sum = 0; for (int i = 0; i < n; i++) if (m.legChains.get(i).group() == G) sum -= foot[i].subtract(sc).dot(dir); if (sum > best) { best = sum; bestG = G; } }
@@ -303,7 +314,7 @@ public class WalkerController {
                         if (off2.length() > reachOut) to = neutral[i].add(off2.normalize().scale(reachOut));
                         startSwing(c, i, to, H[i]);
                     }
-                    anySwing = true; outsideTicks = 0;
+                    anySwing = true; outsideTicks = 0; cpOutTicks = 0; catchSteps++;
                 }
             }
         }
@@ -315,10 +326,22 @@ public class WalkerController {
                 boolean need = moving; List<Integer> lift = new ArrayList<>();
                 for (int i = 0; i < n; i++) if (m.legChains.get(i).group() == G && state[i] == State.STANCE) { lift.add(i); need |= off[i]; }
                 if (lift.isEmpty() || !need) continue;
-                List<Vec3> others = new ArrayList<>(); boolean othersDown = true;
-                for (int i = 0; i < n; i++) if (m.legChains.get(i).group() != G) { if (state[i] == State.STANCE) others.add(foot[i]); else othersDown = false; }
-                if (!othersDown || others.isEmpty() || !insideSupport(others, com, liftR)) { waitingGroup = G; next = clock; break; } // hold the clock: lean first
-                for (int i : lift) startSwing(c, i, nominalTo(i, neutral[i], vCmd, duty * cycle * 0.5 + swingDur * 0.5, turnPlan, com, reachH, stride), H[i]);
+                if (!canLift(G, n, m, com, rW, fW, liftR, stride)) {
+                    // can't lift this foot yet (the weight isn't over the others). Waited long? Step another foot instead, one it is safe to lift.
+                    int alt = -1;
+                    if (waitTicks > 30) for (int G2 = 0; G2 < groups && alt < 0; G2++) if (G2 != G && canLift(G2, n, m, com, rW, fW, liftR, stride)) alt = G2;
+                    if (alt < 0) { waitingGroup = G; next = clock; waitTicks++; break; } // hold the clock: lean first
+                    lift.clear(); for (int i = 0; i < n; i++) if (m.legChains.get(i).group() == alt && state[i] == State.STANCE) lift.add(i);
+                    clock = Math.floor(clock + (double) G / groups) + (double) (alt - G) / groups; next = clock + speed * dt; // the gait's timing follows the foot that really stepped
+                }
+                waitTicks = 0;
+                for (int i : lift) {
+                    Vec3 to = nominalTo(i, neutral[i], vPlace, duty * cycle * 0.5 + swingDur * 0.5, turnPlan, com, reachH, stride);
+                    // each foot keeps to its own track: the body leans over the other foot before a step, but the foot doesn't follow it in
+                    double keep = 1 - Math.min(1, Math.abs(turnPlan) / 0.3);
+                    if (keep > 0) to = to.add(rW.scale(foot[i].subtract(to).dot(rW) * keep));
+                    startSwing(c, i, to, H[i]);
+                }
             }
             clock = next;
         }
@@ -327,7 +350,7 @@ public class WalkerController {
         if (planner && c.tickCount % 5 == 0) for (int i = 0; i < n; i++) {
             if (state[i] == State.SWING) { next[i] = swingTo[i]; nextOk[i] = true; continue; }
             if (state[i] != State.STANCE) { next[i] = null; continue; }
-            Vec3 nom = nominalTo(i, neutral[i], vCmd, duty * cycle * 0.5 + swingDur * 0.5, turnPlan, com, reachH, stride);
+            Vec3 nom = nominalTo(i, neutral[i], vPlace, duty * cycle * 0.5 + swingDur * 0.5, turnPlan, com, reachH, stride);
             Vec3 f = pickFoothold(c, i, nom, avoidFor(i));
             next[i] = f != null ? f : nom; nextOk[i] = f != null;
         }
@@ -367,19 +390,21 @@ public class WalkerController {
         int comingG = waiting ? waitingGroup : (moving && groups > 1 ? nextLiftGroup(groups, duty) : -1);
         if (comingG >= 0 && !others(planted, comingG, m).isEmpty()) support.addAll(others(planted, comingG, m)); // lean early over the feet that will carry the next step
         else for (int i : planted) support.add(foot[i]);
-        double rLean = Math.max(0.3, liftR - 0.35);
+        double rLean = Math.max(0.2, liftR - 0.3);
         Vec3 lean = Vec3.ZERO;
         if (!support.isEmpty() && !insideSupport(support, com, rLean)) {
             Vec3 q = closestOnSupport(support, com), o = new Vec3(com.x - q.x, 0, com.z - q.z);
             Vec3 target = o.lengthSqr() < 1e-9 ? q : q.add(o.normalize().scale(rLean));
-            lean = new Vec3(target.x - com.x, 0, target.z - com.z).scale(4);
-            if (lean.length() > 2.5) lean = lean.normalize().scale(2.5);
+            // lean so the capture point (where the body would come to rest) lands on the target, never past it:
+            // speed = w * distance makes the body arrive over the foot without overshooting (w = its natural sway rate)
+            lean = new Vec3(target.x - com.x, 0, target.z - com.z).scale(omega);
+            if (lean.length() > 1.5) lean = lean.normalize().scale(1.5);
         }
         vDes = vDes.add(lean);
         // equilibrium: standing still, the body settles its weight over the middle of its feet (like a person does)
         if (!moving && !waiting && !anySwing && !support.isEmpty()) {
             Vec3 cen = Vec3.ZERO; for (Vec3 f : support) cen = cen.add(f); cen = cen.scale(1.0 / support.size());
-            Vec3 dc = new Vec3(cen.x - com.x, 0, cen.z - com.z).scale(1.5);
+            Vec3 dc = new Vec3(cen.x - com.x, 0, cen.z - com.z).scale(omega * 0.8);
             if (dc.length() > 0.6) dc = dc.normalize().scale(0.6);
             vDes = vDes.add(dc);
         }
@@ -451,14 +476,22 @@ public class WalkerController {
         }
         for (int k = 0; k < np; k++) share[k] /= wsum;
         int SUB = 4; double hs = dt / SUB;
-        Vec3 v = c.vel; double y = c.getY(); Vec3 disp = Vec3.ZERO; boolean slip = false; lastSupport = 0;
+        Vec3 v = c.vel; double y = c.getY(); Vec3 disp = Vec3.ZERO; boolean slip = false; lastSupport = 0; zmpLimited = false;
         if (footN.length != n) footN = new double[n];
         Arrays.fill(footN, 0);
         for (int sub = 0; sub < SUB; sub++) {
             // what the legs try to do: reach the wanted speed (gently: jerk-limited, comfortable) and hold the hull at its height
             Vec3 vhs = new Vec3(v.x, 0, v.z), acc = vDes.subtract(vhs).scale(1 / 0.35);
             if (acc.length() > A_COMFORT) acc = acc.normalize().scale(A_COMFORT);
-            Vec3 da = acc.subtract(lastAccel);
+            // the feet can only push where they touch: the centre of pressure must stay inside the support area, which limits
+            // how hard the body can speed up, slow down or lean (a = w^2 * (centre of mass - centre of pressure))
+            if (!supportHull.isEmpty()) {
+                double cx = c.getX() + disp.x, cz = c.getZ() + disp.z, w2 = omega * omega;
+                double px = cx - acc.x / w2, pz = cz - acc.z / w2;
+                if (hullDistance(supportHull, px, pz) > 1e-6) { double[] q = closestOnHull(supportHull, px, pz); acc = new Vec3((cx - q[0]) * w2, 0, (cz - q[1]) * w2); zmpLimited = true; }
+                if (acc.length() > 4) acc = acc.normalize().scale(4);
+            }
+            Vec3 da = acc.subtract(lastAccel); // and the push changes gradually
             if (da.length() > JERK * hs) acc = lastAccel.add(da.normalize().scale(JERK * hs));
             lastAccel = acc;
             double ay = Math.max(-3, Math.min(3, 36 * (yWant - y) - 12 * v.y));
@@ -515,16 +548,96 @@ public class WalkerController {
         // tipping: the weight must stay over the feet. A foot in mid-step counts where it will land (it is about to catch the weight).
         List<Vec3> feetDown = new ArrayList<>();
         for (int i = 0; i < n; i++) if (state[i] == State.STANCE) feetDown.add(foot[i]); else if (state[i] == State.SWING) feetDown.add(swingTo[i]);
-        boolean outside = !insideSupport(feetDown, c.position(), 0.5 + margin(m) + (biped ? 0.75 : 0));
+        // tipping: nothing can catch it when the weight is well outside the area the feet (and landing feet) can press on
+        List<double[]> reach = new ArrayList<>(supportHull);
+        for (int i = 0; i < n; i++) if (state[i] == State.SWING) reach.add(new double[]{swingTo[i].x, swingTo[i].z});
+        reach = hull(reach);
+        boolean outside = reach.isEmpty() ? !insideSupport(feetDown, c.position(), 0.5 + margin(m) + (biped ? 0.75 : 0)) : hullDistance(reach, c.getX(), c.getZ()) > 0.45 + margin(m);
         outsideTicks = outside ? outsideTicks + 1 : Math.max(0, outsideTicks - 2);
         unbalanced = outsideTicks > 30;
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < n; i++) sb.append(i == 0 ? "" : " ").append(state[i] == State.STANCE ? (slipping[i] ? "SLIP" : "DOWN") : state[i] == State.SWING ? "STEP" : "AIR");
-        status = sb + (waiting ? "  shifting weight" : "");
+        status = sb + (waiting ? "  shifting weight" : cpOutTicks > 0 ? "  catching" : "");
     }
 
     /** Upward force the legs pushed last tick (N), for tests and the HUD. */
     public double lastSupport;
+    /** Balance (Stage 2): the area the planted feet can press on (convex, x/z), the pendulum rate sqrt(g / height),
+     *  where the body would come to rest if the feet stopped it now (capture point), and counters. */
+    public List<double[]> supportHull = new ArrayList<>();
+    public double omega = 1; public Vec3 capture = Vec3.ZERO; public boolean zmpLimited; public int catchSteps; private int cpOutTicks;
+    /** The support area: every sole block of a planted foot (a foot on a passive ball ankle presses only on its middle half). */
+    List<double[]> supportArea(ColossusEntity c) {
+        StructureModel m = c.model; List<double[]> pts = new ArrayList<>();
+        Matrix4d[] W = c.freshSegWorlds();
+        for (int i = 0; i < m.legChains.size() && i < state.length; i++) {
+            if (state[i] != State.STANCE) continue;
+            StructureModel.LegChain L = m.legChains.get(i);
+            boolean passive = false; double ax = foot[i].x, az = foot[i].z;
+            if (L.ankle() != null) for (StructureModel.Joint j : m.joints) if (j.ball && j.pivot.equals(L.ankle())) {
+                passive = !j.powered;
+                int ps = Math.max(0, j.parentSeg);
+                if (ps < W.length) { Vector3d a = W[ps].transformPosition(new Vector3d(j.pivot.x, j.pivot.y, j.pivot.z)); ax = a.x; az = a.z; }
+            }
+            if (L.soles().isEmpty() || L.footSeg() >= W.length) { pts.add(new double[]{foot[i].x, foot[i].z}); continue; }
+            // a passive ball ankle can't push off the foot's edges, only press on its middle half
+            double k = passive ? 0.5 : 1.0, cx = 0, cz = 0; List<double[]> sole = new ArrayList<>();
+            for (BlockPos p : L.soles()) {
+                Vector3d v = W[L.footSeg()].transformPosition(new Vector3d(p.getX() + .5, p.getY(), p.getZ() + .5));
+                for (double dx = -0.45; dx <= 0.46; dx += 0.9) for (double dz = -0.45; dz <= 0.46; dz += 0.9) { sole.add(new double[]{v.x + dx, v.z + dz}); cx += v.x + dx; cz += v.z + dz; }
+            }
+            cx /= sole.size(); cz /= sole.size();
+            if (passive) { cx = ax; cz = az; } // the weight comes down through the ankle: press around the point under it
+            for (double[] q : sole) pts.add(new double[]{cx + (q[0] - cx) * k, cz + (q[1] - cz) * k});
+        }
+        return hull(pts);
+    }
+    private int waitTicks; private double lastStride = 1;
+    /** May group G lift? The feet that stay must hold the weight: sideways it must be over them (strictly), and it may only be ahead
+     *  of them (it then falls forward and the swinging foot catches it), never behind (it would fall back where no foot goes). */
+    private boolean canLift(int G, int n, StructureModel m, Vec3 com, Vec3 rW, Vec3 fW, double liftR, double stride) {
+        List<Vec3> others = new ArrayList<>();
+        for (int i = 0; i < n; i++) if (m.legChains.get(i).group() != G) { if (state[i] == State.STANCE) others.add(foot[i]); else return false; }
+        if (others.isEmpty()) return false;
+        if (!sidewaysOver(others, capture, rW, liftR + 0.35)) return false;
+        double back = Double.MAX_VALUE; for (Vec3 f : others) back = Math.min(back, f.dot(fW));
+        if (waitTicks > 20) return capture.dot(fW) >= back; // stuck a while: a step is fine if the body would fall forward (the swinging foot catches it)
+        return insideSupport(others, com, liftR);
+    }
+    /** Is the point within r of the feet along one direction (sideways: strict; forward/back: the push-off carries it over)? */
+    static boolean sidewaysOver(List<Vec3> feet, Vec3 p, Vec3 right, double r) {
+        double lo = Double.MAX_VALUE, hi = -Double.MAX_VALUE;
+        for (Vec3 f : feet) { double s = f.dot(right); lo = Math.min(lo, s); hi = Math.max(hi, s); }
+        double s = p.dot(right);
+        return s >= lo - r && s <= hi + r;
+    }
+    /** Convex hull (x/z) of some points, counter-clockwise. */
+    static List<double[]> hull(List<double[]> pts) {
+        List<double[]> p = new ArrayList<>(pts);
+        if (p.size() < 3) return p;
+        p.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0]) : Double.compare(a[1], b[1]));
+        double[][] h = new double[p.size() * 2][]; int k = 0;
+        for (double[] q : p) { while (k >= 2 && cross(h[k - 2], h[k - 1], q) <= 0) k--; h[k++] = q; }
+        for (int i = p.size() - 2, t = k + 1; i >= 0; i--) { double[] q = p.get(i); while (k >= t && cross(h[k - 2], h[k - 1], q) <= 0) k--; h[k++] = q; }
+        List<double[]> out = new ArrayList<>(); for (int i = 0; i < k - 1; i++) out.add(h[i]);
+        return out;
+    }
+    /** Closest point of the support area to (x, z) (the point itself when inside). */
+    static double[] closestOnHull(List<double[]> h, double x, double z) {
+        if (h.size() == 1) return h.get(0).clone();
+        boolean inside = h.size() >= 3;
+        for (int i = 0; i < h.size() && inside; i++) if (cross(h.get(i), h.get((i + 1) % h.size()), new double[]{x, z}) < 0) inside = false;
+        if (inside) return new double[]{x, z};
+        double best = Double.MAX_VALUE; double[] bp = h.get(0);
+        for (int i = 0; i < h.size(); i++) {
+            double[] a = h.get(i), b = h.get((i + 1) % h.size());
+            double dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz, t = l2 < 1e-12 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2));
+            double qx = a[0] + dx * t, qz = a[1] + dz * t, d = (qx - x) * (qx - x) + (qz - z) * (qz - z);
+            if (d < best) { best = d; bp = new double[]{qx, qz}; }
+        }
+        return bp;
+    }
+    static double hullDistance(List<double[]> h, double x, double z) { if (h.isEmpty()) return Double.MAX_VALUE; double[] q = closestOnHull(h, x, z); return Math.hypot(q[0] - x, q[1] - z); }
     /** How hard each leg's foot pushed up last tick (N): what every joint in that leg really carries. */
     public double[] footN = new double[0];
     /**
@@ -566,8 +679,8 @@ public class WalkerController {
                 double hr = groundFrom(c.level(), p.x + rW.x * 0.8, top, p.z + rW.z * 0.8, 4), hl = groundFrom(c.level(), p.x - rW.x * 0.8, top, p.z - rW.z * 0.8, 4);
                 if (!Double.isNaN(hf) && !Double.isNaN(hb)) tp = Math.atan2(hf - hb, 1.6);
                 if (!Double.isNaN(hr) && !Double.isNaN(hl)) tr = Math.atan2(hl - hr, 1.6);
-                double lim = aj.limRad();
-                tp = Math.max(-lim, Math.min(lim, tp)); tr = Math.max(-lim, Math.min(lim, tr));
+                double lim = aj.limRad(), lim2 = aj.lim2Rad(); // forward/back and sideways ranges
+                tp = Math.max(-lim, Math.min(lim, tp)); tr = Math.max(-lim2, Math.min(lim2, tr));
             }
             m.ballPitch[aj.id] += (tp - m.ballPitch[aj.id]) * 0.3; m.ballRoll[aj.id] += (tr - m.ballRoll[aj.id]) * 0.3;
         }
@@ -587,6 +700,17 @@ public class WalkerController {
             double gy = soleGround(c, i, new Vec3(to.x, top - 1, to.z));
             if (!Double.isNaN(gy) && gy > foot[i].y - 3) to = new Vec3(to.x, gy, to.z);
             else to = foot[i]; // a wall or a drop there: step in place
+        }
+        { // never land so far ahead of the feet that stay that the body can't get over it before the next step
+            Vec3 fl = Vec3.atLowerCornerOf(m.forward.getNormal()); double cs = Math.cos(c.yaw), sn = Math.sin(c.yaw);
+            Vec3 fw = new Vec3(fl.x * cs - fl.z * sn, 0, fl.x * sn + fl.z * cs);
+            double front = -Double.MAX_VALUE; for (int k = 0; k < state.length; k++) if (k != i && state[k] == State.STANCE) front = Math.max(front, foot[k].dot(fw));
+            double maxAhead = 0.75 * lastStride + 0.4;
+            if (front > -Double.MAX_VALUE && to.dot(fw) - front > maxAhead) {
+                Vec3 back = to.subtract(fw.scale(to.dot(fw) - front - maxAhead));
+                double gy = soleGround(c, i, new Vec3(back.x, top - 1, back.z));
+                if (!Double.isNaN(gy) && gy > foot[i].y - 3) to = new Vec3(back.x, gy, back.z);
+            }
         }
         double clear = Math.max(foot[i].y, to.y);
         for (int k = 1; k < 4; k++) {
@@ -896,7 +1020,7 @@ public class WalkerController {
         Vec3 f = Vec3.atLowerCornerOf(m.forward.getNormal()), r = new Vec3(-f.z, 0, f.x), d = t.subtract(hj.pivot);
         double lat = d.dot(r) - L.foot().subtract(hj.pivot).dot(r); // sideways offset compared with the built leg
         double roll = -Math.atan2(lat, Math.max(0.3, -d.y));
-        double lim = hj.limRad();
+        double lim = hj.lim2Rad(); // its sideways range
         roll = Math.max(-lim, Math.min(lim, roll));
         double prev = Double.isNaN(m.ikRoll[hj.id]) ? 0 : m.ikRoll[hj.id];
         roll = smooth(prev, roll, maxTurn);

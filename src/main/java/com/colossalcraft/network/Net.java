@@ -221,7 +221,7 @@ public final class Net {
             StructureScan.Result r = StructureScan.scan(sp.level(), a.pos());
             switch (a.action()) {
                 case 11, 12, 13, 17 -> { hc.joints = applyLoco(hc.joints, a); hc.setChanged(); }
-                case 1, 2, 6, 7, 8, 10, 15 -> {
+                case 1, 2, 6, 7, 8, 10, 15, 18 -> {
                     if (a.joint() >= 0 && a.joint() < r.model.joints.size()) {
                         String key = StructureModel.jointKey(r.model.joints.get(a.joint()).key);
                         hc.joints.put(key, applyJoint(hc.joints.getCompound(key), a)); hc.setChanged();
@@ -268,6 +268,7 @@ public final class Net {
         switch (a.action()) {
             case 1 -> c.putByte("Mode", (byte) Math.max(0, Math.min(StructureModel.MODES.length - 1, a.value())));
             case 2 -> c.putInt("Amp", Math.max(1, Math.min(90, a.value())));
+            case 18 -> c.putInt("Amp2", Math.max(1, Math.min(90, a.value()))); // sideways range of a two-axis joint
             case 6 -> {
                 int idx = a.value() >> 16, ang = Math.max(-180, Math.min(180, (a.value() & 0xFFFF) - 180));
                 int[] k = Arrays.copyOf(c.getIntArray("Keys"), StructureModel.KEYS);
@@ -287,7 +288,7 @@ public final class Net {
         ColossusEntity c = colossusNear(sp, a.entity()); if (c == null) return;
         switch (a.action()) {
             case 11, 12, 13, 17 -> c.setJointCfg(applyLoco(c.jointCfg, a));
-            case 1, 2, 6, 7, 8, 10, 15 -> {
+            case 1, 2, 6, 7, 8, 10, 15, 18 -> {
                 if (a.joint() >= 0 && a.joint() < c.model.joints.size()) {
                     String key = StructureModel.jointKey(c.model.joints.get(a.joint()).key);
                     CompoundTag cfg = c.jointCfg.copy(); cfg.put(key, applyJoint(cfg.getCompound(key), a)); c.setJointCfg(cfg);

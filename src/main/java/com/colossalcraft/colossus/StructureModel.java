@@ -91,6 +91,10 @@ public class StructureModel {
         public double clampAngle(double a) { double rom = Math.toRadians(Math.max(2, Math.min(180, amp * 2))); return Math.max(-Math.min(rom, foldNeg), Math.min(Math.min(rom, foldPos), a)); }
         /** Turn limit either way (radians): the range of motion set in the Joints tab, but never into the Colossus itself. */
         public double limRad() { return Math.min(Math.toRadians(Math.max(2, Math.min(180, amp * 2))), fold); }
+        /** Two-axis joints (ball joints, powered ball hips): the sideways range, set on its own (amp2 = half of +-degrees). */
+        public int amp2 = 15;
+        public double lim2Rad() { return Math.min(Math.toRadians(Math.max(2, Math.min(180, amp2 * 2))), fold); }
+        public boolean twoAxis() { return ball || universal; }
         public final List<BlockPos> blocks = new ArrayList<>();
         public final List<Integer> childSegs = new ArrayList<>();
         public Vec3 pivot = Vec3.ZERO, subCom = Vec3.ZERO;
@@ -338,6 +342,9 @@ public class StructureModel {
             j.powered = j.shape == JointShape.POWERED_BALL;
             if (j.ball) { j.romCap = BallJointBlock.romCap(j.size, j.height); j.amp = Math.min(jc.contains("Amp") ? j.amp : Math.min(22, j.romCap / 2), Math.max(1, j.romCap / 2)); } // default +-44 degrees, never past what its shape allows
             else if (isLegMode(j.mode) && !jc.contains("Amp")) j.amp = 45; // legs: +-90 degrees, so knees can fold enough to lift a foot onto a step
+            // sideways range of two-axis joints: hips default to +-30 degrees out to the side, ball ankles to their swing range
+            j.amp2 = jc.contains("Amp2") ? jc.getInt("Amp2") : j.ball && !j.powered ? j.amp : Math.min(15, j.amp);
+            if (j.ball) j.amp2 = Math.min(j.amp2, Math.max(1, j.romCap / 2));
             if (j.powered) { j.motorTorque += Parts.MOTOR_TORQUE * j.area; j.motorPower += Parts.MOTOR_POWER; }
             joints.add(j);
         }
