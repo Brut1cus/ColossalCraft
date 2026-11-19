@@ -171,6 +171,12 @@ def cell(col, name):
     rect(im, 5, 2, 10, 13, hx(0x707880)); rect(im, 6, 4, 9, 11, col); rect(im, 6, 4, 6, 11, shade(col, 1.4)); rect(im, 6, 1, 9, 2, hx(0xaab0b8)); rect(im, 6, 14, 9, 14, hx(0x40464c))
     save(im, I, name)
 cell(hx(0x7dff3a), 'enriched_fuel_cell'); cell(hx(0x3ad7ff), 'deuterium_cell')
+wr = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+for i in range(4, 13): px(wr, i, 15 - i, hx(0x9aa4ae)); px(wr, i + 1, 15 - i, hx(0x6a747e))  # handle
+for (x, y) in ((11, 1), (12, 1), (13, 1), (14, 2), (14, 3), (14, 4), (13, 5), (11, 5), (10, 4), (10, 3), (10, 2), (12, 4), (12, 5), (11, 4)): px(wr, x, y, hx(0xd0d8e0))
+for (x, y) in ((12, 2), (12, 3), (13, 3)): wr.putpixel((x, y), (0, 0, 0, 0))  # jaw opening
+for (x, y) in ((3, 13), (4, 13), (3, 12), (2, 12), (2, 13), (3, 14)): px(wr, x, y, hx(0xff8a3a))  # grip
+save(wr, I, 'wrench')
 print('textures done', len(os.listdir(B)), len(os.listdir(I)))
 
 # --- compat blocks ---

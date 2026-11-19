@@ -149,6 +149,12 @@ public final class ModRegistry {
     static { cat = Cat.POWER; }
     public static final DeferredItem<Item> ENRICHED_FUEL_CELL = item("enriched_fuel_cell");
     public static final DeferredItem<Item> DEUTERIUM_CELL = item("deuterium_cell");
+    static { cat = Cat.COMMAND; }
+    /** Colossus Wrench: right-click a part to turn it (sneak-right-click picks it up). Any mod's wrench (c:tools/wrench) works too. */
+    public static final DeferredItem<Item> WRENCH = tool("wrench");
+    private static DeferredItem<Item> tool(String name) {
+        DeferredItem<Item> i = ITEMS.registerSimpleItem(name, new Item.Properties().stacksTo(1)); ALL_ITEMS.add(i); BY_CAT.get(cat).add(i); return i;
+    }
 
     // ---- block entities / entities ----
     @SuppressWarnings("DataFlowIssue")

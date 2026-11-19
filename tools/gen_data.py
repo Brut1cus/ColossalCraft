@@ -244,7 +244,7 @@ def pillar_block(n, name, elements_for_axis, textures):
     for axis in 'xyz':
         w(f'{A}/models/block/{n}_{axis}.json', {'parent': 'minecraft:block/block', 'textures': textures, 'elements': elements_for_axis(axis)})
     w(f'{A}/blockstates/{n}.json', {'variants': {f'axis={ax}': {'model': f'{NS}:block/{n}_{ax}'} for ax in 'xyz'}})
-    w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}_y'})
+    w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}_' + ('x' if n == 'rotor_blade' else 'y')})
     blocks.append(n); NAMES[n] = name
 # --- engines ---
 for n, nm in [('ember_boiler', 'Ember Boiler'), ('blaze_combustor', 'Blaze Combustor'), ('redstone_dynamo', 'Redstone Dynamo')]:
@@ -317,13 +317,15 @@ for n, nm in [('steam_vent', 'Steam Vent'), ('blaze_jet', 'Blaze Jet'), ('arc_th
         cube_el([3, 3, 0], [13, 13, 2], {'*': '#side', 'north': '#nozzle'})]})
     w(f'{A}/blockstates/{n}.json', {'variants': {f'facing={f}': dict({'model': f'{NS}:block/{n}'}, **r) for f, r in D6.items()}})
     blocks.append(n); NAMES[n] = nm
-w(f'{A}/models/block/sky_sail.json', {'parent': 'minecraft:block/block', 'textures': {'all': tex('sky_sail'), 'particle': tex('sky_sail')}, 'elements': [cube_el([0, 0, 0], [16, 3, 16], {'*': '#all'})]})
-w(f'{A}/blockstates/sky_sail.json', {'variants': {'': {'model': f'{NS}:block/sky_sail'}}})
+SAIL_BOX = {'down': ([0, 0, 0], [16, 3, 16]), 'up': ([0, 13, 0], [16, 16, 16]), 'north': ([0, 0, 0], [16, 16, 3]), 'south': ([0, 0, 13], [16, 16, 16]), 'west': ([0, 0, 0], [3, 16, 16]), 'east': ([13, 0, 0], [16, 16, 16])}
+for f, (lo, hi) in SAIL_BOX.items():
+    w(f'{A}/models/block/sky_sail' + ('' if f == 'down' else '_' + f) + '.json', {'parent': 'minecraft:block/block', 'textures': {'all': tex('sky_sail'), 'particle': tex('sky_sail')}, 'elements': [cube_el(lo, hi, {'*': '#all'})]})
+w(f'{A}/blockstates/sky_sail.json', {'variants': {f'facing={f}': {'model': f'{NS}:block/sky_sail' + ('' if f == 'down' else '_' + f)} for f in SAIL_BOX}})
 blocks.append('sky_sail'); NAMES['sky_sail'] = 'Sky Sail'
 
 for b in blocks:
     if b not in ('small_gyro', 'bearing', 'motor', 'slab_joint', 'panel_joint', 'pin_joint', 'ball_joint', 'powered_ball_joint'): item_from_block(b)
-ITEMS = {'colossteel_blend': 'Colossteel Blend', 'colossteel_ingot': 'Colossteel Ingot', 'reactor_alloy': 'Reactor Alloy',
+ITEMS = {'wrench': 'Colossus Wrench', 'colossteel_blend': 'Colossteel Blend', 'colossteel_ingot': 'Colossteel Ingot', 'reactor_alloy': 'Reactor Alloy',
          'neutronium_ingot': 'Neutronium Ingot', 'enriched_fuel_cell': 'Enriched Fuel Cell', 'deuterium_cell': 'Deuterium Cell'}
 for i in ITEMS: w(f'{A}/models/item/{i}.json', {'parent': 'minecraft:item/generated', 'textures': {'layer0': f'{NS}:item/{i}'}})
 
@@ -485,7 +487,9 @@ w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'va
 shaped('gearbox', ['WSW', 'SCS', 'WSW'], {'W': '#minecraft:planks', 'S': 'minecraft:andesite', 'C': 'minecraft:iron_ingot'}, 2)
 shaped('reduction_gearbox', ['IGI', 'GSG', 'IGI'], {'I': 'minecraft:iron_ingot', 'G': 'gearbox', 'S': S})
 # rotor blade (per axis) and gantry hoist
-def blade_els(axis): return [axis_box(axis, (0, 16), (6, 10), (3, 13), '#all')]
+def blade_els(axis):  # flat blades (4 thick, 10 wide) lying level for x and z; upright for y. Matches the block's shape.
+    lo, hi = {'x': ([0, 6, 3], [16, 10, 13]), 'z': ([3, 6, 0], [13, 10, 16]), 'y': ([3, 0, 6], [13, 16, 10])}[axis]
+    return [{'from': lo, 'to': hi, 'faces': {f: {'texture': '#all', 'uv': fit_uv(f, lo, hi)} for f in ('north', 'south', 'east', 'west', 'up', 'down')}}]
 pillar_block('rotor_blade', 'Rotor Blade', blade_els, {'all': tex('rotor_blade'), 'particle': tex('rotor_blade')})
 w(f'{A}/models/block/gantry_hoist.json', {'parent': 'minecraft:block/block', 'textures': {'beam': tex('gantry_scaffold'), 'hook': tex('gantry_hoist'), 'particle': tex('gantry_hoist')},
     'elements': [cube_el([0, 12, 0], [16, 16, 16], {'*': '#beam'}), cube_el([5, 4, 5], [11, 12, 11], {'*': '#hook'}), cube_el([6, 1, 7], [10, 4, 9], {'*': '#hook'})]})
@@ -513,10 +517,13 @@ for b in ('locomotion_controller', 'flight_controller', 'jump_drive'):
     w(f'{D}/loot_table/blocks/{b}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{b}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
 lang = json.load(open(f'{A}/lang/en_us.json'))
 for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]
-lang['key.colossalcraft.loco'] = 'Colossus: Open Locomotion Controller'; lang['key.colossalcraft.flight'] = 'Colossus: Open Flight Controller'; lang['key.colossalcraft.pitch_down'] = 'Colossus: Nose down (default)'; lang['key.colossalcraft.pitch_up'] = 'Colossus: Nose up (default)'; lang['key.colossalcraft.roll_left'] = 'Colossus: Roll left (default)'; lang['key.colossalcraft.roll_right'] = 'Colossus: Roll right (default)'; lang['key.colossalcraft.brake'] = 'Colossus: Brake wheels (default)'; lang['key.colossalcraft.jump'] = 'Colossus: Jump Drive (default)'
+lang['key.colossalcraft.loco'] = 'Colossus: Open Locomotion Controller'; lang['key.colossalcraft.flight'] = 'Colossus: Open Flight Controller'; lang['key.colossalcraft.pitch_down'] = 'Colossus: Nose down (default)'; lang['key.colossalcraft.pitch_up'] = 'Colossus: Nose up (default)'; lang['key.colossalcraft.roll_left'] = 'Colossus: Roll left (default)'; lang['key.colossalcraft.roll_right'] = 'Colossus: Roll right (default)'; lang['key.colossalcraft.air_brake'] = 'Colossus: Air brake (default)'; lang['key.colossalcraft.estop'] = 'Colossus: Emergency stop'; lang['key.colossalcraft.brake'] = 'Colossus: Brake wheels (default)'; lang['key.colossalcraft.jump'] = 'Colossus: Jump Drive (default)'
 w(f'{A}/lang/en_us.json', lang)
 w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in blocks if b not in ('sky_sail', 'kinetic_dynamo', 'gantry_scaffold')] + [{'id': f'{NS}:kinetic_dynamo', 'required': False}]})
 shaped('locomotion_controller', ['SCS', 'RMR', 'SRS'], {'S': S, 'C': 'minecraft:comparator', 'R': 'minecraft:redstone', 'M': 'motor'})
+shaped('wrench', ['I I', ' C ', ' I '], {'I': 'minecraft:iron_ingot', 'C': 'minecraft:copper_ingot'})
+w(f'{R}/data/c/tags/item/tools/wrench.json', {'replace': False, 'values': [f'{NS}:wrench']})
+w(f'{R}/data/c/tags/item/tools.json', {'replace': False, 'values': [f'{NS}:wrench']})
 shaped('flight_controller', ['SCS', 'FMF', 'SRS'], {'S': S, 'C': 'minecraft:compass', 'F': 'minecraft:feather', 'R': 'minecraft:redstone', 'M': 'motor'})
 shaped('jump_drive', ['SPS', 'RBR', 'SPS'], {'S': S, 'P': 'minecraft:piston', 'R': 'minecraft:redstone_block', 'B': 'minecraft:slime_block'})
 w(f'{D}/tags/block/natural_ground.json', {'values': ['#minecraft:dirt', '#minecraft:sand', '#minecraft:base_stone_overworld', '#minecraft:base_stone_nether',

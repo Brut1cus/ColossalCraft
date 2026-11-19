@@ -133,10 +133,17 @@ public class StructureModel {
         public boolean rotorHead;
         /** Rotor blades on this joint while it isn't set to Spin (they do nothing yet). */
         public int idleBlades;
+        /** Keys bound to this joint in the Flight Controller (GLFW codes, -1 = none): 0 throttle up / move +, 1 throttle down /
+         *  move -, 2-5 rotor head tilt forward, back, left, right. spring: let go and it goes back to 0 (else it stays, like a lever). */
+        public int[] ctlKeys = {-1, -1, -1, -1, -1, -1}; public boolean spring;
+        public boolean hasControls() { for (int k : ctlKeys) if (k >= 0) return true; return false; }
+        public boolean hasTiltKeys() { for (int i = 2; i < 6; i++) if (ctlKeys[i] >= 0) return true; return false; }
+        /** A rotor: a Spin joint with blades. */
+        public boolean rotor() { return mode == SPIN && blades > 0; }
         /** Gear ratios seen by this joint's motors (for the screen). */
         public final List<Double> ratios = new ArrayList<>();
         public boolean stalled() { return !ball && mode != LOCKED && !childSegs.isEmpty() && (motorTorque <= 0 || motorTorque < reqTorque); }
-        public boolean active() { return mode != LOCKED && !childSegs.isEmpty() && !stalled(); }
+        public boolean active() { return (mode != LOCKED || hasControls()) && !childSegs.isEmpty() && !stalled(); } // a Locked joint with keys moves only by its keys
     }
     /** What a joint is for and which mode it should use: {role text, recommended mode, -1 = any}. */
     public Object[] role(Joint j) {
@@ -204,6 +211,8 @@ public class StructureModel {
     public final Set<Integer> legSegs = new HashSet<>();
     /** IK joint angles from the walker controller (radians, NaN = not driven), and the previous tick's, for smooth drawing. */
     public double[] ikAngles, ikPrev; public double ikT = 1;
+    /** Each rotor's own spin angle (radians; NaN = not a rotor), last tick's, and each joint's control value (-1..1) for the HUD. */
+    public double[] jointSpin = new double[0], jointSpinPrev = new double[0], jointCtl = new double[0];
     public record EngineInfo(String name, long energy, long capacity, int output, boolean running, String note, boolean zeroPoint) {}
 
     public final Map<BlockPos, BlockState> blocks;
@@ -358,6 +367,8 @@ public class StructureModel {
             j.cfgAmp = jc.contains("Amp") ? jc.getInt("Amp") : -1;
             int[] k = jc.getIntArray("Keys"); for (int i = 0; i < Math.min(KEYS, k.length); i++) j.keys[i] = k[i];
             j.phase = jc.getInt("Phase"); if (jc.contains("SpeedX")) j.speedFactor = jc.getInt("SpeedX") / 100.0; j.loop = jc.getBoolean("Loop"); j.spinDir = jc.getBoolean("Rev") ? -1 : 1;
+            { int[] ck = jc.getIntArray("CK"); for (int i = 0; i < Math.min(6, ck.length); i++) j.ctlKeys[i] = ck[i]; }
+            j.spring = jc.contains("Spring") ? jc.getBoolean("Spring") : j.mode != SPIN; // rotors keep their throttle by default
             j.group = jc.getInt("Group");
             j.ball = j.shape.ball();
             j.powered = j.shape == JointShape.POWERED_BALL;
@@ -823,6 +834,7 @@ public class StructureModel {
         assignGroups();
         ballPitch = new double[joints.size()]; ballRoll = new double[joints.size()]; ikRoll = new double[joints.size()]; ikYaw = new double[joints.size()];
         ikAngles = new double[joints.size()]; Arrays.fill(ikAngles, Double.NaN); ikPrev = ikAngles.clone();
+        jointSpin = new double[joints.size()]; Arrays.fill(jointSpin, Double.NaN); jointSpinPrev = jointSpin.clone(); jointCtl = new double[joints.size()];
     }
 
     /** Which legs step together, from the gait type. */
@@ -950,6 +962,22 @@ public class StructureModel {
     public double stepSpeed(boolean sprint) { return Math.min(gaitSpeed * (sprint ? 1.6 : 1), powerSpeedCap()); }
     public double maxDraw() { double d = drivePower + gyroPower + walkPower(); for (double v : thrustPow) d += v; return d; }
 
+    static double lerpAngle(double a0, double a1, double t) {
+        if (Double.isNaN(a0)) return a1;
+        double d = Math.IEEEremainder(a1 - a0, 2 * Math.PI); return a0 + d * t;
+    }
+    /** Fastest a rotor can spin (rad/s): its gears' top speed, or where blade drag eats all its motor torque. */
+    public static double rotorOmegaMax(Joint j, double liftScale) {
+        return Math.min(Math.toRadians(j.maxSpeed), Math.sqrt(j.motorTorque / Math.max(1e-6, ROTOR_DRAG * liftScale * j.bladeA3)));
+    }
+    /** Rotor thrust (N) at a spin of om rad/s. Blade-element theory: each blade piece makes lift 1/2 rho Cl A v^2 with v = om r,
+     *  so thrust = 1/2 rho Cl om^2 sum(A r^2). Air 1.225 kg/m3, Cl 0.4 (flat blades), times the server's lift scale. Spinning
+     *  backwards pushes the other way. */
+    public static double rotorThrust(Joint j, double om, double liftScale) { return 0.5 * 1.225 * ROTOR_CL * om * Math.abs(om) * j.bladeA2 * liftScale; }
+    /** Torque the blades' drag takes at a spin of om (N*m): 1/2 rho Cd om^2 sum(A r^3). */
+    public static double rotorDragTorque(Joint j, double om, double liftScale) { return ROTOR_DRAG * liftScale * j.bladeA3 * om * om; }
+    public static final double ROTOR_CL = 0.4, ROTOR_DRAG = 0.5 * 1.225 * 0.1;
+
     /** Hinge angle (radians) for a joint given the animation state. */
     public double angle(Joint j, double walkPhase, double walkBlend, double spin, double time) {
         if (ikAngles != null && j.id < ikAngles.length && !Double.isNaN(ikAngles[j.id])) {
@@ -964,7 +992,7 @@ public class StructureModel {
                 double f = walkPhase / (2 * Math.PI) + j.autoPhase + j.phase / 360.0; f -= Math.floor(f);
                 yield amp * (f < 0.5 ? 1 - 4 * f : -1 + 4 * (f - 0.5)) * walkBlend;
             }
-            case SPIN -> j.blades > 0 ? spin * j.spinDir : wheelAngle * j.wheelSign;
+            case SPIN -> j.blades > 0 ? (j.id < jointSpin.length && !Double.isNaN(jointSpin[j.id]) ? lerpAngle(jointSpinPrev[j.id], jointSpin[j.id], ikT) : spin * j.spinDir) : wheelAngle * j.wheelSign;
             case SWAY -> walkAmount > 0.01
                     ? amp * 0.6 * walkAmount * Math.sin(2 * Math.PI * walkClock + (j.pivot.subtract(com).dot(new Vec3(-forward.getNormal().getZ(), 0, forward.getNormal().getX())) < 0 ? 0 : Math.PI)) // arms swing with the steps, left and right opposite
                     : amp * 0.5 * Math.sin(time * 0.06 + j.id * 0.9);

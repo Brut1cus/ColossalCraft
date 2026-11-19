@@ -105,6 +105,35 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     /** Flight Controller tilt keys: nose down (+) / up (-), roll right (+) / left (-). */
     public float inPitch, inRoll;
     public void setFlightInput(float pitch, float roll) { inPitch = pitch; inRoll = roll; }
+    /** Flight Controller air brake key held. */
+    public boolean inAirBrake;
+    /** Emergency stop: every force off (jets, rotors, legs), brakes on, so a hoist can pick it up. Toggled by its key. */
+    public boolean eStop;
+    /** A walker that fell over: it stays down (no sliding, no getting up by itself) until a Gantry Hoist lifts it upright. */
+    public boolean downed;
+    /** Per-joint keys held (bits: 1 up, 2 down, 4 tilt forward, 8 back, 16 left, 32 right), each rotor's spin (rad/s, signed),
+     *  each joint's control value (-1..1) and each rotor head's tilt input (pitch, roll). */
+    private int[] jKeys = new int[0]; public double[] jRate = new double[0], jCtl = new double[0], jTilt = new double[0];
+    public void setJointInput(int[] bits) { ensureControls(); for (int i = 0; i < jKeys.length; i++) jKeys[i] = i < bits.length ? bits[i] : 0; }
+    private void ensureControls() {
+        int n = model.joints.size();
+        if (jKeys.length != n) { jKeys = new int[n]; jRate = new double[n]; jCtl = new double[n]; jTilt = new double[2 * n]; }
+    }
+    /** Keys move each controlled joint's value: up/down change it (a rotor's throttle, an arm's place in its range); let go and it
+     *  stays, or springs back to 0. Tilt keys always spring back. */
+    private void updateControls(double dt) {
+        ensureControls();
+        for (StructureModel.Joint j : model.joints) {
+            if (!j.hasControls()) continue;
+            int b = jKeys[j.id]; double d = ((b & 1) != 0 ? 1 : 0) - ((b & 2) != 0 ? 1 : 0);
+            if (d != 0) jCtl[j.id] += d * dt * (j.rotor() ? 0.8 : 1.0);
+            else if (j.spring) jCtl[j.id] -= Math.signum(jCtl[j.id]) * Math.min(Math.abs(jCtl[j.id]), 2.5 * dt);
+            jCtl[j.id] = Math.max(-1, Math.min(1, jCtl[j.id]));
+            double tp = ((b & 4) != 0 ? 1 : 0) - ((b & 8) != 0 ? 1 : 0), tr = ((b & 32) != 0 ? 1 : 0) - ((b & 16) != 0 ? 1 : 0);
+            jTilt[2 * j.id] += Math.max(-3 * dt, Math.min(3 * dt, tp - jTilt[2 * j.id])); jTilt[2 * j.id + 1] += Math.max(-3 * dt, Math.min(3 * dt, tr - jTilt[2 * j.id + 1]));
+        }
+        if (model.jointCtl.length == jCtl.length) System.arraycopy(jCtl, 0, model.jointCtl, 0, jCtl.length);
+    }
     /** Jump Drive charge (CJ) and whether the jump key was down last tick. */
     public double jumpCharge; private boolean jumpWasDown;
     /** The pilot asked to leave (V key): only then may they dismount (Crouch is used for 'lower'). */
@@ -293,6 +322,10 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             int[] rl = ik.getIntArray("RL");
             for (int i = 0; i < model.ikRoll.length; i++) { model.ikRoll[i] = 2 * i + 1 < rl.length ? Float.intBitsToFloat(rl[2 * i]) : 0; model.ikYaw[i] = 2 * i + 1 < rl.length ? Float.intBitsToFloat(rl[2 * i + 1]) : 0; }
             model.walkClock = ik.getDouble("WC"); model.walkAmount = ik.getDouble("WA");
+            eStop = ik.getBoolean("ES");
+            { int[] js = ik.getIntArray("JS"), ct = ik.getIntArray("CT");
+              for (int i = 0; i < model.jointSpin.length; i++) { model.jointSpinPrev[i] = model.jointSpin[i]; model.jointSpin[i] = i < js.length ? Float.intBitsToFloat(js[i]) : Double.NaN; if (tickCount < 3) model.jointSpinPrev[i] = model.jointSpin[i]; }
+              for (int i = 0; i < model.jointCtl.length; i++) model.jointCtl[i] = i < ct.length ? Float.intBitsToFloat(ct[i]) : 0; }
             prevWheelAngle = wheelAngle; wheelAngle = ik.getDouble("WH"); if (tickCount < 3) prevWheelAngle = wheelAngle; model.wheelAngle = wheelAngle;
             int[] bt = ik.getIntArray("BT");
             for (int i = 0; i < model.ballPitch.length; i++) { model.ballPitch[i] = 2 * i + 1 < bt.length ? Float.intBitsToFloat(bt[2 * i]) : 0; model.ballRoll[i] = 2 * i + 1 < bt.length ? Float.intBitsToFloat(bt[2 * i + 1]) : 0; }
@@ -338,7 +371,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private void physics() {
         double dt = 0.05, M = model.mass, g = StructureModel.G, scale = Config.MASS_SCALE.get(), LS = Config.LIFT_SCALE.get();
         Player pilot = pilot();
-        if (!autopilot && (pilot == null || ++inputAge > 10)) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; inSprint = false; inJump = false; inCW = false; inCCW = false; inBrake = false; inPitch = 0; inRoll = 0; }
+        if (!autopilot && (pilot == null || ++inputAge > 10)) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; inSprint = false; inJump = false; inCW = false; inCCW = false; inBrake = false; inPitch = 0; inRoll = 0; inAirBrake = false; Arrays.fill(jKeys, 0); }
+        if (eStop) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; inSprint = false; inJump = false; inCW = false; inCCW = false; inPitch = 0; inRoll = 0; inBrake = true; inAirBrake = false; Arrays.fill(jKeys, 0); }
+        updateControls(dt);
         if (heldBy() != null) { heldPhysics(); return; }
 
         // buoyancy
@@ -360,7 +395,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         double up = model.thrustCap[Direction.UP.ordinal()];
         double vT = 0, dT = 0;
         boolean flying = model.flying() && !onGroundC && !(model.legged && walker.planted());
-        boolean holdAlt = hover() || (flying && model.dampeners); // dampeners hold height too
+        boolean holdAlt = !eStop && (hover() || (flying && model.dampeners)); // dampeners hold height too
         double pitchCmd = model.flying() ? Math.max(-1, Math.min(1, inFwd + inPitch)) : 0, rollCmd = model.flying() ? inRoll : 0;
         if (pilot != null && inUp) vT = 1;
         else if (pilot != null && inDown) dT = 1;
@@ -392,12 +427,11 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             thrust = thrust.add(f); torqueY += r.cross(f).y; draw += t.power() * thr;
         }
         // ---- propellers/rotors: blades on Spin joints push along the axis; thrust ~ area * (speed)^2
-        double omegaWanted = spinRate * 20, rudder = 0; boolean liftRotors = false;
-        for (StructureModel.Joint j : model.joints) {
-            if (j.mode != StructureModel.SPIN || !j.active() || j.blades == 0) continue;
-            double om = Math.min(omegaWanted, Math.toRadians(j.maxSpeed));
-            om = Math.min(om, Math.sqrt(j.motorTorque / Math.max(1e-6, 0.5 * 1.225 * 0.1 * LS * j.bladeA3)));
-            double T = 0.5 * 1.225 * om * om * j.bladeA2 * 0.4 * LS;
+        double rudder = 0; boolean liftRotors = false;
+        ensureControls();
+        for (StructureModel.Joint j : model.joints) { // every rotor at its own spin (set below from its throttle)
+            if (!j.rotor() || !j.active()) continue;
+            double om = jRate[j.id], T = StructureModel.rotorThrust(j, om, LS);
             Vec3 a = StructureModel.axisVec(j.rotorHead ? j.blockAxis : j.axis).scale(j.thrustSign);
             Vector3d al = new Vector3d(a.x, a.y, a.z);
             if (j.rotorHead && j.id < model.ballPitch.length) { // a rotor head pushes along its tilted disc
@@ -407,12 +441,12 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             Vector3d dw = W[Math.max(0, j.parentSeg)].transformDirection(al).normalize();
             Vec3 Fr = new Vec3(dw.x, dw.y, dw.z).scale(T);
             thrust = thrust.add(Fr);
-            if (Math.abs(dw.y) < 0.5) { // a sideways rotor (tail rotor) is a rudder: it can turn the craft as hard as it pushes times its lever
-                Vec3 rr = blockWorldCenter(BlockPos.containing(j.pivot)).subtract(position());
-                double fullT = 0.5 * 1.225 * Math.pow(Math.min(Math.toRadians(j.maxSpeed), Math.sqrt(j.motorTorque / Math.max(1e-6, 0.5 * 1.225 * 0.1 * LS * j.bladeA3))), 2) * j.bladeA2 * 0.4 * LS;
-                rudder += fullT * Math.sqrt(rr.x * rr.x + rr.z * rr.z);
-            } else liftRotors = true;
-            draw += 0.5 * 1.225 * 0.1 * LS * j.bladeA3 * om * om * om / 400000; // power to beat blade drag
+            Vec3 rr = blockWorldCenter(BlockPos.containing(j.pivot)).subtract(position());
+            if (Math.abs(dw.y) >= 0.5) liftRotors = true;
+            if (j.hasControls()) torqueY += rr.cross(Fr).y; // a rotor you throttle yourself turns the craft by where it really pushes
+            else if (Math.abs(dw.y) < 0.5) // a sideways rotor (tail rotor) left to itself is a rudder: it can turn the craft as hard as it pushes times its lever
+                rudder += StructureModel.rotorThrust(j, StructureModel.rotorOmegaMax(j, LS), LS) * Math.sqrt(rr.x * rr.x + rr.z * rr.z);
+            draw += StructureModel.rotorDragTorque(j, om, LS) * Math.abs(om) / 400000; // power to beat blade drag
         }
 
         boolean walkers = model.hasWalkers() && tilt < 0.1;
@@ -453,9 +487,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         boolean powered = model.output > 0 && (model.infinite || energy > 0) && ratio > 0;
         // a walker with a Locomotion Controller balances itself (leans, settles, catch steps); statues need their weight over their feet
         boolean stable = !model.legged || (model.footingOk() && powered && (model.balanced() || (walker.usable(model) && model.locoControllers > 0)));
-        boolean useWalker = walker.usable(model) && model.legged && model.locoControllers > 0 && stable && tilt < 0.1;
+        boolean useWalker = walker.usable(model) && model.legged && model.locoControllers > 0 && stable && tilt < 0.1 && !eStop;
         if (!useWalker) {
-            walker.release(model);
+            if (!eStop) walker.release(model); // stopped: the legs hold the pose they were in
             Vec3 F = thrust.scale(ratio).add(0, -M * g + buoy + lift, 0).add(fwW.scale(Math.signum(inFwd) * hT * groundF * ratio));
             vel = vel.add(F.scale(dt / M));
         }
@@ -479,10 +513,11 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             double lean = Math.toRadians(model.leanMax);
             bodyPitch += (-lean * pitchCmd - bodyPitch) * 0.1; bodyRoll += (lean * rollCmd - bodyRoll) * 0.1;
         } else if (!useWalker) { bodyPitch *= 0.8; bodyRoll *= 0.8; if (Math.abs(bodyPitch) + Math.abs(bodyRoll) < 1e-4) { bodyPitch = 0; bodyRoll = 0; } }
-        if (model.flying()) { // rotor heads tilt their discs toward the move
+        { // rotor heads tilt their discs: by their own tilt keys, or toward the move with a Flight Controller
             double tl = Math.toRadians(model.rotorTilt);
             for (StructureModel.Joint j : model.joints) if (j.rotorHead && j.id < model.ballPitch.length) {
-                model.ballPitch[j.id] += (-tl * pitchCmd - model.ballPitch[j.id]) * 0.2; model.ballRoll[j.id] += (tl * rollCmd - model.ballRoll[j.id]) * 0.2;
+                double cp = j.hasTiltKeys() ? jTilt[2 * j.id] : model.flying() ? pitchCmd : 0, cr = j.hasTiltKeys() ? jTilt[2 * j.id + 1] : model.flying() ? rollCmd : 0;
+                model.ballPitch[j.id] += (-tl * cp - model.ballPitch[j.id]) * 0.2; model.ballRoll[j.id] += (tl * cr - model.ballRoll[j.id]) * 0.2;
             }
         }
 
@@ -515,7 +550,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             Vec3 vPre = vel;
             double hd = onGroundC ? 0.85 : subFrac > 0.05 ? 0.93 : 0.985;
             vel = new Vec3(vel.x * hd, vel.y * (subFrac > 0.05 ? 0.9 : 0.995), vel.z * hd);
-            if (flying && inBrake) vel = vel.scale(0.88); // air brakes out: strong drag every way
+            if (flying && inAirBrake) vel = vel.scale(0.88); // air brakes out: strong drag every way
+            if (tilt > 0.02 || eStop && onGroundC) vel = new Vec3(vel.x * 0.6, vel.y, vel.z * 0.6); // tipping, fallen or stopped: it grinds to a halt, no sliding
+            if (eStop) yawRate *= 0.6;
             else if (flying && model.dampeners && pitchCmd == 0 && rollCmd == 0 && !inUp && !inDown) vel = new Vec3(vel.x * 0.93, vel.y, vel.z * 0.93); // dampeners: it comes to a stop
             if (onGroundC && wheelsDown > 0 && wheelDir.lengthSqr() > 0) { // wheels roll: along them the ground doesn't drag, the wheels set the speed
                 double va0 = vPre.dot(wheelDir), aMax = inBrake ? 0.8 * StructureModel.G : Math.min(0.8 * StructureModel.G, wheelPush * ratio / M);
@@ -528,18 +565,19 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         if (vel.length() > max) vel = vel.normalize().scale(max);
 
         double oldTilt = tilt;
-        if (model.legged && onGroundC && !stable && tilt < MAX_TILT) {
+        if (model.legged && tilt > 0.35 && !downed) { downed = true; if (pilot != null) pilot.displayClientMessage(net.minecraft.network.chat.Component.literal("Fallen! It stays down: lift it upright with a Gantry Hoist (it stands again once lifted)."), false); }
+        if (model.legged && onGroundC && (!stable || downed) && tilt < MAX_TILT) {
             if (tilt == 0) {
                 Vec3 off = model.balanceOffset;
                 tiltDir = off.lengthSqr() > 1e-6 ? Math.atan2(off.z, off.x) : Math.atan2(model.forward.getStepZ(), model.forward.getStepX());
                 tiltRate = 0.35; if (pilot != null && !warnedFall) { pilot.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                    model.balanced() ? "Losing balance! Walkers need a powered gyro in the Hull Core's part and motors on every leg joint."
+                    model.balanced() ? "Losing balance! Its feet couldn't catch it. Press B to stop everything; a Gantry Hoist can lift it."
                             : "Tipping over! The centre of mass is not over the feet."), false); warnedFall = true; } }
             double h = Math.max(1, model.com.y - model.localBounds.minY);
             tiltRate += StructureModel.G / h * Math.sin(Math.max(tilt, 0.05)) * dt;
             tilt = Math.min(MAX_TILT, tilt + tiltRate * dt);
             if (tilt >= MAX_TILT) { tiltRate = 0; if (level() instanceof ServerLevel sl) sl.playSound(null, blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 1f, 0.5f); }
-        } else if (stable && tilt > 0) { tilt = Math.max(0, tilt - 0.5 * dt); tiltRate = 0; if (tilt == 0) warnedFall = false; }
+        } else if (stable && !downed && tilt > 0) { tilt = Math.max(0, tilt - 0.5 * dt); tiltRate = 0; if (tilt == 0) warnedFall = false; }
         if (tilt != oldTilt) liftOutOfGround();
 
         // rotor/propeller throttle: forward for propellers, up/down and hover for lifting rotors
@@ -554,6 +592,18 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         for (StructureModel.Joint j : model.joints) if (j.mode == StructureModel.SPIN && j.active()) spinCap = Math.min(spinCap, Math.toRadians(j.maxSpeed) / 20);
         double targetSpin = (pilot != null || autopilot) && ratio > 0 && energy + (model.infinite ? 1 : 0) > 0 ? Math.max(0.15, rotThr) * spinCap : 0;
         spinRate += (targetSpin - spinRate) * 0.05; spin += spinRate;
+        // each rotor spins up toward its own throttle: its keys if it has throttle keys, else the shared rotor throttle
+        boolean rotorsOn = (pilot != null || autopilot) && ratio > 0 && energy + (model.infinite ? 1 : 0) > 0 && !eStop;
+        for (StructureModel.Joint j : model.joints) {
+            if (!j.rotor() || !j.active()) continue;
+            boolean own = j.ctlKeys[0] >= 0 || j.ctlKeys[1] >= 0;
+            double thr = !rotorsOn ? 0 : own ? jCtl[j.id] : Math.max(0.15, rotThr);
+            double target = thr * StructureModel.rotorOmegaMax(j, LS); // short of power, its thrust is cut below (like every engine)
+            jRate[j.id] += (target - jRate[j.id]) * 0.05;
+            double prev = Double.isNaN(model.jointSpin[j.id]) ? 0 : model.jointSpin[j.id];
+            model.jointSpinPrev[j.id] = prev;
+            model.jointSpin[j.id] = (prev + j.spinDir * Math.max(-1.2, Math.min(1.2, jRate[j.id] / 20))) % (2 * Math.PI);
+        }
         // wheels and spinners: the Spin keys turn them, brake stops them, otherwise they roll on slowly
         if (model.wheels > 0) {
             double wCap = 1.5;
@@ -587,6 +637,13 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             ik.putIntArray("RL", rl); ik.putDouble("WC", model.walkClock); ik.putDouble("WA", model.walkAmount);
         }
         if (model.wheels > 0) ik.putDouble("WH", wheelAngle);
+        if (eStop) ik.putBoolean("ES", true);
+        if (model.joints.stream().anyMatch(j -> j.rotor() || j.hasControls())) { // rotors' own spin and each joint's control value
+            int[] js = new int[model.jointSpin.length], ct = new int[model.jointCtl.length];
+            for (int i = 0; i < js.length; i++) js[i] = Float.floatToIntBits((float) model.jointSpin[i]);
+            for (int i = 0; i < ct.length; i++) ct[i] = Float.floatToIntBits((float) model.jointCtl[i]);
+            ik.putIntArray("JS", js); ik.putIntArray("CT", ct);
+        }
         boolean firing = false; for (byte b : thrOut) firing |= b != 0;
         if (firing) ik.putByteArray("T", thrOut.clone());
         entityData.set(IK, ik);
@@ -612,6 +669,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         if (!(hs.getBlock() instanceof com.colossalcraft.block.SimpleParts.GantryHoistBlock) || !hs.getValue(com.colossalcraft.block.SimpleParts.GantryHoistBlock.ENGAGED)) { holdBy(null); return; }
         vel = Vec3.ZERO; yawRate = 0; walkBlend = Math.max(0, walkBlend - 0.08);
         if (tilt > 0) { tilt = Math.max(0, tilt - 0.5 * 0.05); liftOutOfGround(); }
+        if (tilt == 0) { downed = false; walker.catchHeat = 0; walker.recoveries = 0; } // lifted upright: it can stand and walk again
         List<AABB> boxes = surfaceBoxes(position(), yaw);
         List<Vec3> centers = new ArrayList<>(); for (AABB bx : boxes) centers.add(bx.getCenter());
         Map<Long, List<AABB>> world = gatherWorld(centers, 2.2);
@@ -654,7 +712,10 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             if (o == this || o.level() != level() || o.model == null || o.isRemoved() || o.model.mass <= model.mass) continue;
             if (!o.getBoundingBox().intersects(getBoundingBox().inflate(reach + 1))) continue;
             for (AABB b : o.boxesNear(getBoundingBox().inflate(reach + 1))) {
-                map.computeIfAbsent(BlockPos.asLong((int) Math.floor((b.minX + b.maxX) / 2), (int) Math.floor((b.minY + b.maxY) / 2), (int) Math.floor((b.minZ + b.maxZ) / 2)), k -> new ArrayList<>()).add(b);
+                long key = BlockPos.asLong((int) Math.floor((b.minX + b.maxX) / 2), (int) Math.floor((b.minY + b.maxY) / 2), (int) Math.floor((b.minZ + b.maxZ) / 2));
+                List<AABB> l = map.get(key);
+                if (!(l instanceof ArrayList)) { l = l == null ? new ArrayList<>() : new ArrayList<>(l); map.put(key, l); } // cached lists can be shared or fixed
+                l.add(b);
             }
         }
         return map;
@@ -1360,7 +1421,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         tag.putDouble("VX", vel.x); tag.putDouble("VY", vel.y); tag.putDouble("VZ", vel.z);
         tag.putLong("Energy", energy); tag.putLong("EnergyStart", energyStart); tag.putBoolean("Hover", hover());
         tag.putDouble("Walk", walkPhase); tag.putDouble("Spin", spin); tag.putDouble("Wheel", wheelAngle); tag.putDouble("Tilt", tilt);
-        tag.putDouble("BodyPitch", bodyPitch); tag.putDouble("BodyRoll", bodyRoll);
+        tag.putBoolean("EStop", eStop); tag.putBoolean("Downed", downed); tag.putDouble("BodyPitch", bodyPitch); tag.putDouble("BodyRoll", bodyRoll);
     }
     @Override protected void readAdditionalSaveData(CompoundTag tag) {
         HolderGetter<Block> hg = level().holderLookup(Registries.BLOCK);
@@ -1377,7 +1438,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         vel = new Vec3(tag.getDouble("VX"), tag.getDouble("VY"), tag.getDouble("VZ"));
         energy = tag.getLong("Energy"); energyStart = tag.getLong("EnergyStart");
         entityData.set(HOVER, tag.getBoolean("Hover")); walkPhase = tag.getDouble("Walk"); spin = tag.getDouble("Spin"); wheelAngle = tag.getDouble("Wheel"); tilt = prevTilt = tag.getDouble("Tilt"); entityData.set(TILT, (float) tilt);
-        bodyPitch = tag.getDouble("BodyPitch"); bodyRoll = tag.getDouble("BodyRoll");
+        eStop = tag.getBoolean("EStop"); downed = tag.getBoolean("Downed"); bodyPitch = tag.getDouble("BodyPitch"); bodyRoll = tag.getDouble("BodyRoll");
         entityData.set(YAW, (float) yaw);
         if (!blocks.isEmpty()) rebuild();
     }

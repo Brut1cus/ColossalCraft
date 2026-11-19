@@ -128,9 +128,10 @@ public final class DevShots {
             case 140 -> server(sp -> { sp.getAbilities().flying = false; sp.onUpdateAbilities(); BlockPos p = base.offset(1, 8, 1); sp.connection.teleport(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, 135f, 20f); });
             case 149 -> server(sp -> { sp.serverLevel().setBlockAndUpdate(base.offset(1, 9, 0), ModRegistry.FLIGHT_CONTROLLER.get().defaultBlockState()); Net.openFlightParked(sp, base.offset(1, 9, 0)); });
             case 156 -> shot("2f_flight");
-            case 158 -> { mc.setScreen(null); ColossalCraft.LOG.info("[devshots] before build player y={}", mc.player.getY()); server(sp -> { sp.serverLevel().removeBlock(base.offset(1, 9, 0), false); ColossusEntity.assemble(sp.serverLevel(), base.offset(0, 8, 0), sp); }); }
-            case 159 -> ColossalCraft.LOG.info("[devshots] after build t={} player y={} onGround={}", t, mc.player.getY(), mc.player.onGround());
-            case 160 -> server(sp -> { BlockPos hp = base.offset(0, 14, 0); sp.serverLevel().setBlockAndUpdate(hp, ModRegistry.GANTRY_HOIST.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.GantryHoistBlock.ENGAGED, true));
+            case 157 -> { if (mc.screen instanceof HullCoreScreen s) { s.setTab(1); s.selectFirstControl(); } }
+            case 159 -> shot("2g_controls");
+            case 161 -> { mc.setScreen(null); ColossalCraft.LOG.info("[devshots] before build player y={}", mc.player.getY()); server(sp -> { sp.serverLevel().removeBlock(base.offset(1, 9, 0), false); ColossusEntity.assemble(sp.serverLevel(), base.offset(0, 8, 0), sp); }); }
+            case 163 -> server(sp -> { BlockPos hp = base.offset(0, 14, 0); sp.serverLevel().setBlockAndUpdate(hp, ModRegistry.GANTRY_HOIST.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.GantryHoistBlock.ENGAGED, true));
                 ColossusEntity c = colossus(); if (c != null) c.holdBy(hp); sp.getAbilities().flying = true; sp.onUpdateAbilities(); sp.connection.teleport(base.getX() + 9.5, base.getY() + 7, base.getZ() - 8.5, 45f, 10f); });
             case 178 -> shot("3_hoist_holding");
             case 179 -> server(sp -> { ColossusEntity c = colossus(); if (c != null) c.holdBy(null); sp.serverLevel().removeBlock(base.offset(0, 14, 0), false); });

@@ -1,1 +1,1 @@
-{"variants":{"":{"model":"colossalcraft:block/sky_sail"}}}
+{"variants":{"facing=down":{"model":"colossalcraft:block/sky_sail"},"facing=up":{"model":"colossalcraft:block/sky_sail_up"},"facing=north":{"model":"colossalcraft:block/sky_sail_north"},"facing=south":{"model":"colossalcraft:block/sky_sail_south"},"facing=west":{"model":"colossalcraft:block/sky_sail_west"},"facing=east":{"model":"colossalcraft:block/sky_sail_east"}}}

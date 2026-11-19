@@ -38,7 +38,9 @@ The jar ends up in `build/libs/`. Run the in-world tests with `./gradlew runGame
 | R | Fire the Jump Drive |
 | L | Open the Locomotion Controller |
 | J | Open the Flight Controller |
-| Arrow keys | Tilt the nose down/up, roll left/right (with a Flight Controller) |
+| B | Emergency stop (again to restart) |
+| Left Ctrl | Air brake (with a Flight Controller) |
+| Numpad 8/2/4/6 | Tilt the nose down/up, roll left/right (with a Flight Controller) |
 | H | Hover assist on/off (only with thrusters; it rests while a walker stands on its feet) |
 | G | Open the Hull Core screen |
 | K | Park: turns it back into blocks |
@@ -195,16 +197,26 @@ The Joints tab (in the Locomotion Controller) names what each joint is (hip, kne
 - Click a joint marker to select it.
 - Red X marks show where the build touches natural ground. Build on Gantry Scaffold instead.
 
+## Emergency stop, falling and the hoist
+- **B** (while piloting) is the **emergency stop**: every force off (jets, rotors, legs), brakes on, the legs hold their pose. Press again to restart.
+- A walker that **tips over stays down** and grinds to a halt (no sliding, no getting up and tripping again). Lift it with a **Gantry Hoist**: once it hangs upright it can stand and walk again.
+- A walker that keeps stumbling (many catch steps close together) stops walking, digs its feet in and settles for 3 seconds. If it still stumbles after two tries, it gives up and falls instead of tripping forever.
+
+## Wrench
+The **Colossus Wrench** (iron, copper) turns parts: right-click turns a part a quarter turn about the face you clicked (rotor blades, Sky Sails, gearboxes, motors, bearings, ball joints, thrusters...). Sneak-right-click picks it up. Big assemblies re-form on their own. **Any mod's wrench works too** (items tagged `c:tools/wrench`, like Create's wrench). Turn parts while parked.
+- **Sky Sails** now face any way: they lie against the face you place them on.
+
 ## Gantry Hoist
 Hang a **Gantry Hoist** above where the Colossus stands (up to 32 blocks up, usually on top of a scaffold frame). Right-click it to grab the Colossus below: it winches it up as high as it can go (its top right under the hoist, or until something above blocks it), holds it upright, and shows a chain. **Park** while it's held and the blocks stay off the ground, so you can **Build** it again later without picking up terrain. Right-click again to let go.
 
 ## Jets, propellers and rotors
 - **Jets (thrusters)** push along the way they actually point, even on a turning part (thrust vectoring). Jets placed off-center also turn the Colossus. Firing jets blow exhaust out of their nozzles (steam, flame, sparks, soul fire or portal light by type) and make an engine roar that follows the throttle.
 - **Propellers / rotors:** put **Rotor Blades** (or Sky Sails) on the turning side of a **Spin** joint.
-  - Thrust follows blade area × (spin speed × distance from the axis)² and pushes along the axis, towards the blades.
+  - Thrust uses blade-element theory: each blade piece lifts like a wing, so **thrust = ½ × air density (1.225) × lift coefficient (0.4) × spin² × Σ(blade area × distance from the axis²)**, times the server's lift scale (`liftScale`, default 40, because Minecraft blocks are very heavy). It pushes along the axis, away from the craft. The Hull Core's lift bar counts lifting rotors at full speed; each rotor's top RPM and lift show in its joint panel.
+  - **Each rotor spins at its own speed** (a slow tail rotor no longer holds back the main rotor). Its top speed is its gears' top speed, unless blade drag (½ × 1.225 × 0.1 × spin² × Σ area × distance³) eats all its motor torque first: then a bigger motor spins it faster. A 5:1 gearbox one way round is 5x faster (and 5x weaker), the other way 5x slower and 5x stronger.
   - The blades drag back on the motor, so top speed is limited by gears *and* torque.
   - Space spins lifting rotors up, and hover assist holds height. W spins propellers.
-  - **Placing blades:** they lie flat. On a side face a blade points out from it; on a top or bottom face it points the way you look (sneak to stand it upright); on another blade's end it carries on that line.
+  - **Placing blades:** they lie flat. On a side face a blade points out from it; on a top or bottom face it points the way you look (sneak to stand it upright). Placed against another blade it matches it, so blades are continuous. A wrench turns any blade.
   - Blades hold onto other blades, and onto anything else only at their ends. So blades put straight onto a bearing's sides, lying across the hull, still turn with the bearing.
   - A sideways rotor (a tail rotor) is also a **rudder**: A/D turn the craft with it.
   - A Spin joint has no range: it turns round and round. Its **Turns** button (Joints tab) sets which way.
@@ -213,8 +225,15 @@ Hang a **Gantry Hoist** above where the Colossus stands (up to 32 blocks up, usu
 A block for anything that flies. Right-click it, or press **J** while piloting. Its tabs: **Flight**, **Joints** (same as the Locomotion Controller's, so a helicopter needs only this) and **Keys**.
 - **Lean:** W/S tip the whole craft toward the move (up to the Lean angle), so every rotor and jet pushes that way a little, like a helicopter. 0 = always level.
 - **Rotor heads:** a **Powered Ball Joint set to Spin** with blades on it (on a hub above it, or straight on it) spins them and **tilts its blades** toward where you steer (up to the Rotor tilt angle). Motors and gearboxes on it set how fast it spins.
-- **Tilt keys:** arrow keys tip the nose down/up and roll left/right (roll slides the craft sideways). Change them in the Keys tab.
-- **Air brake:** hold X to stop fast in the air.
+- **Tilt keys:** numpad 8/2 tip the nose down/up, numpad 4/6 roll left/right (roll slides the craft sideways). Change them in the Keys tab.
+- **Controls tab: your own keys on any joint.** Pick a joint, then set its keys:
+  - **Rotors:** Throttle up / Throttle down. Below 0 it spins the other way and pushes the other way. A rotor with throttle keys only spins when you throttle it, and it turns the craft by where it really pushes.
+  - **Rotor heads:** also Tilt forward / back / left / right.
+  - **Any other joint (arms, turrets, a Locked bearing):** Move + / Move -: it moves within its range of motion, as fast as its motor can.
+  - **Let go:** "springs back" (only while held) or "stays" (like a lever).
+  - Example helicopter: tail rotor throttle on D/A, springs back (steering); main rotor head tilt on W/S; main rotor throttle on the Up/Down arrows, stays. Set Lean to 0 so W/S only tilt the rotor.
+  - The HUD shows each throttle.
+- **Air brake:** hold Left Ctrl to stop fast in the air.
 - **Dampeners** (on by default): let go of the keys in the air and it slows to a stop and holds its height.
 - W/S no longer spin lifting rotors to full when a Flight Controller is on: they steer instead. Space/Shift still climb and sink.
 
@@ -237,6 +256,7 @@ Motor top speed (before gears): 60 RPM (1 RPM = 6°/s).
 - A motor **touching a joint** drives that joint. If its torque is below what the limb needs, the joint stalls.
 - A motor touching **no joint** is a **drive motor** that pushes the Colossus along the ground, or through water.
 - A 1x1 motor: 150k N·m, 20 CJ/t. Bigger squares multiply both by n^n.
+- Motors also stack in **layers along their shaft**, like ball joints: a 3x3 motor two layers deep (3x2x3) has twice the torque of one layer, three layers (3x3x3) three times. All the blocks must point the same way (a wrench fixes any that don't). A motor or gearbox chain on a Powered Ball Joint sets how fast it spins.
 
 ## Engines (power, in CJ per tick)
 | Tier | Engine | Size | Output | Fuel |

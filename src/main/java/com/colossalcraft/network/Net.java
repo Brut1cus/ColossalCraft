@@ -39,13 +39,19 @@ public final class Net {
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
     /** Spin and flight keys while piloting: bit 1 clockwise / forward, 2 counter-clockwise / back, 4 brake (air brake),
-     *  8 nose down, 16 nose up, 32 roll left, 64 roll right. */
+     *  8 nose down, 16 nose up, 32 roll left, 64 roll right, 128 air brake. */
     public record SpinInput(int bits) implements CustomPacketPayload {
         public static final Type<SpinInput> TYPE = new Type<>(id("spin_input"));
         public static final StreamCodec<ByteBuf, SpinInput> CODEC = ByteBufCodecs.VAR_INT.map(SpinInput::new, SpinInput::bits);
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
-    /** 0 = enter/leave Pilot Throne, 1 = disassemble, 2 = toggle hover */
+    /** Per-joint keys held while piloting (Flight Controller controls): one int of key bits per joint. */
+    public record JointInput(java.util.List<Integer> bits) implements CustomPacketPayload {
+        public static final Type<JointInput> TYPE = new Type<>(id("joint_input"));
+        public static final StreamCodec<ByteBuf, JointInput> CODEC = ByteBufCodecs.VAR_INT.apply(ByteBufCodecs.list(256)).map(JointInput::new, JointInput::bits);
+        public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+    /** 0 = enter/leave Pilot Throne, 1 = disassemble, 2 = toggle hover, 3 Hull Core screen, 4 Locomotion, 5 Flight, 6 emergency stop */
     public record PilotAction(int action) implements CustomPacketPayload {
         public static final Type<PilotAction> TYPE = new Type<>(id("pilot_action"));
         public static final StreamCodec<ByteBuf, PilotAction> CODEC = ByteBufCodecs.VAR_INT.map(PilotAction::new, PilotAction::action);
@@ -115,8 +121,9 @@ public final class Net {
         PayloadRegistrar r = e.registrar("1");
         r.playToServer(PilotInput.TYPE, PilotInput.CODEC, Net::onInput);
         r.playToServer(PilotAction.TYPE, PilotAction.CODEC, Net::onPilotAction);
+        r.playToServer(JointInput.TYPE, JointInput.CODEC, (p, ctx) -> ctx.enqueueWork(() -> { if (ctx.player().getVehicle() instanceof ColossusEntity c && c.model != null) c.setJointInput(p.bits().stream().mapToInt(Integer::intValue).toArray()); }));
         r.playToServer(SpinInput.TYPE, SpinInput.CODEC, (p, ctx) -> ctx.enqueueWork(() -> { if (ctx.player().getVehicle() instanceof ColossusEntity c) { c.setSpinInput((p.bits() & 1) != 0, (p.bits() & 2) != 0, (p.bits() & 4) != 0);
-            c.setFlightInput(((p.bits() & 8) != 0 ? 1 : 0) - ((p.bits() & 16) != 0 ? 1 : 0), ((p.bits() & 64) != 0 ? 1 : 0) - ((p.bits() & 32) != 0 ? 1 : 0)); } }));
+            c.setFlightInput(((p.bits() & 8) != 0 ? 1 : 0) - ((p.bits() & 16) != 0 ? 1 : 0), ((p.bits() & 64) != 0 ? 1 : 0) - ((p.bits() & 32) != 0 ? 1 : 0)); c.inAirBrake = (p.bits() & 128) != 0; } }));
         r.playToServer(HullAction.TYPE, HullAction.CODEC, Net::onHullAction);
         r.playToServer(ClickColossus.TYPE, ClickColossus.CODEC, Net::onClickColossus);
         r.playToClient(ColossusConfig.TYPE, ColossusConfig.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.colossusConfig(p.entity(), p.cfg())));
@@ -183,6 +190,7 @@ public final class Net {
                     case 3 -> { if (pl instanceof ServerPlayer sp) { LOCO_SCREEN.put(sp.getUUID(), 0); sendEntityScan(sp, c); } }
                     case 4 -> { if (pl instanceof ServerPlayer sp) { LOCO_SCREEN.put(sp.getUUID(), 1); sendEntityScan(sp, c); } }
                     case 5 -> { if (pl instanceof ServerPlayer sp) { LOCO_SCREEN.put(sp.getUUID(), 2); sendEntityScan(sp, c); } }
+                    case 6 -> { c.eStop = !c.eStop; pl.displayClientMessage(Component.literal(c.eStop ? "EMERGENCY STOP: every force off, brakes on. A Gantry Hoist can lift it now. Press again to restart." : "Restarted."), true); }
                 }
                 return;
             }
@@ -235,7 +243,7 @@ public final class Net {
             switch (a.action()) {
                 case 11, 12, 13, 17 -> { hc.joints = applyLoco(hc.joints, a); hc.setChanged(); }
                 case 20 -> { hc.joints = applyFlight(hc.joints, a); hc.setChanged(); }
-                case 1, 2, 6, 7, 8, 10, 15, 18, 19 -> {
+                case 1, 2, 6, 7, 8, 10, 15, 18, 19, 21, 22 -> {
                     if (a.joint() >= 0 && a.joint() < r.model.joints.size()) {
                         String key = StructureModel.jointKey(r.model.joints.get(a.joint()).key);
                         hc.joints.put(key, applyJoint(hc.joints.getCompound(key), a)); hc.setChanged();
@@ -305,6 +313,12 @@ public final class Net {
             case 8 -> c.putInt("SpeedX", Math.max(25, Math.min(400, a.value())));
             case 10 -> c.putBoolean("Loop", !c.getBoolean("Loop"));
             case 19 -> c.putBoolean("Rev", !c.getBoolean("Rev")); // which way a Spin joint turns
+            case 21 -> { // a key for one of the joint's controls: value = slot * 1000 + key + 1 (0 = none)
+                int slot = a.value() / 1000, key = a.value() % 1000 - 1;
+                int[] k = c.getIntArray("CK"); if (k.length < 6) { int[] n = {-1, -1, -1, -1, -1, -1}; System.arraycopy(k, 0, n, 0, k.length); k = n; }
+                if (slot >= 0 && slot < 6) k[slot] = key; c.putIntArray("CK", k);
+            }
+            case 22 -> c.putBoolean("Spring", a.value() != 0);
             case 15 -> c.putInt("Group", Math.floorMod(a.value(), 4));
             default -> {}
         }
@@ -316,7 +330,7 @@ public final class Net {
         switch (a.action()) {
             case 11, 12, 13, 17 -> c.setJointCfg(applyLoco(c.jointCfg, a));
             case 20 -> c.setJointCfg(applyFlight(c.jointCfg, a));
-            case 1, 2, 6, 7, 8, 10, 15, 18, 19 -> {
+            case 1, 2, 6, 7, 8, 10, 15, 18, 19, 21, 22 -> {
                 if (a.joint() >= 0 && a.joint() < c.model.joints.size()) {
                     String key = StructureModel.jointKey(c.model.joints.get(a.joint()).key);
                     CompoundTag cfg = c.jointCfg.copy(); cfg.put(key, applyJoint(cfg.getCompound(key), a)); c.setJointCfg(cfg);

@@ -323,6 +323,32 @@ public class ColossusTests {
         hc.setChanged();
     }
 
+    @GameTest(template = "empty16", timeoutTicks = 260)
+    public static void fallenWalkerStopsAndWaitsForHoist(GameTestHelper h) {
+        referenceWalker(h, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.STONE_BRICK_SLAB.defaultBlockState());
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)), null), "assemble failed");
+        double[] p0 = new double[2];
+        h.runAfterDelay(30, () -> { ColossusEntity c = findNear(h); c.autopilot = true; c.setInput(1, 0, false, false);
+            c.tilt = 0.4; c.tiltRate = 0.5; c.tiltDir = 0; c.vel = new net.minecraft.world.phys.Vec3(0, 0, -3); }); // knocked over while walking
+        h.runAfterDelay(90, () -> { ColossusEntity c = findNear(h); p0[0] = c.getX(); p0[1] = c.getZ(); });
+        h.runAfterDelay(150, () -> {
+            ColossusEntity c = findNear(h);
+            double slid = Math.hypot(c.getX() - p0[0], c.getZ() - p0[1]);
+            ColossalCraft.LOG.info("[test] fallen walker: downed {} tilt {} slid {} speed {}", c.downed, c.tilt, slid, c.vel.horizontalDistance());
+            h.assertTrue(c.downed && c.tilt > 1.0, "it should stay down, not get up and trip again");
+            h.assertTrue(slid < 0.2, "it should stop sliding, slid " + slid);
+            BlockPos hp = new BlockPos(7, 15, 7);
+            h.setBlock(hp, ModRegistry.GANTRY_HOIST.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.GantryHoistBlock.ENGAGED, true));
+            c.holdBy(h.absolutePos(hp));
+        });
+        h.runAfterDelay(240, () -> {
+            ColossusEntity c = findNear(h);
+            ColossalCraft.LOG.info("[test] hoisted walker: downed {} tilt {}", c.downed, c.tilt);
+            h.assertTrue(!c.downed && c.tilt == 0, "the hoist lifts it upright");
+            h.succeed();
+        });
+    }
+
     @GameTest(template = "empty16", timeoutTicks = 320)
     public static void stoneWalkerWalksOn1x1Motors(GameTestHelper h) {
         referenceWalker(h, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.STONE_BRICK_SLAB.defaultBlockState());
@@ -736,6 +762,27 @@ public class ColossusTests {
         });
     }
 
+    @GameTest(template = "empty16")
+    public static void wrenchTurnsParts(GameTestHelper h) {
+        net.minecraft.world.entity.player.Player sp = null; // no player: just turn
+        BlockPos b = new BlockPos(3, 2, 3);
+        h.setBlock(b, ModRegistry.ROTOR_BLADE.get().defaultBlockState()); // along x, lying flat
+        com.colossalcraft.block.Wrenching.use(h.getLevel(), h.absolutePos(b), sp, Direction.UP);
+        h.assertTrue(h.getBlockState(b).getValue(RotatedPillarBlock.AXIS) == Direction.Axis.Z, "a blade turned about the vertical should point along z");
+        var bearing = ModRegistry.BEARING.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y);
+        for (int x = 8; x <= 9; x++) for (int z = 8; z <= 9; z++) h.setBlock(x, 2, z, bearing);
+        h.assertTrue(com.colossalcraft.block.Cells.size(h.getBlockState(new BlockPos(9, 2, 9))) == 2, "four bearings make a 2x2");
+        com.colossalcraft.block.Wrenching.use(h.getLevel(), h.absolutePos(new BlockPos(8, 2, 8)), sp, Direction.NORTH);
+        h.assertTrue(h.getBlockState(new BlockPos(8, 2, 8)).getValue(RotatedPillarBlock.AXIS) == Direction.Axis.X, "the bearing turns to point along x");
+        h.assertTrue(com.colossalcraft.block.Cells.size(h.getBlockState(new BlockPos(9, 2, 9))) == 1, "the rest of the 2x2 falls back to single bearings");
+        var gb = ModRegistry.GEARBOX.get().defaultBlockState().setValue(net.minecraft.world.level.block.DirectionalBlock.FACING, Direction.NORTH);
+        h.setBlock(5, 2, 12, gb);
+        com.colossalcraft.block.Wrenching.use(h.getLevel(), h.absolutePos(new BlockPos(5, 2, 12)), sp, Direction.UP);
+        h.assertTrue(h.getBlockState(new BlockPos(5, 2, 12)).getValue(net.minecraft.world.level.block.DirectionalBlock.FACING) == Direction.EAST, "a gearbox turns about the face clicked");
+        h.assertTrue(com.colossalcraft.block.Wrenching.isWrench(new net.minecraft.world.item.ItemStack(ModRegistry.WRENCH.get())), "our wrench counts as a wrench");
+        h.succeed();
+    }
+
     /** The rotorLiftsItOff craft, with the blades put straight onto the bearing's sides (lying across the deck) or on a hub. */
     static void heli(GameTestHelper h, boolean onBearing, boolean ballHead) {
         floor(h);
@@ -764,6 +811,75 @@ public class ColossusTests {
         var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
         for (StructureModel.Joint j : r0.model.joints) { CompoundTag jc = new CompoundTag(); jc.putByte("Mode", (byte) StructureModel.SPIN); hc.joints.put(StructureModel.jointKey(j.key), jc); }
         hc.setChanged();
+    }
+
+    @GameTest(template = "empty16")
+    public static void gearboxChangesRotorSpeed(GameTestHelper h) {
+        heli(h, false, true);
+        double ls = com.colossalcraft.Config.LIFT_SCALE.get();
+        java.util.function.Supplier<StructureModel.Joint> j0 = () -> StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model.joints.get(0);
+        StructureModel.Joint over = j0.get(); double o1 = StructureModel.rotorOmegaMax(over, ls);
+        h.setBlock(8, 8, 7, ModRegistry.REDUCTION_GEARBOX.get().defaultBlockState().setValue(DirectionalBlock.FACING, Direction.WEST)); // the other way round: slower, stronger
+        StructureModel.Joint red = j0.get(); double o2 = StructureModel.rotorOmegaMax(red, ls);
+        h.setBlock(8, 8, 7, ModRegistry.MOTOR.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.LONE, true)); // a motor straight on it
+        StructureModel.Joint direct = j0.get(); double o3 = StructureModel.rotorOmegaMax(direct, ls);
+        ColossalCraft.LOG.info("[test] rotor head speed: overdrive {} rad/s (gear top {} deg/s, torque {}), reduction {} ({} deg/s), direct {} ({} deg/s)", o1, over.maxSpeed, over.motorTorque, o2, red.maxSpeed, o3, direct.maxSpeed);
+        h.assertTrue(over.maxSpeed > red.maxSpeed * 20, "a 5:1 gearbox one way round is 25x the other way's top speed");
+        h.assertTrue(Math.abs(o1 - o2) > 0.5 && Math.abs(o1 - o3) > 0.5, "gearboxes change how fast the rotor spins");
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16")
+    public static void motorLayersAddUp(GameTestHelper h) {
+        heli(h, false, true); // a 3x3 motor (one layer, axis up) drives the rotor head through a gearbox
+        double t1 = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model.joints.get(0).motorTorque;
+        for (int x = 8; x <= 10; x++) for (int z = 6; z <= 8; z++) h.setBlock(x, 6, z, ModRegistry.MOTOR.get()); // a second layer under it: 3x2x3
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        double t2 = m.joints.get(0).motorTorque;
+        ColossalCraft.LOG.info("[test] motor layers: 3x1x3 {} N*m, 3x2x3 {} N*m, clusters {}", t1, t2, m.motorClusters.stream().map(c -> c.n() + "x" + c.k()).toList());
+        double own = com.colossalcraft.tier.Parts.MOTOR_TORQUE; // the powered ball's own built-in motor
+        h.assertTrue(Math.abs((t2 - own) / (t1 - own) - 2) < 0.01, "a second layer doubles the motor's torque");
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 200)
+    public static void throttleKeysDriveARotor(GameTestHelper h) {
+        heli(h, false, false);
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        StructureModel m0 = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        CompoundTag jc = hc.joints.getCompound(StructureModel.jointKey(m0.joints.get(0).key)).copy();
+        jc.putIntArray("CK", new int[]{265, 264, -1, -1, -1, -1}); jc.putBoolean("Spring", false); // up/down arrows, lever
+        hc.joints.put(StructureModel.jointKey(m0.joints.get(0).key), jc); hc.setChanged();
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] y0 = {0}, idle = {0};
+        h.runAfterDelay(20, () -> { ColossusEntity c = findNear(h); c.autopilot = true; y0[0] = c.getY(); idle[0] = c.jRate[0]; c.setJointInput(new int[]{1}); }); // hold throttle up
+        h.runAfterDelay(60, () -> { ColossusEntity c = findNear(h); c.setJointInput(new int[]{0}); }); // let go: a lever stays
+        h.runAfterDelay(140, () -> {
+            ColossusEntity c = findNear(h);
+            ColossalCraft.LOG.info("[test] throttle keys: idle rate {} -> rate {} throttle {} rose {}", idle[0], c.jRate[0], c.jCtl[0], c.getY() - y0[0]);
+            h.assertTrue(Math.abs(idle[0]) < 1e-6, "with throttle keys and no key held it starts stopped");
+            h.assertTrue(c.jCtl[0] > 0.5, "the throttle stays up after letting go (lever)");
+            h.assertTrue(c.getY() - y0[0] > 0.5, "throttle up lifts it");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 120)
+    public static void keysMoveAnArm(GameTestHelper h) {
+        armShip(h, true);
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        StructureModel m0 = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        for (StructureModel.Joint j : m0.joints) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.LOCKED); c.putIntArray("CK", new int[]{73, 75, -1, -1, -1, -1}); c.putInt("Amp", 30); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(10, () -> { ColossusEntity c = findNear(h); c.autopilot = true; c.setJointInput(new int[]{1}); });
+        h.runAfterDelay(80, () -> {
+            ColossusEntity c = findNear(h);
+            double a = c.model.ikAngles[0];
+            ColossalCraft.LOG.info("[test] keyed arm angle {} ctl {}", a, c.jCtl[0]);
+            h.assertTrue(c.jCtl[0] > 0.9 && a > 0.6, "holding its key swings the arm to the end of its range (+60 deg), angle " + a);
+            h.succeed();
+        });
     }
 
     @GameTest(template = "empty16")

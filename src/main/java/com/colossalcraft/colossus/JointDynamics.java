@@ -44,7 +44,8 @@ final class JointDynamics {
         }
     }
     private static boolean driven(StructureModel.Joint j) {
-        return (j.mode == StructureModel.SWAY || j.mode == StructureModel.PROGRAM) && !j.ball && !j.universal && !j.childSegs.isEmpty() && j.mergedInto < 0;
+        boolean keyed = j.hasControls() && j.mode != StructureModel.SPIN && !StructureModel.isLegMode(j.mode); // moved by its own keys
+        return (j.mode == StructureModel.SWAY || j.mode == StructureModel.PROGRAM || keyed) && !j.ball && !j.universal && !j.childSegs.isEmpty() && j.mergedInto < 0;
     }
 
     /** One tick for every driven joint. Returns true if any joint is driven this way (their angles must go to clients). */
@@ -60,7 +61,8 @@ final class JointDynamics {
             any = true;
             // its target: the animation it would play by itself
             double keep = m.ikAngles[j.id]; m.ikAngles[j.id] = Double.NaN;
-            double target = m.angle(j, c.walkPhase, c.walkBlend, c.spin, time);
+            double target = j.hasControls() && j.id < m.jointCtl.length ? m.jointCtl[j.id] * Math.toRadians(j.amp * 2) // keys: a place in its range (+-2 amp, as the Joints tab shows)
+                    : m.angle(j, c.walkPhase, c.walkBlend, c.spin, time);
             m.ikAngles[j.id] = keep;
             if (Double.isNaN(q[j.id])) { q[j.id] = target; qd[j.id] = 0; }
             if (!j.active()) target = q[j.id]; // no working motor: it just hangs

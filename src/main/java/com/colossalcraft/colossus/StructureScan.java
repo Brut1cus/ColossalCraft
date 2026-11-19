@@ -278,6 +278,9 @@ public final class StructureScan {
         ListTag wr = new ListTag(); r.warnings.forEach(s -> wr.add(StringTag.valueOf(s))); t.put("Warnings", wr);
         t.putBoolean("Hover", r.hover);
         t.putInt("Blocks", r.blocks.size()); t.putDouble("Mass", m.mass);
+        { double ru = 0; double ls = com.colossalcraft.Config.LIFT_SCALE.get(); // lifting rotors at full speed
+          for (StructureModel.Joint j : m.joints) if (j.rotor() && j.active() && (j.rotorHead ? j.blockAxis : j.axis) == net.minecraft.core.Direction.Axis.Y && j.thrustSign > 0) ru += StructureModel.rotorThrust(j, StructureModel.rotorOmegaMax(j, ls), ls);
+          t.putDouble("RotorUp", ru); }
         t.putString("Seat", m.seat == null ? "none" : "facing " + m.forward.getName());
         t.putDouble("Gyro", m.gyroCap); t.putDouble("GyroPow", m.gyroPower);
         t.putDouble("Output", m.output); t.putLong("Energy", r.liveEnergy >= 0 ? r.liveEnergy : m.energy); t.putBoolean("Infinite", m.infinite);
@@ -308,6 +311,10 @@ public final class StructureScan {
                 c.putBoolean("LegHip", true); c.putDouble("Grip", L.mu()); c.putDouble("Push", L.hipTorque() / Math.max(0.5, L.length()));
                 c.putDouble("Carry", L.vCap()); c.putDouble("LegLen", L.length()); c.putInt("LegJoints", L.joints().size());
             }
+            c.putIntArray("CK", j.ctlKeys); c.putBoolean("Spring", j.spring); c.putBoolean("RotorHead", j.rotorHead); c.putBoolean("Rotor", j.rotor());
+            if (j.rotor()) { double om = StructureModel.rotorOmegaMax(j, com.colossalcraft.Config.LIFT_SCALE.get());
+                c.putDouble("RotorRpm", om * 60 / (2 * Math.PI)); c.putDouble("RotorLift", StructureModel.rotorThrust(j, om, com.colossalcraft.Config.LIFT_SCALE.get()));
+                c.putDouble("RotorDrag", StructureModel.rotorDragTorque(j, Math.toRadians(j.maxSpeed), com.colossalcraft.Config.LIFT_SCALE.get())); }
             c.putInt("Blades", j.blades); c.putBoolean("Ball", j.ball); c.putBoolean("Powered", j.powered); { Object[] ro = m.role(j); c.putString("Role", (String) ro[0]); c.putInt("RecMode", (Integer) ro[1]); } c.putInt("Group", j.group);
             c.putIntArray("Keys", j.keys.clone()); c.putInt("Phase", j.phase); c.putInt("SpeedX", (int) Math.round(j.speedFactor * 100)); c.putBoolean("Loop", j.loop);
             ListTag ch = new ListTag(); for (int cs : j.childSegs) { CompoundTag x = new CompoundTag(); x.putInt("S", cs); ch.add(x); } c.put("Children", ch);

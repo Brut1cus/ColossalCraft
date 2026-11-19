@@ -206,6 +206,12 @@ public class WalkerController {
      */
     public void step(ColossusEntity c, Vec3 ext, double ratio, double fwd, boolean sprint, int raise) {
         ensure(c);
+        // trip guard: many catch steps close together means it's stumbling. Stop walking, dig the feet in and settle; if it
+        // keeps stumbling after that, give up and let it tip (it then grinds to a halt) instead of tripping forever.
+        catchHeat *= 0.985;
+        if (recoverTicks > 0) { recoverTicks--; fwd = 0; raise = 0; }
+        else if (catchHeat > 3.5) { recoverTicks = 60; recoveries++; fwd = 0; }
+        if (recoverTicks == 0 && recoveries > 0 && catchHeat < 1) recoveries = 0;
         StructureModel m = c.model;
         Level level = c.level();
         double dt = 0.05, M = m.mass, g = StructureModel.G;
@@ -319,7 +325,7 @@ public class WalkerController {
                         if (off2.length() > reachOut) to = neutral[i].add(off2.normalize().scale(reachOut));
                         startSwing(c, i, to, H[i]);
                     }
-                    anySwing = true; outsideTicks = 0; cpOutTicks = 0; catchSteps++;
+                    anySwing = true; outsideTicks = 0; cpOutTicks = 0; catchSteps++; catchHeat += 1;
                 }
             }
         }
@@ -560,10 +566,11 @@ public class WalkerController {
         reach = hull(reach);
         boolean outside = reach.isEmpty() ? !insideSupport(feetDown, c.position(), 0.5 + margin(m) + (biped ? 0.75 : 0)) : hullDistance(reach, c.getX(), c.getZ()) > 0.45 + margin(m);
         outsideTicks = outside ? outsideTicks + 1 : Math.max(0, outsideTicks - 2);
-        unbalanced = outsideTicks > 30;
+        unbalanced = outsideTicks > 30 || (recoveries >= 2 && catchHeat > 3.5); // stumbled on through two recoveries: let it fall
+        if (recoverTicks > 0) c.vel = new Vec3(c.vel.x * 0.85, c.vel.y, c.vel.z * 0.85); // feet dig in
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < n; i++) sb.append(i == 0 ? "" : " ").append(state[i] == State.STANCE ? (slipping[i] ? "SLIP" : "DOWN") : state[i] == State.SWING ? "STEP" : "AIR");
-        status = sb + (waiting ? "  shifting weight" : cpOutTicks > 0 ? "  catching" : "");
+        status = sb + (recoverTicks > 0 ? "  recovering" : waiting ? "  shifting weight" : cpOutTicks > 0 ? "  catching" : "");
     }
 
     /** Upward force the legs pushed last tick (N), for tests and the HUD. */
@@ -574,6 +581,8 @@ public class WalkerController {
      *  where the body would come to rest if the feet stopped it now (capture point), and counters. */
     public List<double[]> supportHull = new ArrayList<>();
     public double omega = 1; public Vec3 capture = Vec3.ZERO; public boolean zmpLimited; public int catchSteps; private int cpOutTicks;
+    /** Trip guard: recent catch steps (fades over ~3 s), ticks left settling, and how many times it has had to settle. */
+    public double catchHeat; public int recoverTicks, recoveries;
     /** The support area: every sole block of a planted foot (a foot on a passive ball ankle presses only on its middle half). */
     List<double[]> supportArea(ColossusEntity c) {
         StructureModel m = c.model; List<double[]> pts = new ArrayList<>();

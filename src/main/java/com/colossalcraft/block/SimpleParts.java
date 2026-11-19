@@ -220,9 +220,18 @@ public final class SimpleParts {
 
     /** Thin sail. */
     public static class ThinSailBlock extends SailBlock {
-        private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 3, 16);
-        public ThinSailBlock(Properties p) { super(p); }
-        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return SHAPE; }
+        /** The side it lies against (down = flat on the block below, like before). A wrench turns it. */
+        public static final net.minecraft.world.level.block.state.properties.DirectionProperty FACING = BlockStateProperties.FACING;
+        private static final java.util.EnumMap<Direction, VoxelShape> SH = new java.util.EnumMap<>(Direction.class);
+        static {
+            SH.put(Direction.DOWN, Block.box(0, 0, 0, 16, 3, 16)); SH.put(Direction.UP, Block.box(0, 13, 0, 16, 16, 16));
+            SH.put(Direction.NORTH, Block.box(0, 0, 0, 16, 16, 3)); SH.put(Direction.SOUTH, Block.box(0, 0, 13, 16, 16, 16));
+            SH.put(Direction.WEST, Block.box(0, 0, 0, 3, 16, 16)); SH.put(Direction.EAST, Block.box(13, 0, 0, 16, 16, 16));
+        }
+        public ThinSailBlock(Properties p) { super(p); registerDefaultState(stateDefinition.any().setValue(FACING, Direction.DOWN)); }
+        @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(FACING); }
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(FACING, c.getClickedFace().getOpposite()); }
+        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return SH.get(s.getValue(FACING)); }
     }
 
     /** One-block gyro. */
@@ -254,11 +263,11 @@ public final class SimpleParts {
         public RotorBladeBlock(Properties p) { super(p); registerDefaultState(stateDefinition.any().setValue(AXIS, Direction.Axis.X)); }
         @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(AXIS); }
         /** Blades lie flat: on a side face they point out from it; on a top or bottom face they point the way you look
-         *  (sneak to stand one upright). Placed against another blade's end, they carry on its line. */
+         *  (sneak to stand one upright). Placed against another blade they match it, so a blade is continuous. */
         @Override public BlockState getStateForPlacement(BlockPlaceContext c) {
             Direction f = c.getClickedFace();
             BlockState on = c.getLevel().getBlockState(c.getClickedPos().relative(f.getOpposite()));
-            if (on.getBlock() instanceof RotorBladeBlock && on.getValue(AXIS) == f.getAxis()) return defaultBlockState().setValue(AXIS, f.getAxis());
+            if (on.getBlock() instanceof RotorBladeBlock) return defaultBlockState().setValue(AXIS, on.getValue(AXIS)); // continue the blade it's put against (a wrench turns it)
             Direction.Axis ax = f.getAxis().isHorizontal() ? f.getAxis() : c.isSecondaryUseActive() ? Direction.Axis.Y : c.getHorizontalDirection().getAxis();
             return defaultBlockState().setValue(AXIS, ax);
         }

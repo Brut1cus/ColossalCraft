@@ -31,6 +31,7 @@ public class ColossalCraft {
         modBus.addListener(ColossalCraft::caps);
         NeoForge.EVENT_BUS.addListener((AddReloadListenerEvent e) -> e.addListener(new Density()));
         NeoForge.EVENT_BUS.addListener(ColossalCraft::commands);
+        NeoForge.EVENT_BUS.addListener(com.colossalcraft.block.Wrenching::onRightClick);
         // Crouch is 'lower' while piloting: only the leave key (V) lets the pilot off
         // explosions damage Colossi: blocks blow off, joints can break (the piece falls off as a wreck)
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.level.ExplosionEvent.Detonate e) -> {

@@ -26,19 +26,21 @@ public final class ClientEvents {
     public static final KeyMapping JUMP_DRIVE = new KeyMapping("key.colossalcraft.jump", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, CAT);
     public static final KeyMapping BRAKE = new KeyMapping("key.colossalcraft.brake", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_X, CAT);
     public static final KeyMapping FLIGHT = new KeyMapping("key.colossalcraft.flight", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, CAT);
-    public static final KeyMapping PITCH_DOWN = new KeyMapping("key.colossalcraft.pitch_down", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UP, CAT);
-    public static final KeyMapping PITCH_UP = new KeyMapping("key.colossalcraft.pitch_up", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_DOWN, CAT);
-    public static final KeyMapping ROLL_LEFT = new KeyMapping("key.colossalcraft.roll_left", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT, CAT);
-    public static final KeyMapping ROLL_RIGHT = new KeyMapping("key.colossalcraft.roll_right", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT, CAT);
+    public static final KeyMapping PITCH_DOWN = new KeyMapping("key.colossalcraft.pitch_down", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_KP_8, CAT);
+    public static final KeyMapping PITCH_UP = new KeyMapping("key.colossalcraft.pitch_up", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_KP_2, CAT);
+    public static final KeyMapping ROLL_LEFT = new KeyMapping("key.colossalcraft.roll_left", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_KP_4, CAT);
+    public static final KeyMapping ROLL_RIGHT = new KeyMapping("key.colossalcraft.roll_right", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_KP_6, CAT);
+    public static final KeyMapping AIR_BRAKE = new KeyMapping("key.colossalcraft.air_brake", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_CONTROL, CAT);
+    public static final KeyMapping ESTOP = new KeyMapping("key.colossalcraft.estop", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, CAT);
     /** Actions the Locomotion Controller can bind: 0 forward, 1 back, 2 left, 3 right, 4 raise, 5 lower, 6 sprint, 7 jump drive,
      *  8-10 spin clockwise / counter-clockwise / brake (only shown when a joint is set to Spin). */
-    public static final String[] ACTIONS = {"Forward", "Back", "Turn left", "Turn right", "Raise / up", "Lower / down", "Sprint", "Jump Drive", "Spin clockwise", "Spin counter-cw", "Brake", "Nose down", "Nose up", "Roll left", "Roll right"};
+    public static final String[] ACTIONS = {"Forward", "Back", "Turn left", "Turn right", "Raise / up", "Lower / down", "Sprint", "Jump Drive", "Spin clockwise", "Spin counter-cw", "Brake", "Nose down", "Nose up", "Roll left", "Roll right", "Air brake"};
     /** Keys the Flight Controller's Keys tab shows (11-14 tilt; 10 is the air brake). */
-    public static final int[] FLIGHT_KEYS = {0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14};
+    public static final int[] FLIGHT_KEYS = {0, 1, 2, 3, 4, 5, 15, 11, 12, 13, 14};
     public static final int SPIN_ACTIONS = 8;
     public static KeyMapping defaultKey(int action) {
         var o = Minecraft.getInstance().options;
-        return switch (action) { case 0 -> o.keyUp; case 1 -> o.keyDown; case 2 -> o.keyLeft; case 3 -> o.keyRight; case 4 -> o.keyJump; case 5 -> o.keyShift; case 6 -> o.keySprint; case 8 -> o.keyUp; case 9 -> o.keyDown; case 10 -> BRAKE; case 11 -> PITCH_DOWN; case 12 -> PITCH_UP; case 13 -> ROLL_LEFT; case 14 -> ROLL_RIGHT; default -> JUMP_DRIVE; };
+        return switch (action) { case 0 -> o.keyUp; case 1 -> o.keyDown; case 2 -> o.keyLeft; case 3 -> o.keyRight; case 4 -> o.keyJump; case 5 -> o.keyShift; case 6 -> o.keySprint; case 8 -> o.keyUp; case 9 -> o.keyDown; case 10 -> BRAKE; case 11 -> PITCH_DOWN; case 12 -> PITCH_UP; case 13 -> ROLL_LEFT; case 14 -> ROLL_RIGHT; case 15 -> AIR_BRAKE; default -> JUMP_DRIVE; };
     }
     /** Is the key bound to this action (in the Colossus' Locomotion settings) held down? */
     public static boolean actionDown(ColossusEntity c, int action) {
@@ -46,13 +48,20 @@ public final class ClientEvents {
         if (code < 0) return defaultKey(action).isDown();
         return InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), code);
     }
+    /** HUD: each joint you drive with your own keys, and where its throttle (or place in its range) is. */
+    static String controlsLine(ColossusEntity c) {
+        StringBuilder b = new StringBuilder();
+        for (var j : c.model.joints) if (j.hasControls() && j.id < c.model.jointCtl.length && (j.ctlKeys[0] >= 0 || j.ctlKeys[1] >= 0))
+            b.append(b.length() == 0 ? "" : "  ").append("J").append(j.id).append(j.rotor() ? " thr " : " ").append(String.format("%+.0f%%", c.model.jointCtl[j.id] * 100));
+        return b.toString();
+    }
     public static final KeyMapping DISASSEMBLE = new KeyMapping("key.colossalcraft.disassemble", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, CAT);
 
     @EventBusSubscriber(modid = ColossalCraft.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class ModBus {
         @SubscribeEvent public static void renderers(EntityRenderersEvent.RegisterRenderers e) { e.registerEntityRenderer(ModRegistry.COLOSSUS.get(), ColossusRenderer::new); e.registerEntityRenderer(ModRegistry.SEAT.get(), net.minecraft.client.renderer.entity.NoopRenderer::new); }
         @SubscribeEvent public static void menus(RegisterMenuScreensEvent e) { e.register(ModRegistry.ENGINE_MENU.get(), EngineScreen::new); e.register(ModRegistry.DIAMOND_CUTTER_MENU.get(), net.minecraft.client.gui.screens.inventory.StonecutterScreen::new); }
-        @SubscribeEvent public static void keys(RegisterKeyMappingsEvent e) { e.register(PILOT); e.register(DESCEND); e.register(HOVER); e.register(DISASSEMBLE); e.register(SCREEN); e.register(LOCO); e.register(JUMP_DRIVE); e.register(BRAKE); e.register(FLIGHT); e.register(PITCH_DOWN); e.register(PITCH_UP); e.register(ROLL_LEFT); e.register(ROLL_RIGHT); }
+        @SubscribeEvent public static void keys(RegisterKeyMappingsEvent e) { e.register(PILOT); e.register(DESCEND); e.register(HOVER); e.register(DISASSEMBLE); e.register(SCREEN); e.register(LOCO); e.register(JUMP_DRIVE); e.register(BRAKE); e.register(FLIGHT); e.register(PITCH_DOWN); e.register(PITCH_UP); e.register(ROLL_LEFT); e.register(ROLL_RIGHT); e.register(AIR_BRAKE); e.register(ESTOP); }
         @SubscribeEvent public static void hud(RegisterGuiLayersEvent e) {
             e.registerAboveAll(ResourceLocation.fromNamespaceAndPath(ColossalCraft.MODID, "look"), (g, delta) -> ColossusLook.label(g));
             e.registerAboveAll(ResourceLocation.fromNamespaceAndPath(ColossalCraft.MODID, "hud"), (g, delta) -> {
@@ -64,7 +73,8 @@ public final class ClientEvents {
                         "COLOSSUS  " + StructureScan.tons(c.model.mass) + "",
                         "ENERGY " + en + "   OUT " + StructureScan.kilo(c.model.output) + " CJ/t",
                         String.format("SPEED %.1f m/s   ALT %d", speed, (int) c.getY()),
-                        "HOVER " + (c.hover() ? "ON" : "OFF") + "   [G] Hull Core  " + (c.model.flying() ? "[J] Flight  " : "") + "[L] Locomotion  [H] hover  [K] park  [V] leave",
+                        "HOVER " + (c.hover() ? "ON" : "OFF") + "   [G] Hull Core  " + (c.model.flying() ? "[J] Flight  " : "") + "[B] stop  " + "[L] Locomotion  [H] hover  [K] park  [V] leave",
+                        c.eStop ? "EMERGENCY STOP  [B] restart" : controlsLine(c),
                         c.walkerStatus().isEmpty() ? "" : "FEET  " + c.walkerStatus(),
                         c.jumpLevel() < 0 ? "" : String.format("JUMP DRIVE %.0f%%%s", c.jumpLevel() * 100, c.jumpLevel() >= 0.2 ? "  [" + defaultKey(7).getTranslatedKeyMessage().getString() + "] ready" : "")};
                 int y = 6;
@@ -87,12 +97,19 @@ public final class ClientEvents {
             while (SCREEN.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(3));
             while (LOCO.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(4));
             while (FLIGHT.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(5));
+            while (ESTOP.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(6));
             while (HOVER.consumeClick()) if (mc.player.getVehicle() instanceof ColossusEntity) PacketDistributor.sendToServer(new Net.PilotAction(2));
             if (mc.player.getVehicle() instanceof ColossusEntity c && mc.screen == null && !DevShots.ON) {
                 float fwd = (actionDown(c, 0) ? 1 : 0) - (actionDown(c, 1) ? 1 : 0), turn = (actionDown(c, 2) ? 1 : 0) - (actionDown(c, 3) ? 1 : 0);
                 PacketDistributor.sendToServer(new Net.PilotInput(fwd, turn, actionDown(c, 4), actionDown(c, 5) || DESCEND.isDown(), actionDown(c, 6), actionDown(c, 7)));
                 if (c.model.wheels > 0 || c.model.flying()) PacketDistributor.sendToServer(new Net.SpinInput((c.model.wheels > 0 && actionDown(c, 8) ? 1 : 0) | (c.model.wheels > 0 && actionDown(c, 9) ? 2 : 0) | (actionDown(c, 10) ? 4 : 0)
-                        | (c.model.flying() ? (actionDown(c, 11) ? 8 : 0) | (actionDown(c, 12) ? 16 : 0) | (actionDown(c, 13) ? 32 : 0) | (actionDown(c, 14) ? 64 : 0) : 0)));
+                        | (c.model.flying() ? (actionDown(c, 11) ? 8 : 0) | (actionDown(c, 12) ? 16 : 0) | (actionDown(c, 13) ? 32 : 0) | (actionDown(c, 14) ? 64 : 0) | (actionDown(c, 15) ? 128 : 0) : 0)));
+                if (c.model.joints.stream().anyMatch(com.colossalcraft.colossus.StructureModel.Joint::hasControls)) { // each joint's own keys
+                    java.util.List<Integer> jb = new java.util.ArrayList<>();
+                    long win = mc.getWindow().getWindow();
+                    for (var j : c.model.joints) { int b = 0; for (int k = 0; k < 6; k++) if (j.ctlKeys[k] >= 0 && InputConstants.isKeyDown(win, j.ctlKeys[k])) b |= 1 << k; jb.add(b); }
+                    PacketDistributor.sendToServer(new Net.JointInput(jb));
+                }
             }
         }
 

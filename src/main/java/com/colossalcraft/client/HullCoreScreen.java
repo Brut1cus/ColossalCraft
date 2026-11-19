@@ -34,7 +34,7 @@ public class HullCoreScreen extends Screen {
             "Turns with the Spin keys (Keys tab) like a wheel; with blades it is a rotor.",
             "Slow idle motion: tails, antennae, heads.",
             "Follows the keyframes you set in the Animate tab."};
-    private static final String[] HULL_TABS = {"Overview", "Power", "Help"}, LOCO_TABS = {"Joints", "Gait", "Keys", "Footing"}, FLIGHT_TABS = {"Flight", "Joints", "Keys"};
+    private static final String[] HULL_TABS = {"Overview", "Power", "Help"}, LOCO_TABS = {"Joints", "Gait", "Keys", "Footing"}, FLIGHT_TABS = {"Flight", "Controls", "Joints", "Keys"};
     private boolean loco() { return data.getBoolean("Loco"); }
     private boolean flight() { return data.getBoolean("Flight"); }
     /** Locomotion or Flight Controller (not the Hull Core). */
@@ -69,6 +69,8 @@ public class HullCoreScreen extends Screen {
     public void setView(int v) { view = v; preset(v); rebuild(); }
     /** Select the lowest-numbered joint that has a foot below it (dev screenshots). */
     public void selectLegJoint() { for (Tag t : list("Joints")) if (((CompoundTag) t).getDouble("Share") > 0 && !((CompoundTag) t).getBoolean("Ball")) { selected = ((CompoundTag) t).getInt("Id"); rebuild(); return; } }
+    /** Select the first joint the Controls tab lists (dev screenshots). */
+    public void selectFirstControl() { List<CompoundTag> c = controllable(); if (!c.isEmpty()) { selected = c.get(0).getInt("Id"); rebuild(); } }
     /** Select the first ball joint (dev screenshots). */
     public void selectBallJoint() { for (Tag t : list("Joints")) if (((CompoundTag) t).getBoolean("Ball")) { selected = ((CompoundTag) t).getInt("Id"); rebuild(); return; } }
     public void turnView(double dyaw, double dpitch, double zoom) { camYaw += dyaw; camPitch = Math.max(-90, Math.min(90, camPitch + dpitch)); camZoom *= zoom; }
@@ -119,6 +121,7 @@ public class HullCoreScreen extends Screen {
         if (cur().equals("Gait")) gaitWidgets(l + NAV + 8, t + 30);
         if (cur().equals("Keys")) keyWidgets(l + NAV + 8, t + 30);
         if (cur().equals("Flight")) flightWidgets(l + NAV + 8, t + 30);
+        if (cur().equals("Controls")) controlWidgets(l + NAV + 8, t + 30);
         if (cur().equals("Footing")) {
             boolean on = data.getBoolean("Smart");
             Button fb = Button.builder(Component.literal("Smart footing: " + (on ? "ON" : "OFF")), z -> send(17, -1, 0)).bounds(l + W - 158, t + 28, 150, 16).build();
@@ -217,6 +220,63 @@ public class HullCoreScreen extends Screen {
         int ht = (int) Math.round(data.getDouble("GaitHeight") * 100);
         stepper(x, y + 62, z -> send(16, 3, ht - 5), z -> send(16, 3, ht + 5), "Hull height: how high the hips stand, as a share of the legs' standing height. 100% = legs nearly straight. Weak knees keep it higher; raise/lower while piloting shifts it a little.");
     }
+    // ------------------------------------------------------------------ Controls (Flight Controller): your own keys on any joint
+    /** Which control of the selected joint waits for a key press, or -1. */
+    private int ctlSlot = -1;
+    private static final String[] ROTOR_SLOTS = {"Throttle up / clockwise", "Throttle down / counter", "Tilt forward", "Tilt back", "Tilt left", "Tilt right"},
+            JOINT_SLOTS = {"Move + (one way)", "Move - (other way)"};
+    /** Joints you can drive with keys: everything except legs (the gait drives those) and wheels (the Spin keys drive those). */
+    private List<CompoundTag> controllable() {
+        List<CompoundTag> o = new ArrayList<>();
+        for (Tag tg : list("Joints")) { CompoundTag j = (CompoundTag) tg; int m = j.getInt("Mode");
+            if (m == 1 || m == 2) continue; if (m == 3 && !j.getBoolean("Rotor")) continue; if (j.getBoolean("Ball") && !j.getBoolean("Powered")) continue; o.add(j); }
+        return o;
+    }
+    private void controlWidgets(int x, int y) {
+        List<CompoundTag> js = controllable();
+        int i = 0;
+        for (CompoundTag j : js) {
+            if (i >= 10) break;
+            int id = j.getInt("Id");
+            String name = "J" + id + (j.getBoolean("RotorHead") ? " head" : j.getBoolean("Rotor") ? " rotor" : "");
+            Button b = Button.builder(Component.literal(name), z -> { selected = id; ctlSlot = -1; rebuild(); }).bounds(x, y + 12 + i * 15, 62, 14).build();
+            b.active = selected != id; addRenderableWidget(b); i++;
+        }
+        CompoundTag sel = null; for (CompoundTag j : js) if (j.getInt("Id") == selected) sel = j;
+        if (sel == null) return;
+        int[] ck = sel.getIntArray("CK");
+        String[] slots = sel.getBoolean("Rotor") ? ROTOR_SLOTS : JOINT_SLOTS;
+        int n = sel.getBoolean("RotorHead") ? 6 : 2;
+        for (int k = 0; k < n; k++) {
+            int kk = k, code = k < ck.length ? ck[k] : -1;
+            String label = ctlSlot == k ? "> press a key <" : code < 0 ? "none" : keyName(code);
+            addRenderableWidget(Button.builder(Component.literal(label), z -> { ctlSlot = kk; rebuild(); }).bounds(x + 190, y + 12 + k * 15, 80, 14).build());
+            Button c = Button.builder(Component.literal("x"), z -> send(21, selected, kk * 1000)).bounds(x + 272, y + 12 + k * 15, 14, 14).build();
+            c.active = code >= 0; c.setTooltip(Tooltip.create(Component.literal("Clear this key"))); addRenderableWidget(c);
+        }
+        boolean spring = sel.getBoolean("Spring");
+        Button sb = Button.builder(Component.literal(spring ? "Let go: springs back to 0" : "Let go: stays (like a lever)"), z -> send(22, selected, spring ? 0 : 1)).bounds(x + 68, y + 16 + n * 15, 218, 14).build();
+        sb.setTooltip(Tooltip.create(Component.literal(sel.getBoolean("Rotor")
+                ? "Springs back: the rotor only spins while you hold a key (good for a tail rotor steering with A/D). Stays: the throttle stays where you leave it (good for a main rotor's power). Below 0 it spins the other way and pushes the other way."
+                : "Springs back: the joint goes back to the middle when you let go. Stays: it holds where you leave it. It moves within its range of motion (Joints tab), as fast as its motor can.")));
+        addRenderableWidget(sb);
+    }
+    private void controlsTab(GuiGraphics g, int x, int y) {
+        g.drawString(font, "YOUR KEYS ON EACH JOINT", x, y, DIM, false);
+        List<CompoundTag> js = controllable();
+        if (js.isEmpty()) { g.drawString(font, "No joints to drive: rotors, arms and turrets show here.", x, y + 14, WARN, false); return; }
+        CompoundTag sel = null; for (CompoundTag j : js) if (j.getInt("Id") == selected) sel = j;
+        if (sel == null) { g.drawString(font, "Pick a joint on the left.", x + 68, y + 14, TXT, false); return; }
+        String[] slots = sel.getBoolean("Rotor") ? ROTOR_SLOTS : JOINT_SLOTS;
+        int n = sel.getBoolean("RotorHead") ? 6 : 2;
+        for (int k = 0; k < n; k++) g.drawString(font, slots[k], x + 68, y + 15 + k * 15, k >= 2 ? WARN : TXT, false);
+        int iy = y + 36 + n * 15;
+        if (sel.getBoolean("Rotor")) {
+            g.drawString(font, String.format("Top speed %.0f RPM, lift %s N", sel.getDouble("RotorRpm"), com.colossalcraft.colossus.StructureScan.kilo(sel.getDouble("RotorLift"))), x + 68, iy, TXT, false); iy += 10;
+            g.drawString(font, "No throttle keys: it follows Space/Shift and hover.", x + 68, iy, DIM, false);
+        } else g.drawString(font, "No keys: it does what its Mode says.", x + 68, iy, DIM, false);
+    }
+
     // ------------------------------------------------------------------ Flight Controller
     private void flightWidgets(int x, int y) {
         int tilt = data.getInt("RotorTilt"), lean = data.getInt("Lean");
@@ -571,6 +631,10 @@ public class HullCoreScreen extends Screen {
     }
 
     @Override public boolean keyPressed(int key, int scan, int mods) {
+        if (ctlSlot >= 0 && selected >= 0) { // a key for one of the selected joint's controls (Esc clears it)
+            send(21, selected, ctlSlot * 1000 + (key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE ? 0 : key + 1));
+            ctlSlot = -1; rebuild(); return true;
+        }
         if (binding >= 0) {
             send(13, binding, key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE ? -1 : key);
             binding = -1; rebuild(); return true;
@@ -658,6 +722,7 @@ public class HullCoreScreen extends Screen {
             case "Gait" -> gait(g, cx, cy);
             case "Keys" -> keys(g, cx, cy);
             case "Flight" -> flightTab(g, cx, cy);
+            case "Controls" -> controlsTab(g, cx, cy);
             case "Footing" -> footing(g, cx, cy);
             case "Power" -> power(g, cx, cy);
             case "Help" -> help(g, cx, cy);
@@ -688,7 +753,7 @@ public class HullCoreScreen extends Screen {
     }
 
     private void overview(GuiGraphics g, int x, int y) {
-        double mass = data.getDouble("Mass"), up = data.getDouble("T_up"), weight = mass * 9.81;
+        double mass = data.getDouble("Mass"), rotorUp = data.getDouble("RotorUp"), up = data.getDouble("T_up") + rotorUp, weight = mass * 9.81;
         boolean walkers = false, overloaded = false, stalled = false;
         for (Tag t : list("Joints")) { CompoundTag j = (CompoundTag) t; int m = j.getInt("Mode");
             if ((m == 1 || m == 2 || m == 5) && !j.getBoolean("Stalled")) walkers = true; // legs or programs
@@ -722,7 +787,8 @@ public class HullCoreScreen extends Screen {
         g.drawString(font, "Parts " + list("Segs").size() + "   Joints " + list("Joints").size(), gx, y + 24, TXT, false);
         g.drawString(font, "Lift vs weight", gx, y + 38, DIM, false);
         bar(g, gx, y + 48, gw, weight <= 0 ? 0 : up / weight, up >= weight ? OK : WARN, String.format("%.0f%%", 100 * up / Math.max(1, weight)),
-                "Upward thrust compared with weight. Over 100% means it can fly. Hover assist only uses what it needs.");
+                "Upward thrust (jets pointing down, plus lifting rotors at full speed) compared with weight. Over 100% means it can fly. Hover assist only uses what it needs."
+                + (rotorUp > 0 ? String.format("\n\nRotors: %s N. Each blade piece lifts like a wing: thrust = 1/2 x air density x lift coefficient x (spin)^2 x sum of (blade area x distance from the axis^2), times the server's lift scale. Faster spin (gears) or longer blades lift much more; their drag needs motor torque, so big rotors need big motors.", StructureScan.kilo(rotorUp)) : ""));
         double cap = 0; for (Tag e : list("Engines")) cap += ((CompoundTag) e).getLong("Cap");
         boolean inf = data.getBoolean("Infinite");
         g.drawString(font, "Energy", gx, y + 62, DIM, false);
@@ -895,6 +961,13 @@ public class HullCoreScreen extends Screen {
             g.drawString(font, String.format("Leg %.1f blocks, %d joint%s", j.getDouble("LegLen"), j.getInt("LegJoints"), j.getInt("LegJoints") == 1 ? "" : "s (knee)"), dx, iy, DIM, false); iy += 11;
         } else if (j.getInt("Blades") > 0) {
             g.drawString(font, j.getInt("Blades") + " blades on this rotor", dx, iy, TXT, false); iy += 11;
+            if (j.contains("RotorRpm")) {
+                g.drawString(font, String.format("Top %.0f RPM, lift %s N", j.getDouble("RotorRpm"), StructureScan.kilo(j.getDouble("RotorLift"))), dx, iy, TXT, false);
+                boolean weak = j.getDouble("RotorDrag") > j.getDouble("Torque");
+                tips.add(new Tip(dx, iy, dx + 200, iy + 9, "How fast the rotor can spin: its gears' top speed, unless blade drag eats all the motor's torque first."
+                        + (weak ? String.format(" Here the motor is too weak for its gears: at full gear speed the blades need %s N*m. A bigger motor (2x2, 3x3, more layers) spins it faster.", StructureScan.kilo(j.getDouble("RotorDrag"))) : " Here the gears are the limit: a faster gear ratio spins it faster.")));
+                iy += 11;
+            }
         }
     }
 
