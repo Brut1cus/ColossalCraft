@@ -369,6 +369,110 @@ public class ColossusTests {
         });
     }
 
+    @GameTest(template = "empty16", timeoutTicks = 340)
+    public static void ballHipWalkerWalksStraight(GameTestHelper h) {
+        referenceWalker(h, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.STONE_BRICK_SLAB.defaultBlockState());
+        for (int x : new int[]{5, 9}) h.setBlock(x, 11, 7, ModRegistry.POWERED_BALL_JOINT.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.LONE, true)); // powered ball hips
+        StructureScan.Result r0 = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 13, 7));
+        for (StructureModel.Joint j : r0.model.joints) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.LEG); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7))).model;
+        ColossalCraft.LOG.info("[test] ball hips: legs {} groups {} universal {}", m.legChains.size(), m.legChains.stream().map(StructureModel.LegChain::group).toList(), m.joints.stream().filter(j -> j.universal).count());
+        h.assertTrue(m.legChains.size() == 2 && m.legChains.get(0).group() != m.legChains.get(1).group(), "two legs in different step groups expected");
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)), null), "assemble failed");
+        double[] p0 = new double[2], maxSide = {0}; int[] waits = {0};
+        h.runAfterDelay(30, () -> { ColossusEntity c = findNear(h); p0[0] = c.getX(); p0[1] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        for (int t = 31; t <= 320; t++) { int tt = t; h.runAfterDelay(t, () -> { ColossusEntity c = findNear(h); if (c == null) return;
+            maxSide[0] = Math.max(maxSide[0], Math.abs(c.getX() - p0[0])); if (c.walker.status.contains("shifting")) waits[0]++;
+            if (tt % 30 == 0) ColossalCraft.LOG.info("[test] ball hips t={} dx={} dz={} roll={} status={} ikRoll={}", tt, c.getX() - p0[0], c.getZ() - p0[1], c.bodyRoll, c.walker.status, java.util.Arrays.toString(c.model.ikRoll)); }); }
+        h.runAfterDelay(322, () -> {
+            ColossusEntity c = findNear(h);
+            ColossalCraft.LOG.info("[test] ball hips walked dz={} side drift {} waits {} tilt {}", c.getZ() - p0[1], maxSide[0], waits[0], c.tilt);
+            h.assertTrue(c.tilt == 0, "fell over");
+            h.assertTrue(p0[1] - c.getZ() > 2, "should walk forward on ball hips, dz=" + (c.getZ() - p0[1]));
+            h.assertTrue(maxSide[0] < 1.0, "should walk straight, drifted sideways " + maxSide[0]);
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 320)
+    public static void sidewaysBallKneesWalk(GameTestHelper h) {
+        referenceWalker(h, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.STONE_BRICK_SLAB.defaultBlockState());
+        var knee = ModRegistry.POWERED_BALL_JOINT.get().defaultBlockState().setValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS, Direction.Axis.X).setValue(com.colossalcraft.block.SimpleParts.LONE, true);
+        for (int x : new int[]{5, 9}) h.setBlock(x, 7, 7, knee); // powered ball knees lying on their side (axis through the knee, like a hinge)
+        StructureScan.Result r0 = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 13, 7));
+        for (StructureModel.Joint j : r0.model.joints) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.LEG); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7))).model;
+        long hinged = m.joints.stream().filter(j -> j.hinged).count();
+        ColossalCraft.LOG.info("[test] sideways ball knees: hinged {} legs {} chain sizes {}", hinged, m.legChains.size(), m.legChains.stream().map(L -> L.joints().size()).toList());
+        h.assertTrue(hinged == 2 && m.legChains.size() == 2 && m.legChains.get(0).joints().size() == 2, "sideways powered balls should work as knees in both legs");
+        h.assertTrue(m.joints.stream().filter(j -> j.hinged).allMatch(j -> j.romCap == 360), "a ball on its side turns all the way round about its axis");
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)), null), "assemble failed");
+        double[] z0 = {0};
+        h.runAfterDelay(30, () -> { ColossusEntity c = findNear(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        h.runAfterDelay(300, () -> {
+            ColossusEntity c = findNear(h);
+            ColossalCraft.LOG.info("[test] sideways ball knees walked {} tilt {}", z0[0] - c.getZ(), c.tilt);
+            h.assertTrue(c.tilt == 0 && z0[0] - c.getZ() > 2, "should walk on ball knees, moved " + (z0[0] - c.getZ()));
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16")
+    public static void sidewaysBallCubeIsOneJoint(GameTestHelper h) {
+        floor(h); ship(h, 0);
+        var b = ModRegistry.BALL_JOINT.get().defaultBlockState().setValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS, Direction.Axis.Z);
+        for (int x = 6; x <= 7; x++) for (int y = 4; y <= 5; y++) for (int z = 4; z <= 5; z++) h.setBlock(x, y, z, b); // a 2x2x2 ball on its side, hanging off the deck's front
+        h.setBlock(6, 6, 4, Blocks.AIR); h.setBlock(7, 6, 4, Blocks.AIR);
+        for (int x = 6; x <= 7; x++) h.setBlock(x, 4, 3, Blocks.STONE_BRICKS);
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        StructureModel.Joint j = m.joints.stream().filter(q -> q.ball).findFirst().orElse(null);
+        h.assertTrue(j != null && j.k == 8 && j.blockAxis == Direction.Axis.Z && j.size == 2 && j.height == 2, "a 2x2x2 ball along Z expected: " + (j == null ? "none" : j.k + " " + j.blockAxis + " " + j.size + "x" + j.height));
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16")
+    public static void featherstoneMatchesAPendulum(GameTestHelper h) {
+        // one link: 10 kg at 2 m below a pivot on the Z axis, swung out 0.5 rad: the solver must give -g sin(theta) / r
+        double r = 2, th = 0.5, g = StructureModel.G;
+        double[] I = com.colossalcraft.colossus.LegDynamics.spatialInertia(10, new double[]{r * Math.sin(th), -r * Math.cos(th), 0}, new double[]{1e-6, 0, 0, 0, 1e-6, 0, 0, 0, 1e-6});
+        double[][] S = {{0, 0, 1, 0, 0, 0}};
+        double[] qdd = com.colossalcraft.colossus.LegDynamics.aba(S, new double[][]{I}, new double[]{0}, new double[]{0}, new double[6], new double[]{0, 0, 0, 0, g, 0});
+        double want = -g * Math.sin(th) / r;
+        // two links (a double pendulum hanging straight, pushed at the top): the lower link must swing back the other way
+        double[] I1 = com.colossalcraft.colossus.LegDynamics.spatialInertia(5, new double[]{0, -1, 0}, new double[]{1e-6, 0, 0, 0, 1e-6, 0, 0, 0, 1e-6});
+        double[] I2 = com.colossalcraft.colossus.LegDynamics.spatialInertia(5, new double[]{0, -2, 0}, new double[]{1e-6, 0, 0, 0, 1e-6, 0, 0, 0, 1e-6});
+        double[][] S2 = {{0, 0, 1, 0, 0, 0}, {0, 0, 1, -1 * 1 - 0, 0, 0}}; // second pivot at (0,-1,0): P x A = (-1*1, 0, 0)
+        S2[1] = new double[]{0, 0, 1, -1, 0, 0};
+        double[] qdd2 = com.colossalcraft.colossus.LegDynamics.aba(S2, new double[][]{I1, I2}, new double[]{0, 0}, new double[]{100, 0}, new double[6], new double[]{0, 0, 0, 0, g, 0});
+        ColossalCraft.LOG.info("[test] pendulum qdd {} (want {}), double pendulum {}", qdd[0], want, java.util.Arrays.toString(qdd2));
+        h.assertTrue(Math.abs(qdd[0] - want) < 1e-6, "pendulum: " + qdd[0] + " vs " + want);
+        h.assertTrue(qdd2[0] > 0 && qdd2[1] < 0, "pushing the top link forward swings the lower one back: " + java.util.Arrays.toString(qdd2));
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 320)
+    public static void legsSwingByMotorTorque(GameTestHelper h) {
+        referenceWalker(h, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.STONE_BRICK_SLAB.defaultBlockState());
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)), null), "assemble failed");
+        double[] lagMax = {0}, lagSum = {0}; int[] swingTicks = {0}; double[] z0 = {0};
+        h.runAfterDelay(30, () -> { ColossusEntity c = findNear(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        for (int t = 31; t <= 300; t++) h.runAfterDelay(t, () -> { ColossusEntity c = findNear(h); if (c == null) return;
+            boolean swing = java.util.Arrays.asList(c.walker.state).contains(WalkerController.State.SWING);
+            if (swing) { swingTicks[0]++; lagSum[0] += c.walker.legDyn.lag; lagMax[0] = Math.max(lagMax[0], c.walker.legDyn.lag); } });
+        h.runAfterDelay(302, () -> {
+            ColossusEntity c = findNear(h);
+            ColossalCraft.LOG.info("[test] torque-driven legs: walked {}, swing ticks {}, mean lag {} rad, max lag {} rad", z0[0] - c.getZ(), swingTicks[0], lagSum[0] / Math.max(1, swingTicks[0]), lagMax[0]);
+            h.assertTrue(swingTicks[0] > 20, "legs should have swung");
+            h.assertTrue(lagMax[0] > 1e-3, "a lifted leg moves by its motors' torque, so it trails its target a little");
+            h.assertTrue(z0[0] - c.getZ() > 2 && c.tilt == 0, "and it still walks: moved " + (z0[0] - c.getZ()));
+            h.succeed();
+        });
+    }
+
     @GameTest(template = "empty16", timeoutTicks = 320)
     public static void ironWalkerIsTooHeavyFor1x1(GameTestHelper h) {
         referenceWalker(h, Blocks.IRON_BLOCK.defaultBlockState(), Blocks.IRON_BLOCK.defaultBlockState());

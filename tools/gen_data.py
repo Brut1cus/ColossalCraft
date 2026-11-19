@@ -192,8 +192,8 @@ for n, sh, title in (('slab_joint', 'joint_slab', 'Slab Joint'), ('panel_joint',
 # Ball joints: one model per (side n, place gu/gv, height h, layer gh). An n x h x n box draws one big ball across all its blocks:
 # bottom base plate (tint 9), top base plate (10, the powered one has a motor band), the ball (11) in 2-pixel slices.
 bdone = set()
-def ball_box_model(kind, n, gu, gv, h, gh):
-    name = f'{kind}_{n}_{h}_{gu}_{gv}_{gh}'
+def ball_box_model(kind, n, gu, gv, h, gh, axis='y'):
+    name = f'{kind}_{n}_{h}_{gu}_{gv}_{gh}' + ('' if axis == 'y' else '_' + axis)
     if name in bdone: return name
     bdone.add(name)
     E, H = 16 * n, 16 * h
@@ -217,14 +217,19 @@ def ball_box_model(kind, n, gu, gv, h, gh):
         lo_u, hi_u = max(ru[0] - 16 * gu, 0), min(ru[1] - 16 * gu, 16)
         lo_v, hi_v = max(rv[0] - 16 * gv, 0), min(rv[1] - 16 * gv, 16)
         if lo_u >= hi_u or lo_v >= hi_v or lo_y >= hi_y: continue
-        lo, hi = [round(lo_u, 3), round(lo_y, 3), round(lo_v, 3)], [round(hi_u, 3), round(hi_y, 3), round(hi_v, 3)]
+        # square place (u along the first plane axis, v along the second) and height h along the ball's axis -> block x, y, z
+        U, V, Hh = (round(lo_u, 3), round(hi_u, 3)), (round(lo_v, 3), round(hi_v, 3)), (round(lo_y, 3), round(hi_y, 3))
+        if axis == 'y': lo, hi = [U[0], Hh[0], V[0]], [U[1], Hh[1], V[1]]       # plane x, z
+        elif axis == 'x': lo, hi = [Hh[0], V[0], U[0]], [Hh[1], V[1], U[1]]     # plane z, y
+        else: lo, hi = [U[0], V[0], Hh[0]], [U[1], V[1], Hh[1]]                  # plane x, y
         els.append({'from': lo, 'to': hi, 'faces': {f: {'texture': tx2, 'uv': fit_uv(f, lo, hi), 'tintindex': tint} for f in ('north', 'south', 'east', 'west', 'up', 'down')}})
     model(name, els, dict(JTX, band=tex('powered_ball')))
     return name
 for n, title in (('ball_joint', 'Ball Joint'), ('powered_ball_joint', 'Powered Ball Joint')):
     v = {}
-    for i, (size, ht, gu, gv, gh) in enumerate(BOXES):
-        v[f'box={i}'] = {'model': f'{NS}:block/{ball_box_model(n, size, gu, gv, ht, gh)}'}
+    for ax in 'xyz':
+        for i, (size, ht, gu, gv, gh) in enumerate(BOXES):
+            v[f'axis={ax},box={i}'] = {'model': f'{NS}:block/{ball_box_model(n, size, gu, gv, ht, gh, ax)}'}
     w(f'{A}/blockstates/{n}.json', {'variants': v})
     w(f'{A}/models/item/{n}.json', {'parent': f'{NS}:block/{n}_1_1_0_0_0'}); blocks.append(n); NAMES[n] = title
 def axis_box(axis, ra, ru, rv, tx, spin=False):

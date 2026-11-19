@@ -167,9 +167,10 @@ public class HullCoreScreen extends Screen {
         if (two) { // a two-axis joint: its sideways range on its own row
             int amp2 = j.getInt("Amp2");
             String tip2 = "Sideways range: how far this joint may tip out to the side either way (a hip lets the leg step wider or cross under the body; an ankle rolls the foot to a side slope). Shift-click for steps of 10\u00B0.";
-            Button up2 = Button.builder(Component.literal("\u25B2"), z -> send(18, selected, Math.min(capAmp, amp2 + (hasShiftDown() ? 5 : 1)))).bounds(x + w + 4 + w - 28, by - 16, 13, 14).build();
+            int sideCap = Math.max(1, (j.contains("SideCap") ? j.getInt("SideCap") : j.getInt("RomCap")) / 2);
+            Button up2 = Button.builder(Component.literal("\u25B2"), z -> send(18, selected, Math.min(sideCap, amp2 + (hasShiftDown() ? 5 : 1)))).bounds(x + w + 4 + w - 28, by - 16, 13, 14).build();
             Button dn2 = Button.builder(Component.literal("\u25BC"), z -> send(18, selected, Math.max(1, amp2 - (hasShiftDown() ? 5 : 1)))).bounds(x + w + 4 + w - 14, by - 16, 13, 14).build();
-            up2.active = amp2 < capAmp; dn2.active = amp2 > 1;
+            up2.active = amp2 < sideCap; dn2.active = amp2 > 1;
             up2.setTooltip(Tooltip.create(Component.literal(tip2))); dn2.setTooltip(Tooltip.create(Component.literal(tip2)));
             addRenderableWidget(up2); addRenderableWidget(dn2);
             rom2X = x + w - 16; rom2Text = "Side \u00B1" + amp2 * 2 + "\u00B0"; rom2Tip = tip2;
@@ -649,7 +650,9 @@ public class HullCoreScreen extends Screen {
         check(g, x, cy, data.getDouble("Output") > 0 ? 0 : 2, "Power source", "Add an engine (Ember Boiler first), a Flux Accumulator, or a Kinetic Dynamo (Create)."); cy += 12;
         check(g, x, cy, data.getLong("Energy") > 0 || data.getBoolean("Infinite") ? 0 : 2, "Energy stored", "Right-click engines with fuel. Batteries charge from FE or Create rotation."); cy += 12;
         check(g, x, cy, canMove ? 0 : 1, "Can move itself", "Thrusters push. Joints set to Leg walk it. Servo Motors that touch no joint drive it along the ground."); cy += 12;
-        check(g, x, cy, overloaded ? 2 : 0, "Joints hold the weight", "A joint above 100% load will snap. Use a stronger material or a bigger joint (more joint blocks side by side)."); cy += 12;
+        check(g, x, cy, overloaded ? 2 : 0, "Joints hold the weight", "A joint above 100% load will snap. Use a bigger joint assembly (2x2 and up), parallel joints on the same hinge line, or a gearbox for more torque."); cy += 12;
+        StringBuilder modeTip = new StringBuilder(); for (Tag w : strings("Warnings")) if (w.getAsString().contains("set its Mode")) modeTip.append(modeTip.length() == 0 ? "" : "\n").append(w.getAsString());
+        check(g, x, cy, modeTip.length() == 0 ? 0 : 1, "Joint modes set", modeTip.length() == 0 ? "Every joint is in the mode its job needs (hips and knees: Leg, rotors: Spin, ankles: their own)." : modeTip.toString()); cy += 12;
         check(g, x, cy, stalled ? 1 : 0, "Motors strong enough", "A moving joint needs a Servo Motor touching it with enough torque to lift its limb."); cy += 12;
         if (data.getBoolean("Legged")) {
             StringBuilder ft = new StringBuilder("Balance is passed up from the feet: every joint from each foot to the Hull Core needs a strong enough Servo Motor.");
@@ -829,7 +832,7 @@ public class HullCoreScreen extends Screen {
         var roleLines = font.split(Component.literal(j.getString("Role")), dw);
         for (int li = 0; li < roleLines.size() && iy <= textEnd; li++) { g.drawString(font, roleLines.get(li), dx, iy, TXT, false); iy += 10; }
         if (roleLines.size() * 10 > textEnd - (y + 82) + 10) tips.add(new Tip(dx, y + 82, dx + dw, iy, j.getString("Role")));
-        if (!good) { g.drawString(font, "\u25B6 Set Mode to " + MODE_NAMES[rec] + " (now " + MODE_NAMES[cm] + ")", dx, iy, WARN, false); iy += 10; }
+        if (!good) { g.drawString(font, "! Mode: see the Hull Core checklist", dx, iy, WARN, false); tips.add(new Tip(dx, iy, dx + dw, iy + 9, "This joint usually works in " + MODE_NAMES[rec] + " mode (now " + MODE_NAMES[cm] + ").")); iy += 10; }
         iy += 1;
         if (j.getBoolean("LegHip") && iy + 33 <= textEnd + 9) {
             g.drawString(font, String.format("Foot grip %.2f%s", j.getDouble("Grip"), j.getDouble("Grip") < 0.3 ? "  (slippery!)" : ""), dx, iy, j.getDouble("Grip") < 0.3 ? WARN : TXT, false); iy += 11;

@@ -89,6 +89,7 @@ public final class Grid {
     }
     /** Ball joints: tile the connected group into n x h x n boxes (h up to n), biggest squares first, bottom up. */
     private static void regrid3(Access a, BlockPos start, GridBlock gb, BlockState s0) {
+        Direction.Axis[] pl = gb.plane(s0); Direction.Axis up = gb.stackAxis(s0);
         Set<BlockPos> comp = new HashSet<>();
         ArrayDeque<BlockPos> q = new ArrayDeque<>(); q.add(start); comp.add(start);
         while (!q.isEmpty() && comp.size() < 512) {
@@ -96,7 +97,7 @@ public final class Grid {
             for (Direction d : Direction.values()) { BlockPos n = p.relative(d); if (!comp.contains(n) && gb.joins(s0, a.get(n))) { comp.add(n); q.add(n); } }
         }
         List<BlockPos> order = new ArrayList<>(comp);
-        order.sort(Comparator.comparingInt((BlockPos p) -> p.getY()).thenComparingInt(p -> p.getZ()).thenComparingInt(p -> p.getX()));
+        order.sort(Comparator.comparingInt((BlockPos p) -> coord(p, up)).thenComparingInt(p -> coord(p, pl[1])).thenComparingInt(p -> coord(p, pl[0])));
         Set<BlockPos> done = new HashSet<>();
         for (BlockPos c : order) {
             if (done.contains(c)) continue;
@@ -105,19 +106,19 @@ public final class Grid {
             while (k < Parts.MAX) {
                 for (int du = 0; du <= k; du++) for (int dv = 0; dv <= k; dv++) {
                     if (du < k && dv < k) continue;
-                    BlockPos x = c.offset(du, 0, dv);
+                    BlockPos x = c.relative(pl[0], du).relative(pl[1], dv);
                     if (!comp.contains(x) || done.contains(x)) break grow;
                 }
                 k++;
             }
             int h = 1;
-            up:
+            stack:
             while (h < k) {
-                for (int du = 0; du < k; du++) for (int dv = 0; dv < k; dv++) { BlockPos x = c.offset(du, h, dv); if (!comp.contains(x) || done.contains(x)) break up; }
+                for (int du = 0; du < k; du++) for (int dv = 0; dv < k; dv++) { BlockPos x = c.relative(pl[0], du).relative(pl[1], dv).relative(up, h); if (!comp.contains(x) || done.contains(x)) break stack; }
                 h++;
             }
             for (int dh = 0; dh < h; dh++) for (int du = 0; du < k; du++) for (int dv = 0; dv < k; dv++) {
-                BlockPos x = c.offset(du, dh, dv);
+                BlockPos x = c.relative(pl[0], du).relative(pl[1], dv).relative(up, dh);
                 done.add(x);
                 BlockState n = Cells.with(a.get(x), k, du, dv, h, dh);
                 if (n != a.get(x)) a.set(x, n);
@@ -136,7 +137,7 @@ public final class Grid {
         if (!(s.getBlock() instanceof GridBlock gb)) return p;
         Direction.Axis[] pl = gb.plane(s);
         BlockPos o = p.relative(pl[0], -Cells.gu(s)).relative(pl[1], -Cells.gv(s));
-        return gb.stacks() ? o.below(Cells.gh(s)) : o;
+        return gb.stacks() ? o.relative(gb.stackAxis(s), -Cells.gh(s)) : o;
     }
     public static int size(BlockState s) { return Cells.size(s); }
 }

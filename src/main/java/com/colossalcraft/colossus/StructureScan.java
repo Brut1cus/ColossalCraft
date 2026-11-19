@@ -111,6 +111,13 @@ public final class StructureScan {
             if (j.mode != StructureModel.LOCKED && j.stalled()) r.warnings.add(j.motors == 0 ? "Joint J" + j.id + " is set to move, but no Servo Motor touches it."
                     : "Joint J" + j.id + " motors too weak: " + kilo(j.motorTorque) + " of " + kilo(j.reqTorque) + " N*m needed.");
         }
+        // joints in the wrong mode for what they do (the Joints tab only names what each joint is)
+        String[] modeNames = {"Locked", "Leg", "Leg", "Spin", "Sway", "Program"};
+        for (StructureModel.Joint j : m.joints) {
+            if (j.mergedInto >= 0) continue;
+            Object[] ro = m.role(j); int rec = (Integer) ro[1], cur = j.mode == 2 ? 1 : j.mode == 5 ? 0 : j.mode;
+            if (rec >= 0 && rec != cur) { String what = ((String) ro[0]).split(":")[0].split("\\(")[0].trim().toLowerCase(); r.warnings.add("Joint J" + j.id + " is a " + what + ": set its Mode to " + modeNames[rec] + " (now " + modeNames[cur] + ")."); }
+        }
         if (m.legged) {
             for (StructureModel.Foot f : m.feet) if (!f.ok()) r.warnings.add("It will fall over: foot part " + f.seg() + " - " + f.problem() + ".");
             if (!m.balanced()) r.warnings.add(String.format("It will tip over: the centre of mass is %.1f blocks outside its feet. Move weight over the legs or widen the stance.", m.balanceOffset.length()));
@@ -194,7 +201,7 @@ public final class StructureScan {
                 while (walk > 0 && g2++ < 1000) {
                     StructureModel.Seg ws = m.segs.get(walk); if (ws.parentJoint < 0) break;
                     StructureModel.Joint pj = m.joints.get(ws.parentJoint);
-                    if (pj.ball && k == -2) { k = -1; break; }
+                    if (pj.ball && !pj.universal && !pj.hinged && k == -2) { k = -1; break; } // a passive ball ankle: the foot stays level (a ball hip swings the leg)
                     int idx = L.joints().indexOf(pj.id); if (idx >= 0) { k = idx; break; }
                     walk = Math.max(0, pj.parentSeg);
                 }
@@ -288,7 +295,7 @@ public final class StructureScan {
             c.putInt("Id", j.id); c.putInt("Parent", j.parentSeg); c.putString("Tier", j.label()); c.putInt("K", j.k); c.putDouble("Area", j.area); c.putString("Axis", j.axis.getName());
             c.putDouble("Sub", j.subMass); c.putDouble("Ratio", j.staticRatio); c.putDouble("FCap", j.forceCap); c.putDouble("MCap", j.momentCap);
             c.putDouble("Torque", j.motorTorque); c.putDouble("Req", j.reqTorque); c.putDouble("Stand", j.standMass); c.putDouble("StandTq", j.standTorque); c.putDouble("StandRatio", j.standRatio); c.putDouble("Share", j.footShare); c.putInt("Motors", j.motors);
-            c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putInt("Amp2", j.amp2); c.putBoolean("TwoAxis", j.twoAxis()); c.putInt("RomCap", j.ball ? j.romCap : 180); c.putInt("Fold", (int) Math.round(Math.toDegrees(j.fold))); c.putInt("Height", j.height); c.putBoolean("Stalled", j.stalled());
+            c.putInt("Mode", j.mode); c.putInt("Amp", j.amp); c.putInt("Amp2", j.amp2); c.putBoolean("TwoAxis", j.twoAxis()); c.putInt("RomCap", j.hinged ? 180 : j.ball ? j.romCap : 180); c.putInt("SideCap", j.ball ? j.tiltCap : 180); c.putInt("Fold", (int) Math.round(Math.toDegrees(j.fold))); c.putInt("Height", j.height); c.putBoolean("Stalled", j.stalled());
             BlockPos lp = BlockPos.of(j.key);
             BlockPos wp = r.entity != null ? BlockPos.containing(r.entity.blockWorldCenter(lp)) : r.origin.offset(lp);
             c.putInt("X", wp.getX()); c.putInt("Y", wp.getY()); c.putInt("Z", wp.getZ());

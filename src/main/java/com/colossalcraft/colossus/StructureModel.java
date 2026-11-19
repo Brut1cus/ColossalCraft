@@ -69,6 +69,8 @@ public class StructureModel {
         public int id, parentJoint = -1, depth;
         public final List<BlockPos> blocks = new ArrayList<>();
         public double mass, subMass; public Vec3 com = Vec3.ZERO, subMoment = Vec3.ZERO;
+        /** Rotational inertia about its own centre of mass (kg*m^2, 3x3 row-major, rest pose). */
+        public final double[] inertia = new double[9];
         public final List<Integer> childJoints = new ArrayList<>();
     }
     public static class Joint {
@@ -95,6 +97,10 @@ public class StructureModel {
         public int amp2 = 15;
         public double lim2Rad() { return Math.min(Math.toRadians(Math.max(2, Math.min(180, amp2 * 2))), fold); }
         public boolean twoAxis() { return ball || universal; }
+        /** A powered ball joint lying on its side (axis horizontal) used in a leg: it works as a knee, a hinge about its own axis that can turn all the way round. */
+        public boolean hinged;
+        /** Ball joints: the axis the blocks were placed along (through the ball), the range its tilts may reach (+-degrees), the range set in the config (-1 = none). */
+        public Direction.Axis blockAxis = Direction.Axis.Y; public int tiltCap = 90, cfgAmp = -1;
         public final List<BlockPos> blocks = new ArrayList<>();
         public final List<Integer> childSegs = new ArrayList<>();
         public Vec3 pivot = Vec3.ZERO, subCom = Vec3.ZERO;
@@ -123,32 +129,33 @@ public class StructureModel {
     }
     /** What a joint is for and which mode it should use: {role text, recommended mode, -1 = any}. */
     public Object[] role(Joint j) {
+        // a short name for what the joint does; what to do about it goes to the Hull Core checklist (StructureScan warnings)
+        boolean footBelow = j.footShare > 0;
         if (j.ball && j.powered) {
-            boolean footBelow = j.footShare > 0;
             boolean topOfLeg = footBelow; // no other leg joint above it on the way to the body
             int cur = Math.max(0, j.parentSeg), guard = 0;
             while (topOfLeg && cur > 0 && guard++ < 1000) { Seg sg = segs.get(cur); if (sg.parentJoint < 0) break; Joint pj = joints.get(sg.parentJoint); if (isLegMode(pj.mode)) topOfLeg = false; cur = Math.max(0, pj.parentSeg); }
-            boolean ankle = footBelow && !topOfLeg;
-            if (ankle) return new Object[]{"Ankle (powered ball): Locked keeps the foot flat and tilts it to slopes.", LOCKED};
-            if (footBelow) return new Object[]{"Hip (powered ball): Leg swings the leg forward/back AND sideways, so the body can lean over a foot. Needs no extra motor.", LEG};
-            return new Object[]{"Shoulder (powered ball): Sway swings the arm with the steps; Locked holds it still.", -1};
+            if (footBelow && j.hinged) return new Object[]{"Knee (powered ball, on its side): bends the leg, turns all the way round.", LEG};
+            if (footBelow && !topOfLeg) return new Object[]{"Ankle (powered ball): keeps the foot flat and tilts it to slopes.", LOCKED};
+            if (footBelow) return new Object[]{"Hip (powered ball): swings the leg forward, back and to the side, and twists it.", LEG};
+            return new Object[]{"Shoulder (powered ball): swings with the steps, or holds still.", -1};
         }
-        if (j.ball) return new Object[]{"Ankle (ball joint): keeps the foot level by itself. Set its range with the arrows. For a hip, use a Powered Ball Joint or put a Servo Motor against it. Bigger ball joints (2x2x2 cubes) turn further.", -1};
+        if (j.ball) return new Object[]{"Ball joint: keeps the part below it level.", -1};
         if (j.childSegs.isEmpty()) return new Object[]{"Nothing hangs from this joint.", -1};
-        boolean footBelow = j.footShare > 0;
-        if (footBelow && j.axis == Direction.Axis.Y) return new Object[]{"Twists a whole leg: walkers can't step with it. Use Locked.", LOCKED};
+        if (footBelow && j.axis == Direction.Axis.Y) return new Object[]{"Hip twist: turns the leg about the vertical so a planted foot keeps its heading.", LEG};
         if (footBelow) {
             for (LegChain L : legChains) {
                 int k = L.joints().indexOf(j.id);
-                if (k == 0) return new Object[]{"Hip: swings the leg forward and back. Use Leg (needs a motor).", LEG};
-                if (k > 0) return new Object[]{"Knee: bends the leg and holds the weight up. Use Leg (needs a motor).", LEG};
+                if (k == 0) return new Object[]{"Hip: swings the leg forward and back.", LEG};
+                if (k > 0) return new Object[]{"Knee: bends the leg and holds the weight up.", LEG};
             }
-            return new Object[]{"Hip or knee of a leg: use Leg so the leg can step (needs a motor).", LEG};
+            return new Object[]{"Leg joint (hip or knee).", LEG};
         }
-        if (j.blades > 0) return new Object[]{"Rotor: blades on it make thrust. Use Spin.", SPIN};
-        if (j.mode == SPIN) return new Object[]{j.wheelGround ? "Wheel: turns with the Spin keys (Keys tab) and drives the Colossus along the ground. Brake stops it." : "Spins with the Spin keys (Keys tab): clockwise, counter-clockwise, brake.", -1};
-        return new Object[]{"Arm, tail or turret: Locked (rigid), Spin (keeps turning) or Sway (idle motion).", -1};
+        if (j.blades > 0) return new Object[]{"Rotor: its blades make thrust.", SPIN};
+        if (j.mode == SPIN) return new Object[]{j.wheelGround ? "Wheel: drives along the ground." : "Spinner.", -1};
+        return new Object[]{"Arm, tail or turret.", -1};
     }
+
     public record Thruster(BlockPos pos, Direction push, double force, double power, int seg) {}
     /** Motors of the same material and axis touching each other: one bigger motor (n x n grid). */
     public record MotorCluster(List<BlockPos> blocks, Direction.Axis axis, int k, int n, Vec3 center, int joint, double ratio) {}
@@ -320,7 +327,7 @@ public class StructureModel {
             Joint j = new Joint(); j.id = joints.size();
             boolean bj = jb instanceof BallJointBlock;
             j.shape = jb.shape;
-            j.axis = bj ? Direction.Axis.Y : ss.getValue(RotatedPillarBlock.AXIS);
+            j.axis = ss.getValue(RotatedPillarBlock.AXIS); j.blockAxis = j.axis;
             j.size = jb instanceof BearingBlock || bj ? Cells.size(ss) : 1;
             j.height = bj ? Math.max(1, Math.min(j.size, Cells.height(ss))) : 1;
             double px = 0, py = 0, pz = 0;
@@ -335,6 +342,7 @@ public class StructureModel {
             CompoundTag jc = cfg.getCompound(jointKey(j.key));
             j.mode = Math.max(0, Math.min(MODES.length - 1, jc.getByte("Mode")));
             if (jc.contains("Amp")) j.amp = jc.getInt("Amp");
+            j.cfgAmp = jc.contains("Amp") ? jc.getInt("Amp") : -1;
             int[] k = jc.getIntArray("Keys"); for (int i = 0; i < Math.min(KEYS, k.length); i++) j.keys[i] = k[i];
             j.phase = jc.getInt("Phase"); if (jc.contains("SpeedX")) j.speedFactor = jc.getInt("SpeedX") / 100.0; j.loop = jc.getBoolean("Loop");
             j.group = jc.getInt("Group");
@@ -344,7 +352,7 @@ public class StructureModel {
             else if (isLegMode(j.mode) && !jc.contains("Amp")) j.amp = 45; // legs: +-90 degrees, so knees can fold enough to lift a foot onto a step
             // sideways range of two-axis joints: hips default to +-30 degrees out to the side, ball ankles to their swing range
             j.amp2 = jc.contains("Amp2") ? jc.getInt("Amp2") : j.ball && !j.powered ? j.amp : Math.min(15, j.amp);
-            if (j.ball) j.amp2 = Math.min(j.amp2, Math.max(1, j.romCap / 2));
+            if (j.ball) { j.tiltCap = j.romCap; j.amp2 = Math.min(j.amp2, Math.max(1, j.romCap / 2)); }
             if (j.powered) { j.motorTorque += Parts.MOTOR_TORQUE * j.area; j.motorPower += Parts.MOTOR_POWER; }
             joints.add(j);
         }
@@ -417,6 +425,12 @@ public class StructureModel {
             double sx = 0, sy = 0, sz = 0;
             for (BlockPos p : s.blocks) { double m = bm.get(p); s.mass += m; sx += m * (p.getX() + .5); sy += m * (p.getY() + .5); sz += m * (p.getZ() + .5); }
             s.com = s.mass > 0 ? new Vec3(sx / s.mass, sy / s.mass, sz / s.mass) : Vec3.ZERO;
+            for (BlockPos p : s.blocks) { // each block a solid cube of its mass
+                double m = bm.get(p), x = p.getX() + .5 - s.com.x, y = p.getY() + .5 - s.com.y, z = p.getZ() + .5 - s.com.z, self = m / 6.0;
+                s.inertia[0] += m * (y * y + z * z) + self; s.inertia[4] += m * (x * x + z * z) + self; s.inertia[8] += m * (x * x + y * y) + self;
+                s.inertia[1] -= m * x * y; s.inertia[2] -= m * x * z; s.inertia[5] -= m * y * z;
+            }
+            s.inertia[3] = s.inertia[1]; s.inertia[6] = s.inertia[2]; s.inertia[7] = s.inertia[5];
             s.subMass = s.mass; s.subMoment = new Vec3(sx, sy, sz);
         }
         for (int i = segs.size() - 1; i >= 0; i--) {
@@ -544,8 +558,11 @@ public class StructureModel {
             j.staticRatio = j.subMass <= 0 ? 0 : Math.max(f / j.forceCap, mo / j.momentCap);
         }
         // powered ball joints set to Leg (hips) or Sway (shoulders) swing like a hinge across the forward direction, plus sideways
+        // a powered ball upright (axis up) is a hip: forward/back, sideways and a twist. On its side (axis level) it is a knee:
+        // a hinge about its own axis that can turn all the way round (its tilts stay within its shape's range).
         for (Joint j : joints) if (j.ball && j.powered && (isLegMode(j.mode) || j.mode == SWAY)) {
-            j.universal = true; j.axis = forward.getAxis() == Direction.Axis.Z ? Direction.Axis.X : Direction.Axis.Z;
+            if (j.blockAxis == Direction.Axis.Y) { j.universal = true; j.axis = forward.getAxis() == Direction.Axis.Z ? Direction.Axis.X : Direction.Axis.Z; }
+            else { j.hinged = true; j.axis = j.blockAxis; j.romCap = 360; j.amp = j.cfgAmp >= 0 ? Math.min(j.cfgAmp, 90) : 45; }
         }
         // wheels: Spin joints without blades. Size, which way "forward" turns them, and whether they reach the ground
         for (Joint j : joints) if (j.mode == SPIN && j.blades == 0 && !j.childSegs.isEmpty()) {
@@ -578,7 +595,7 @@ public class StructureModel {
             ArrayDeque<Integer> q = new ArrayDeque<>(j.childSegs);
             while (!q.isEmpty() && sub.size() < 3000) { Seg sg = segs.get(q.poll()); sub.addAll(sg.blocks); for (int cj : sg.childJoints) q.addAll(joints.get(cj).childSegs); }
             Set<BlockPos> own = new HashSet<>(j.blocks);
-            Direction.Axis[] axes = j.ball && !j.universal ? new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z} : new Direction.Axis[]{j.axis};
+            Direction.Axis[] axes = j.ball && !j.universal && !j.hinged ? new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z} : new Direction.Axis[]{j.axis};
             double fold = Math.PI; double[] side = {Math.PI, Math.PI}; // [negative turn, positive turn]
             for (Direction.Axis ax : axes) for (int sgn = -1; sgn <= 1; sgn += 2) {
                 Vec3 a = axisVec(ax); double safe = Math.PI;
@@ -724,7 +741,7 @@ public class StructureModel {
             while (cur > 0 && guard++ < 1000) {
                 Seg sg = segs.get(cur); if (sg.parentJoint < 0) break;
                 Joint j = joints.get(sg.parentJoint);
-                if (isLegMode(j.mode) && (!j.ball || j.universal) && (j.axis != Direction.Axis.Y || (!chain.isEmpty() && j.universal == false))) chain.add(0, j.id); // plain ball joints level themselves, never IK; a vertical one above the leg twists it
+                if (isLegMode(j.mode) && (!j.ball || j.universal || j.hinged) && (j.axis != Direction.Axis.Y || (!chain.isEmpty() && j.universal == false))) chain.add(0, j.id); // plain ball joints level themselves, never IK; a vertical one above the leg twists it
                 cur = Math.max(0, j.parentSeg); body = cur;
                 if (!chain.isEmpty() && !isLegMode(j.mode) && !j.ball) break;
             }
@@ -745,7 +762,7 @@ public class StructureModel {
             Vec3 ankle = null;
             { int c3 = fs, g3 = 0;
               while (c3 > 0 && g3++ < 1000) { Seg sg = segs.get(c3); if (sg.parentJoint < 0) break; Joint pj = joints.get(sg.parentJoint);
-                  if (pj.id == chain.get(chain.size() - 1)) break; if (pj.ball && !pj.universal) { ankle = pj.pivot; break; } c3 = Math.max(0, pj.parentSeg); } }
+                  if (pj.id == chain.get(chain.size() - 1)) break; if (pj.ball && !pj.universal && !pj.hinged) { ankle = pj.pivot; break; } c3 = Math.max(0, pj.parentSeg); } }
             double len = foot.distanceTo(hipJ.pivot);
             double vCap = Double.MAX_VALUE, knee = 0; double[] lim = new double[chain.size()];
             for (int i = 0; i < chain.size(); i++) {
@@ -930,7 +947,7 @@ public class StructureModel {
                 out[s.id] = new Matrix4d(parent).translate(j.pivot.x, j.pivot.y, j.pivot.z).rotate(yawA, 0, 1, 0).rotate(roll, f.x, f.y, f.z).rotate(pitch, a.x, a.y, a.z).translate(-j.pivot.x, -j.pivot.y, -j.pivot.z);
                 continue;
             }
-            if (j.ball) { // undo the parent's turning (within the limit) so the part below stays level
+            if (j.ball && !j.hinged) { // undo the parent's turning (within the limit) so the part below stays level
                 org.joml.Quaterniond q = parent.getNormalizedRotation(new org.joml.Quaterniond()).invert();
                 if (j.powered && j.id < ballPitch.length && (ballPitch[j.id] != 0 || ballRoll[j.id] != 0)) { // a powered ankle tilts the foot to the ground
                     Vec3 f = Vec3.atLowerCornerOf(forward.getNormal()), r = new Vec3(-f.z, 0, f.x);

@@ -268,7 +268,12 @@ public class WalkerController {
                 foot[i] = p;
                 if (t >= 1) {
                     double gy = soleGround(c, i, p.add(0, 0.5, 0));
-                    if (!Double.isNaN(gy)) { foot[i] = new Vec3(p.x, gy, p.z); state[i] = State.STANCE; land(c, i); }
+                    // the foot lands where the leg really put it (a heavy or weak leg lags), unless that's far from the planned spot
+                    Vec3 real = footFromPose(c, i);
+                    Vec3 at = Math.hypot(real.x - p.x, real.z - p.z) < 1.0 ? real : p;
+                    double gy2 = soleGround(c, i, new Vec3(at.x, p.y + 0.5, at.z));
+                    if (!Double.isNaN(gy2) && Math.abs(gy2 - gy) < 0.6) { foot[i] = new Vec3(at.x, gy2, at.z); state[i] = State.STANCE; land(c, i); }
+                    else if (!Double.isNaN(gy)) { foot[i] = new Vec3(p.x, gy, p.z); state[i] = State.STANCE; land(c, i); }
                     else { swingTo[i] = swingTo[i].subtract(0, 0.3, 0); swingFrom[i] = foot[i]; swingT[i] = 0.7; }
                 }
             }
@@ -541,6 +546,7 @@ public class WalkerController {
 
         // ---- 4. IK, legs kept out of the ground, and tipping
         solveAllIK(c);
+        legDyn.step(c, this, dt, ratio, new Vec3(lastAccel.x, 0, lastAccel.z)); // Stage 3: lifted legs move by their motors' torque toward the IK's pose
         tiltAnkles(c, fW, rW);
         keepLegsOutOfGround(c);
         if (justLanded.length == n) { Crushing.feet(c, this, justLanded); Arrays.fill(justLanded, false); } // heavy feet crush what they land on or swing into
@@ -562,6 +568,8 @@ public class WalkerController {
 
     /** Upward force the legs pushed last tick (N), for tests and the HUD. */
     public double lastSupport;
+    /** Stage 3: the lifted legs' joint dynamics (motor torque, inertia, gravity). */
+    public final LegDynamics legDyn = new LegDynamics();
     /** Balance (Stage 2): the area the planted feet can press on (convex, x/z), the pendulum rate sqrt(g / height),
      *  where the body would come to rest if the feet stopped it now (capture point), and counters. */
     public List<double[]> supportHull = new ArrayList<>();
@@ -601,6 +609,12 @@ public class WalkerController {
         if (others.isEmpty()) return false;
         if (!sidewaysOver(others, capture, rW, liftR + 0.35)) return false;
         double back = Double.MAX_VALUE; for (Vec3 f : others) back = Math.min(back, f.dot(fW));
+        if (waitTicks > 60) { // stuck for 3 s: a step is fine while the weight is between the feet (it tips toward the swinging foot, which lands there and catches it)
+            double lo = Double.MAX_VALUE, hi = -Double.MAX_VALUE;
+            for (int i = 0; i < n; i++) if (state[i] == State.STANCE) { double s = foot[i].dot(rW); lo = Math.min(lo, s); hi = Math.max(hi, s); }
+            double cs = com.dot(rW);
+            return cs >= lo - 0.2 && cs <= hi + 0.2 && capture.dot(fW) >= back - 0.2;
+        }
         if (waitTicks > 20) return capture.dot(fW) >= back; // stuck a while: a step is fine if the body would fall forward (the swinging foot catches it)
         return insideSupport(others, com, liftR);
     }
@@ -651,7 +665,7 @@ public class WalkerController {
         for (int jid : L.joints()) {
             StructureModel.Joint J = m.joints.get(jid);
             best = Math.min(best, J.forceCap);
-            if ((J.ball && !J.universal) || J.mode == StructureModel.LOCKED) continue;
+            if ((J.ball && !J.universal && !J.hinged) || J.mode == StructureModel.LOCKED) continue;
             int ps = Math.max(0, J.parentSeg);
             if (ps >= W.length) continue;
             Vector3d p = W[ps].transformPosition(new Vector3d(J.pivot.x, J.pivot.y, J.pivot.z));

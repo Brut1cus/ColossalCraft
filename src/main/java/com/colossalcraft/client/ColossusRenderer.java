@@ -112,7 +112,8 @@ public class ColossusRenderer extends EntityRenderer<ColossusEntity> {
             Matrix4d local = segM[cs];
             if (!j.ball) { drawJointPart(e, m, j, local, Part.SPIN, ps, buf, pt, light, ex, ey, ez, level, lp); continue; }
             Matrix4d parent = segM[Math.max(0, j.parentSeg)];
-            boolean childBelow = m.segs.get(cs).com.y < j.pivot.y;
+            var ba = StructureModel.axisVec(j.blockAxis); // which base plate the child holds: the one on its side of the ball (along the ball's axis)
+            boolean childBelow = m.segs.get(cs).com.subtract(j.pivot).dot(ba) < 0;
             drawJointPart(e, m, j, local, childBelow ? Part.SPIN : Part.SPIN2, ps, buf, pt, light, ex, ey, ez, level, lp);
             drawJointPart(e, m, j, parent, childBelow ? Part.SPIN2 : Part.SPIN, ps, buf, pt, light, ex, ey, ez, level, lp);
             Matrix4d rel = new Matrix4d(parent).invert().mul(local);

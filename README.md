@@ -88,6 +88,13 @@ The body moves only by real forces: gravity, thrust, and what its **planted feet
 - **Steps:** each foot keeps to its own track, and never lands further ahead of the standing foot than about a stride (else the body can't get over it).
 - **Tipping:** it falls only when its weight is well outside every place its feet are on or about to land.
 
+## Walker legs (Stage 3: driven by motor torque)
+- Each leg is a chain of rigid links (the parts between its joints) with their real masses and inertias, solved with **Featherstone's articulated-body algorithm**: given each joint's torque, it gives each joint's acceleration exactly, with gravity and the body's own motion.
+- The IK no longer sets a lifted leg's pose; it only gives each joint a **target**. Each motor is a servo: it pushes toward the target (holding the leg's weight up, plus a spring and damper sized to how heavy the leg feels to that joint), never harder than the motor and its gears can, never faster than its top speed. Bigger legs respond more slowly.
+- So **heavy legs swing slowly**, a weak motor can't lift its leg in time, a leg trails its target and settles, and **a foot lands where the leg really put it**, not where it was planned (when that's close to the planned spot).
+- Planted legs are held where their feet are; how hard each foot may push is limited by its joints' torque (Stage 1).
+- Not yet: joints that aren't in legs (arms, tails) still follow their animation directly, and the body's tilt still follows the feet.
+
 ## Walkers: feet first
 A walker stands on its feet and is placed from the lowest point up. Nothing "holds the Hull in the air": the body is wherever its legs put it.
 
@@ -150,6 +157,7 @@ Set a joint to **Spin** and it works like a wheel: with no blades on it, it turn
 
 ## Ball joints: ankles, hips and shoulders
 - **Ball Joint** (plain): keeps the part below it **level** (a flat foot). Needs no motor and has no mode. Put one between the shin and the foot.
+- **Sideways ball joints:** place a Ball Joint like a log: its axis (through the ball) points at the face you click. A powered ball **upright** (axis up) is a **hip** (swings forward/back and to the side, and twists). **On its side** (axis level) it is a **knee**: a hinge about its own axis that can turn **all the way round** (±180°), while its tilts stay within its shape's range. Ball assemblies stack along their axis.
 - **Big ball joints:** Ball Joints next to each other join into **one** joint: an n x n square, up to n layers high (2x1x2, 2x2x2, 3x2x3 ...). It is drawn as one big ball and carries n^n the load. Its **range of motion** grows with height: **±90° × layers / side**, so a flat 2x1x2 turns ±45° and a 2x2x2 cube ±90° any way. Sneak while placing to keep one on its own.
 - **Two-axis joints** (ball joints, Powered Ball Joint hips) have two ranges: **Swing** (forward/back) and **Side** (out to the side). A hip's side range sets how wide a leg can step or how far it can cross under the body; an ankle's sets how far the foot rolls to a side slope. Hips default to ±30° to the side.
 - **Range of motion:** in the Joints tab, the up/down arrows set how far a joint may turn either way, up to ±180° for bearings (shift-click for big steps; balls stop at what their shape allows). Legs fold as far as they can **without hitting the rest of the Colossus**: each side of each joint is checked when it's built, so a knee can fold right back even if a motor blocks it from bending forward. The value turns yellow when it's set past that point.
@@ -176,7 +184,7 @@ Each joint shows two estimates:
 - Either bar over 100% means the joint will snap (live, while standing too). Use bigger or stronger joints low on the legs.
 
 ## Joints view (3D schematic)
-The Joints tab (in the Locomotion Controller) is a 3D view of the whole Colossus: left-drag turns it, right-drag moves it, and scroll zooms. The side panel shows the selected joint: position, load, torque, gears and, for legs, foot grip, push and carry limits. A button sets the joint's **Mode** (Locked, Leg, Spin, Sway); up/down arrows set its **range of motion** (how far it may turn).
+The Joints tab (in the Locomotion Controller) names what each joint is (hip, knee, ankle, wheel...) in a line; what to do about a joint in the wrong mode is in the Hull Core checklist (**Joint modes set**). It is a 3D view of the whole Colossus: left-drag turns it, right-drag moves it, and scroll zooms. The side panel shows the selected joint: position, load, torque, gears and, for legs, foot grip, push and carry limits. A button sets the joint's **Mode** (Locked, Leg, Spin, Sway); up/down arrows set its **range of motion** (how far it may turn).
 - **green** is the core part, **blue** marks the other parts, **yellow** marks bearings, and **red** marks problems.
 - Click a joint marker to select it.
 - Red X marks show where the build touches natural ground. Build on Gantry Scaffold instead.

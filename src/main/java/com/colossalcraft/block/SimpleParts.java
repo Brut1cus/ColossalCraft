@@ -47,6 +47,8 @@ public final class SimpleParts {
         }
         /** Also stacks upward into n x h x n boxes (ball joints). */
         default boolean stacks() { return false; }
+        /** Boxes stack along this axis (ball joints: through the joint; gyros: up). */
+        default Direction.Axis stackAxis(BlockState s) { return Direction.Axis.Y; }
     }
     static Direction.Axis[] across(Direction.Axis a) {
         return switch (a) { case X -> new Direction.Axis[]{Direction.Axis.Z, Direction.Axis.Y}; case Y -> new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z}; default -> new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Y}; };
@@ -91,13 +93,18 @@ public final class SimpleParts {
         private static final VoxelShape SMALL = Block.box(2, 0, 2, 14, 16, 14);
         public BallJointBlock(JointShape sh, Properties p) { super(sh, p); registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y).setValue(Cells.BOX, 0).setValue(LONE, false)); }
         @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { super.createBlockStateDefinition(b); b.add(Cells.BOX, LONE); }
-        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(LONE, c.isSecondaryUseActive()); }
-        public Direction.Axis[] plane(BlockState s) { return new Direction.Axis[]{Direction.Axis.X, Direction.Axis.Z}; }
+        /** Placed like a log: its axis (through the ball, the way it can turn all the way round) points at the face clicked.
+         *  Upright (axis up) it works as a hip; on its side (axis level) as a knee. */
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(AXIS, c.getClickedFace().getAxis()).setValue(LONE, c.isSecondaryUseActive()); }
+        public Direction.Axis[] plane(BlockState s) { return across(s.getValue(AXIS)); }
         @Override public boolean stacks() { return true; }
-        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return s.getValue(Cells.BOX) == 0 ? SMALL : Shapes.block(); }
+        @Override public Direction.Axis stackAxis(BlockState s) { return s.getValue(AXIS); }
+        @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return s.getValue(Cells.BOX) == 0 ? SMALL_BY_AXIS.get(s.getValue(AXIS)) : Shapes.block(); }
+        private static final java.util.EnumMap<Direction.Axis, VoxelShape> SMALL_BY_AXIS = new java.util.EnumMap<>(Direction.Axis.class);
+        static { SMALL_BY_AXIS.put(Direction.Axis.Y, Block.box(2, 0, 2, 14, 16, 14)); SMALL_BY_AXIS.put(Direction.Axis.X, Block.box(0, 2, 2, 16, 14, 14)); SMALL_BY_AXIS.put(Direction.Axis.Z, Block.box(2, 2, 0, 14, 14, 16)); }
         @Override protected void onPlace(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState old, boolean m) { super.onPlace(s, l, p, old, m); Grid.placed(l, p, old.getBlock() != this); }
         @Override protected void onRemove(BlockState s, net.minecraft.world.level.Level l, BlockPos p, BlockState now, boolean m) { boolean gone = now.getBlock() != this; Grid.removed(l, p, s, gone); super.onRemove(s, l, p, now, m); }
-        @Override protected BlockState rotate(BlockState s, Rotation r) { return s; }
+        @Override protected BlockState rotate(BlockState s, Rotation r) { return RotatedPillarBlock.rotatePillar(s, r); }
         /** Range of motion cap either way, in degrees, for an assembly of this size and height. */
         public static int romCap(int size, int height) { return (int) Math.round(90.0 * Math.min(height, size) / size); }
     }
