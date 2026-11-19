@@ -385,6 +385,10 @@ public class ColossusTests {
         h.runAfterDelay(30, () -> { ColossusEntity c = findNear(h); p0[0] = c.getX(); p0[1] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
         for (int t = 31; t <= 320; t++) { int tt = t; h.runAfterDelay(t, () -> { ColossusEntity c = findNear(h); if (c == null) return;
             maxSide[0] = Math.max(maxSide[0], Math.abs(c.getX() - p0[0])); if (c.walker.status.contains("shifting")) waits[0]++;
+            if (c.getZ() - p0[1] < -4.5) { // far enough: finish before it reaches the test area's wall
+                c.setInput(0, 0, false, false);
+                h.assertTrue(c.tilt == 0, "fell over"); h.assertTrue(maxSide[0] < 1.0, "should walk straight, drifted sideways " + maxSide[0]);
+                h.succeed(); return; }
             if (tt % 30 == 0) ColossalCraft.LOG.info("[test] ball hips t={} dx={} dz={} roll={} status={} ikRoll={}", tt, c.getX() - p0[0], c.getZ() - p0[1], c.bodyRoll, c.walker.status, java.util.Arrays.toString(c.model.ikRoll)); }); }
         h.runAfterDelay(322, () -> {
             ColossusEntity c = findNear(h);
@@ -469,6 +473,40 @@ public class ColossusTests {
             h.assertTrue(swingTicks[0] > 20, "legs should have swung");
             h.assertTrue(lagMax[0] > 1e-3, "a lifted leg moves by its motors' torque, so it trails its target a little");
             h.assertTrue(z0[0] - c.getZ() > 2 && c.tilt == 0, "and it still walks: moved " + (z0[0] - c.getZ()));
+            h.succeed();
+        });
+    }
+
+    static void armShip(GameTestHelper h, boolean motor) {
+        floor(h); ship(h, 0);
+        h.setBlock(10, 6, 7, ModRegistry.BEARING.get().defaultBlockState().setValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS, Direction.Axis.Z).setValue(com.colossalcraft.block.SimpleParts.LONE, true));
+        h.setBlock(10, 6, 6, motor ? ModRegistry.MOTOR.get().defaultBlockState().setValue(net.minecraft.world.level.block.RotatedPillarBlock.AXIS, Direction.Axis.Z).setValue(com.colossalcraft.block.SimpleParts.LONE, true) : Blocks.OAK_PLANKS.defaultBlockState());
+        for (int x = 11; x <= 13; x++) h.setBlock(x, 6, 7, Blocks.STONE_BRICKS); // an arm sticking out sideways
+        StructureScan.Result r = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        for (StructureModel.Joint j : r.model.joints) { CompoundTag c = new CompoundTag(); c.putByte("Mode", (byte) StructureModel.SWAY); hc.joints.put(StructureModel.jointKey(j.key), c); }
+        hc.setChanged();
+    }
+    @GameTest(template = "empty16", timeoutTicks = 140)
+    public static void armsMoveByMotorTorque(GameTestHelper h) {
+        armShip(h, true);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] lo = {9}, hi = {-9};
+        for (int t = 40; t <= 120; t++) h.runAfterDelay(t, () -> { ColossusEntity c = findNear(h); double a = c.model.ikAngles[c.model.joints.get(0).id]; if (!Double.isNaN(a)) { lo[0] = Math.min(lo[0], a); hi[0] = Math.max(hi[0], a); } });
+        h.runAfterDelay(122, () -> {
+            ColossalCraft.LOG.info("[test] arm with motor swung between {} and {} rad", lo[0], hi[0]);
+            h.assertTrue(hi[0] - lo[0] > 0.05 && hi[0] < 1.2 && lo[0] > -1.2, "a powered arm should sway under its motor, range " + lo[0] + ".." + hi[0]);
+            h.succeed();
+        });
+    }
+    @GameTest(template = "empty16", timeoutTicks = 120)
+    public static void armWithoutMotorSags(GameTestHelper h) {
+        armShip(h, false);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        h.runAfterDelay(100, () -> {
+            ColossusEntity c = findNear(h); double a = c.model.ikAngles[c.model.joints.get(0).id];
+            ColossalCraft.LOG.info("[test] arm without motor hangs at {} rad", a);
+            h.assertTrue(!Double.isNaN(a) && Math.abs(a) > 0.5, "an arm with no motor should sag under its weight, angle " + a);
             h.succeed();
         });
     }

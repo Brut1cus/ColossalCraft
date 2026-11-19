@@ -86,6 +86,14 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private Matrix4d[] art = new Matrix4d[0];
     private int[] overload = new int[0];
     private Vec3 clientLastPos;
+    /** Client: position updates are glided to over a tick or two instead of jumped to (they don't arrive in step with the client's frames). */
+    private int lerpSteps; private double lerpX, lerpY, lerpZ;
+    @Override public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps) { lerpX = x; lerpY = y; lerpZ = z; lerpSteps = Math.max(1, Math.min(2, steps)); }
+    @Override public double lerpTargetX() { return lerpSteps > 0 ? lerpX : getX(); }
+    @Override public double lerpTargetY() { return lerpSteps > 0 ? lerpY : getY(); }
+    @Override public double lerpTargetZ() { return lerpSteps > 0 ? lerpZ : getZ(); }
+    /** Server: joints outside the legs (arms, tails, heads) moved by their motors' torque toward their animation. */
+    private final JointDynamics jointDyn = new JointDynamics();
     public double clientSpeed;
     // pilot input
     public float inFwd, inTurn; public boolean inUp, inDown, inSprint, inJump; private int inputAge = 100;
@@ -264,6 +272,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         }
         prevYaw = yaw; prevWalkPhase = walkPhase; prevWalkBlend = walkBlend; prevSpin = spin; prevTilt = tilt;
         if (level().isClientSide) {
+            if (lerpSteps > 0) { setPos(getX() + (lerpX - getX()) / lerpSteps, getY() + (lerpY - getY()) / lerpSteps, getZ() + (lerpZ - getZ()) / lerpSteps); lerpSteps--; }
             Vec3 last = clientLastPos == null ? position() : clientLastPos;
             Matrix4d[] before = segWorlds(last, yaw, tilt, art);
             prevBodyPitch = bodyPitch; prevBodyRoll = bodyRoll; bodyPitch = entityData.get(PITCH); bodyRoll = entityData.get(ROLL);
@@ -535,7 +544,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         else rotateWithCollision(yaw + yawRate * dt);
         // share the IK angles and foot states with clients
         CompoundTag ik = new CompoundTag();
-        if (useWalker && model.ikAngles != null) {
+        boolean armsMove = jointDyn.step(this, 0.05, ratio); // arms and tails: torque toward their animation
+        if ((useWalker || armsMove) && model.ikAngles != null) {
             int[] bits = new int[model.ikAngles.length];
             for (int i = 0; i < bits.length; i++) bits[i] = Float.floatToIntBits((float) model.ikAngles[i]);
             ik.putIntArray("A", bits); ik.putString("S", walker.status);

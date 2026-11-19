@@ -93,7 +93,11 @@ The body moves only by real forces: gravity, thrust, and what its **planted feet
 - The IK no longer sets a lifted leg's pose; it only gives each joint a **target**. Each motor is a servo: it pushes toward the target (holding the leg's weight up, plus a spring and damper sized to how heavy the leg feels to that joint), never harder than the motor and its gears can, never faster than its top speed. Bigger legs respond more slowly.
 - So **heavy legs swing slowly**, a weak motor can't lift its leg in time, a leg trails its target and settles, and **a foot lands where the leg really put it**, not where it was planned (when that's close to the planned spot).
 - Planted legs are held where their feet are; how hard each foot may push is limited by its joints' torque (Stage 1).
-- Not yet: joints that aren't in legs (arms, tails) still follow their animation directly, and the body's tilt still follows the feet.
+- **Arms, tails and heads** (Sway or Program joints outside the legs) work the same way: their animation is only a target, and the motor drives the limb toward it against its weight and inertia. A heavy arm swings slowly and overshoots a little; a limb on a joint with no working motor sags to its stop.
+- Not yet: the body's tilt still follows the feet.
+
+## Smooth motion
+On your screen a moving Colossus (fast walkers, thrusters) glides between server updates instead of jumping, and you move with it, so it no longer looks like teleporting.
 
 ## Walkers: feet first
 A walker stands on its feet and is placed from the lowest point up. Nothing "holds the Hull in the air": the body is wherever its legs put it.

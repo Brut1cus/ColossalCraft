@@ -674,9 +674,10 @@ public class HullCoreScreen extends Screen {
         g.drawString(font, "Energy", gx, y + 62, DIM, false);
         bar(g, gx, y + 72, gw, inf ? 1 : cap <= 0 ? 0 : data.getLong("Energy") / cap, 0xFF3AD7FF, inf ? "INFINITE" : StructureScan.kilo(data.getLong("Energy")) + " CJ",
                 "Stored energy across all engines and batteries.");
-        g.drawString(font, "Stability", gx, y + 86, DIM, false);
+        g.drawString(font, "Gyro steadying (optional)", gx, y + 86, DIM, false);
         double st = data.getDouble("Gyro") / Math.max(1, mass);
-        bar(g, gx, y + 96, gw, st, st >= 1 ? OK : WARN, String.format("%.0f%%", Math.min(999, st * 100)), "Gyro capacity compared with mass. Gyros make turning stronger and let walkers walk at full speed.");
+        bar(g, gx, y + 96, gw, st, 0xFF3AD7FF, st <= 0 ? "no gyro" : String.format("%.0f%%", Math.min(999, st * 100)),
+                "Gyros are optional. Walkers balance with their feet and don't need one. On ships, jets and hovering craft a gyro adds turning force and steadies them (100% = gyro capacity equal to the mass); on a walker it only widens its balance a little.");
         g.drawString(font, String.format("Thrust  up %s  down %s", StructureScan.kilo(up), StructureScan.kilo(data.getDouble("T_down"))) , gx, y + 112, TXT, false);
         g.drawString(font, String.format("N %s  S %s  E %s  W %s", StructureScan.kilo(data.getDouble("T_north")), StructureScan.kilo(data.getDouble("T_south")),
                 StructureScan.kilo(data.getDouble("T_east")), StructureScan.kilo(data.getDouble("T_west"))), gx, y + 123, TXT, false);

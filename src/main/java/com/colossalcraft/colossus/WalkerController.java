@@ -55,7 +55,7 @@ public class WalkerController {
     public boolean planted() { for (State st : state) if (st == State.STANCE) return true; return false; }
 
     public void release(StructureModel m) {
-        if (m.ikAngles != null) Arrays.fill(m.ikAngles, Double.NaN);
+        if (m.ikAngles != null) for (StructureModel.LegChain L : m.legChains) for (int j : L.joints()) m.ikAngles[j] = Double.NaN; // other joints keep their own dynamics
         legsHash = 0;
     }
 
