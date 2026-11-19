@@ -102,6 +102,9 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     /** Wheels: shared angle (radians) and turn rate (radians per tick). */
     public double wheelAngle, prevWheelAngle, wheelRate;
     public void setSpinInput(boolean cw, boolean ccw, boolean brake) { inCW = cw; inCCW = ccw; inBrake = brake; }
+    /** Flight Controller tilt keys: nose down (+) / up (-), roll right (+) / left (-). */
+    public float inPitch, inRoll;
+    public void setFlightInput(float pitch, float roll) { inPitch = pitch; inRoll = roll; }
     /** Jump Drive charge (CJ) and whether the jump key was down last tick. */
     public double jumpCharge; private boolean jumpWasDown;
     /** The pilot asked to leave (V key): only then may they dismount (Crouch is used for 'lower'). */
@@ -335,7 +338,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
     private void physics() {
         double dt = 0.05, M = model.mass, g = StructureModel.G, scale = Config.MASS_SCALE.get(), LS = Config.LIFT_SCALE.get();
         Player pilot = pilot();
-        if (!autopilot && (pilot == null || ++inputAge > 10)) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; inSprint = false; inJump = false; inCW = false; inCCW = false; inBrake = false; }
+        if (!autopilot && (pilot == null || ++inputAge > 10)) { inFwd = 0; inTurn = 0; inUp = false; inDown = false; inSprint = false; inJump = false; inCW = false; inCCW = false; inBrake = false; inPitch = 0; inRoll = 0; }
         if (heldBy() != null) { heldPhysics(); return; }
 
         // buoyancy
@@ -356,9 +359,12 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         // ---- jets: every thruster pushes along its real (turned) direction, from where it sits
         double up = model.thrustCap[Direction.UP.ordinal()];
         double vT = 0, dT = 0;
+        boolean flying = model.flying() && !onGroundC && !(model.legged && walker.planted());
+        boolean holdAlt = hover() || (flying && model.dampeners); // dampeners hold height too
+        double pitchCmd = model.flying() ? Math.max(-1, Math.min(1, inFwd + inPitch)) : 0, rollCmd = model.flying() ? inRoll : 0;
         if (pilot != null && inUp) vT = 1;
         else if (pilot != null && inDown) dT = 1;
-        else if (hover() && up > 0 && !(model.legged && walker.planted())) vT = Math.max(0, Math.min(1, (M * g - buoy - M * vel.y * 2) / up));
+        else if (holdAlt && up > 0 && !(model.legged && walker.planted())) vT = Math.max(0, Math.min(1, (M * g - buoy - M * vel.y * 2) / up));
         Vec3 fwL = Vec3.atLowerCornerOf(model.forward.getNormal());
         Matrix4d[] W = segWorlds(position(), yaw, tilt, art);
         Vec3 thrust = Vec3.ZERO; double torqueY = 0, draw = 0;
@@ -386,15 +392,26 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             thrust = thrust.add(f); torqueY += r.cross(f).y; draw += t.power() * thr;
         }
         // ---- propellers/rotors: blades on Spin joints push along the axis; thrust ~ area * (speed)^2
-        double omegaWanted = spinRate * 20;
+        double omegaWanted = spinRate * 20, rudder = 0; boolean liftRotors = false;
         for (StructureModel.Joint j : model.joints) {
             if (j.mode != StructureModel.SPIN || !j.active() || j.blades == 0) continue;
             double om = Math.min(omegaWanted, Math.toRadians(j.maxSpeed));
             om = Math.min(om, Math.sqrt(j.motorTorque / Math.max(1e-6, 0.5 * 1.225 * 0.1 * LS * j.bladeA3)));
             double T = 0.5 * 1.225 * om * om * j.bladeA2 * 0.4 * LS;
-            Vec3 a = StructureModel.axisVec(j.axis).scale(j.thrustSign);
-            Vector3d dw = W[Math.max(0, j.parentSeg)].transformDirection(new Vector3d(a.x, a.y, a.z)).normalize();
-            thrust = thrust.add(new Vec3(dw.x, dw.y, dw.z).scale(T));
+            Vec3 a = StructureModel.axisVec(j.rotorHead ? j.blockAxis : j.axis).scale(j.thrustSign);
+            Vector3d al = new Vector3d(a.x, a.y, a.z);
+            if (j.rotorHead && j.id < model.ballPitch.length) { // a rotor head pushes along its tilted disc
+                Vec3 f = Vec3.atLowerCornerOf(model.forward.getNormal()), rr = new Vec3(-f.z, 0, f.x);
+                new Matrix4d().rotate(model.ballPitch[j.id], rr.x, rr.y, rr.z).rotate(model.ballRoll[j.id], f.x, f.y, f.z).transformDirection(al);
+            }
+            Vector3d dw = W[Math.max(0, j.parentSeg)].transformDirection(al).normalize();
+            Vec3 Fr = new Vec3(dw.x, dw.y, dw.z).scale(T);
+            thrust = thrust.add(Fr);
+            if (Math.abs(dw.y) < 0.5) { // a sideways rotor (tail rotor) is a rudder: it can turn the craft as hard as it pushes times its lever
+                Vec3 rr = blockWorldCenter(BlockPos.containing(j.pivot)).subtract(position());
+                double fullT = 0.5 * 1.225 * Math.pow(Math.min(Math.toRadians(j.maxSpeed), Math.sqrt(j.motorTorque / Math.max(1e-6, 0.5 * 1.225 * 0.1 * LS * j.bladeA3))), 2) * j.bladeA2 * 0.4 * LS;
+                rudder += fullT * Math.sqrt(rr.x * rr.x + rr.z * rr.z);
+            } else liftRotors = true;
             draw += 0.5 * 1.225 * 0.1 * LS * j.bladeA3 * om * om * om / 400000; // power to beat blade drag
         }
 
@@ -419,7 +436,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             if (wheelsDown > 0) { wheelTarget /= wheelsDown; wheelR /= wheelsDown; wheelDir = wheelDir.lengthSqr() > 1e-6 ? wheelDir.normalize() : Vec3.ZERO; }
             if ((inCW || inCCW) && wheelsDown > 0) draw += model.walkPower() * 0.3;
         }
-        double turnTorque = model.gyroCap * 0.6 + (onGroundC ? model.driveForce * r * 0.3 + wheelPush * r * 0.3 : 0);
+        double turnTorque = model.gyroCap * 0.6 + rudder * 0.8 + (onGroundC ? model.driveForce * r * 0.3 + wheelPush * r * 0.3 : 0);
         draw += Math.abs(inTurn) * model.gyroPower;
         if (model.joints.stream().anyMatch(j -> j.mode == StructureModel.SPIN && j.active())) draw += model.walkPower() * 0.2;
         if (model.legged) draw += model.gyroPower; // gyros hold a walker up all the time
@@ -458,7 +475,16 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             yawRate += (-inTurn * turnTorque * ratio - torqueY * ratio) / I * dt;
             yawRate = Math.max(-1.5, Math.min(1.5, yawRate)) * (inTurn == 0 && Math.abs(torqueY) < 1 ? 0.8 : 0.95);
         }
-        if (!useWalker) { bodyPitch *= 0.8; bodyRoll *= 0.8; if (Math.abs(bodyPitch) + Math.abs(bodyRoll) < 1e-4) { bodyPitch = 0; bodyRoll = 0; } }
+        if (!useWalker && flying && tilt == 0) { // Flight Controller: lean into the move, so every rotor and jet pushes that way a little
+            double lean = Math.toRadians(model.leanMax);
+            bodyPitch += (-lean * pitchCmd - bodyPitch) * 0.1; bodyRoll += (lean * rollCmd - bodyRoll) * 0.1;
+        } else if (!useWalker) { bodyPitch *= 0.8; bodyRoll *= 0.8; if (Math.abs(bodyPitch) + Math.abs(bodyRoll) < 1e-4) { bodyPitch = 0; bodyRoll = 0; } }
+        if (model.flying()) { // rotor heads tilt their discs toward the move
+            double tl = Math.toRadians(model.rotorTilt);
+            for (StructureModel.Joint j : model.joints) if (j.rotorHead && j.id < model.ballPitch.length) {
+                model.ballPitch[j.id] += (-tl * pitchCmd - model.ballPitch[j.id]) * 0.2; model.ballRoll[j.id] += (tl * rollCmd - model.ballRoll[j.id]) * 0.2;
+            }
+        }
 
         // ---- Jump Drive: charges slowly from the power supply, lets it all go at once
         double cap = model.jumpDrives * com.colossalcraft.block.SimpleParts.JumpDriveBlock.CAPACITY;
@@ -489,6 +515,8 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             Vec3 vPre = vel;
             double hd = onGroundC ? 0.85 : subFrac > 0.05 ? 0.93 : 0.985;
             vel = new Vec3(vel.x * hd, vel.y * (subFrac > 0.05 ? 0.9 : 0.995), vel.z * hd);
+            if (flying && inBrake) vel = vel.scale(0.88); // air brakes out: strong drag every way
+            else if (flying && model.dampeners && pitchCmd == 0 && rollCmd == 0 && !inUp && !inDown) vel = new Vec3(vel.x * 0.93, vel.y, vel.z * 0.93); // dampeners: it comes to a stop
             if (onGroundC && wheelsDown > 0 && wheelDir.lengthSqr() > 0) { // wheels roll: along them the ground doesn't drag, the wheels set the speed
                 double va0 = vPre.dot(wheelDir), aMax = inBrake ? 0.8 * StructureModel.G : Math.min(0.8 * StructureModel.G, wheelPush * ratio / M);
                 if (!inCW && !inCCW && !inBrake) aMax = Math.min(aMax, 0.6); // coasting: only rolling drag
@@ -515,12 +543,12 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
         if (tilt != oldTilt) liftOutOfGround();
 
         // rotor/propeller throttle: forward for propellers, up/down and hover for lifting rotors
-        double rotThr = Math.max(hT, vT);
+        double rotThr = Math.max(model.flying() && liftRotors ? 0 : hT, vT);
         boolean rotors = model.joints.stream().anyMatch(j -> j.mode == StructureModel.SPIN && j.active() && j.blades > 0);
         if (rotors) {
             if (inUp) rotThr = 1;
             else if (inDown) rotThr = Math.max(rotThr, 0.3);
-            else if (hover()) rotThr = Math.max(rotThr, Math.max(0.3, Math.min(1, 0.6 - vel.y * 0.3)));
+            else if (holdAlt) rotThr = Math.max(rotThr, Math.max(0.3, Math.min(1, 0.6 - vel.y * 0.3)));
         }
         double spinCap = 1.5; // rad per tick
         for (StructureModel.Joint j : model.joints) if (j.mode == StructureModel.SPIN && j.active()) spinCap = Math.min(spinCap, Math.toRadians(j.maxSpeed) / 20);
@@ -550,7 +578,7 @@ public class ColossusEntity extends Entity implements IEntityWithComplexSpawn {
             for (int i = 0; i < bits.length; i++) bits[i] = Float.floatToIntBits((float) model.ikAngles[i]);
             ik.putIntArray("A", bits); ik.putString("S", walker.status);
         }
-        if (useWalker) { // powered ankles: foot tilt for clients
+        if (useWalker || model.joints.stream().anyMatch(j -> j.rotorHead)) { // powered ankles and rotor heads: tilt for clients
             boolean any = false; for (int i = 0; i < model.ballPitch.length; i++) any |= model.ballPitch[i] != 0 || model.ballRoll[i] != 0;
             if (any) { int[] bt = new int[model.ballPitch.length * 2]; for (int i = 0; i < model.ballPitch.length; i++) { bt[2 * i] = Float.floatToIntBits((float) model.ballPitch[i]); bt[2 * i + 1] = Float.floatToIntBits((float) model.ballRoll[i]); } ik.putIntArray("BT", bt); }
         }

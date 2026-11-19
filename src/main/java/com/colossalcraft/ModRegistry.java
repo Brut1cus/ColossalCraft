@@ -72,6 +72,7 @@ public final class ModRegistry {
     public static final DeferredBlock<HullCoreBlock> HULL_CORE = block("hull_core", HullCoreBlock::new, metal().lightLevel(s -> 7));
     public static final DeferredBlock<PilotSeatBlock> PILOT_SEAT = block("pilot_seat", PilotSeatBlock::new, metal().noOcclusion());
     public static final DeferredBlock<LocomotionControllerBlock> LOCOMOTION_CONTROLLER = block("locomotion_controller", LocomotionControllerBlock::new, metal().lightLevel(s -> 5));
+    public static final DeferredBlock<FlightControllerBlock> FLIGHT_CONTROLLER = block("flight_controller", FlightControllerBlock::new, metal().lightLevel(s -> 5));
     public static final DeferredBlock<JumpDriveBlock> JUMP_DRIVE = block("jump_drive", JumpDriveBlock::new, metal().lightLevel(s -> 7));
     public static final DeferredBlock<GantryHoistBlock> GANTRY_HOIST = block("gantry_hoist", GantryHoistBlock::new, metal().noOcclusion());
     public static final DeferredBlock<ScaffoldBlock> GANTRY_SCAFFOLD = block("gantry_scaffold", ScaffoldBlock::new,

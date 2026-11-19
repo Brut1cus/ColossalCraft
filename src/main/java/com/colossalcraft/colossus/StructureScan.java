@@ -104,7 +104,7 @@ public final class StructureScan {
         for (StructureModel.Joint j : m.joints) {
             if (j.staticRatio > 1) r.warnings.add("Joint J" + j.id + " overloaded " + (int) (j.staticRatio * 100) + "% by what hangs below it: it will snap!");
             { Object[] ro = m.role(j); int rec = (Integer) ro[1], cm = j.mode == StructureModel.WALK_B ? StructureModel.LEG : j.mode == StructureModel.PROGRAM ? 0 : j.mode;
-              if (rec >= 0 && rec != cm && (rec != StructureModel.LEG || m.locoControllers > 0)) r.warnings.add("Joint J" + j.id + ": " + ((String) ro[0]).split(":")[0] + " - set its Mode to " + (rec == 0 ? "Locked" : rec == 1 ? "Leg" : "Spin") + " (Locomotion Controller, Joints tab)."); }
+              if (rec >= 0 && rec != cm && (rec != StructureModel.LEG || m.locoControllers > 0)) r.warnings.add("Joint J" + j.id + ": " + ((String) ro[0]).split(":")[0] + " - set its Mode to " + (rec == 0 ? "Locked" : rec == 1 ? "Leg" : "Spin") + " (Joints tab of a Locomotion or Flight Controller)."); }
             if (j.standRatio > 1) r.warnings.add("Joint J" + j.id + " overloaded " + (int) (j.standRatio * 100) + "% when standing (carries " + tons(j.standMass) + " from above): it will snap!");
             if (j.footShare > 0 && !j.ball && StructureModel.isLegMode(j.mode) && j.motors > 0 && j.motorTorque < j.standTorque)
                 r.warnings.add("Joint J" + j.id + " motors can't hold the weight standing: " + kilo(j.motorTorque) + " of " + kilo(j.standTorque) + " N*m.");
@@ -133,6 +133,8 @@ public final class StructureScan {
             if (m.legChains.isEmpty() && m.legged) r.warnings.add("No legs found: set the hip (and knee) joints to Leg, with a foot under them.");
             if (m.gaitScale() < 0.999) r.warnings.add(String.format("Joints are geared too slow for the gait: walking runs at %.0f%% speed. Use a lower gear ratio or slow the gait.", m.gaitScale() * 100));
         }
+        if (m.flightControllers == 0 && m.joints.stream().anyMatch(j -> j.blades > 0 && j.mode == StructureModel.SPIN && !m.legged))
+            r.warnings.add("Rotors but no Flight Controller: add one to fly forward, tilt, air brake and hold still in the air.");
         boolean anyThrust = false; for (double v : m.thrustCap) anyThrust |= v > 0;
         if (!anyThrust && !m.hasWalkers() && m.driveMotors == 0) r.warnings.add("No thrusters, walking joints or drive motors: it can't move itself.");
     }
@@ -313,6 +315,7 @@ public final class StructureScan {
         }
         t.put("Joints", js);
         t.put("LocoCfg", r.jointCfg.getCompound(StructureModel.LOCO).copy());
+        t.putInt("FlightControllers", m.flightControllers); t.putInt("RotorTilt", m.rotorTilt); t.putInt("Lean", m.leanMax); t.putBoolean("Dampeners", m.dampeners);
         t.putInt("IKMode", m.ikMode); t.putInt("GaitMode", m.gaitMode); t.putInt("JumpDrives", m.jumpDrives); t.putInt("LocoControllers", m.locoControllers); t.putBoolean("Smart", m.smartFooting);
         t.putInt("Legs", m.legChains.size());
         if (r.entity != null) t.putFloat("JumpLevel", r.entity.jumpLevel());

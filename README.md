@@ -37,6 +37,8 @@ The jar ends up in `build/libs/`. Run the in-world tests with `./gradlew runGame
 | Ctrl | Sprint (walkers step 1.6× faster) |
 | R | Fire the Jump Drive |
 | L | Open the Locomotion Controller |
+| J | Open the Flight Controller |
+| Arrow keys | Tilt the nose down/up, roll left/right (with a Flight Controller) |
 | H | Hover assist on/off (only with thrusters; it rests while a walker stands on its feet) |
 | G | Open the Hull Core screen |
 | K | Park: turns it back into blocks |
@@ -202,6 +204,19 @@ Hang a **Gantry Hoist** above where the Colossus stands (up to 32 blocks up, usu
   - Thrust follows blade area × (spin speed × distance from the axis)² and pushes along the axis, towards the blades.
   - The blades drag back on the motor, so top speed is limited by gears *and* torque.
   - Space spins lifting rotors up, and hover assist holds height. W spins propellers.
+  - **Placing blades:** they lie flat. On a side face a blade points out from it; on a top or bottom face it points the way you look (sneak to stand it upright); on another blade's end it carries on that line.
+  - Blades hold onto other blades, and onto anything else only at their ends. So blades put straight onto a bearing's sides, lying across the hull, still turn with the bearing.
+  - A sideways rotor (a tail rotor) is also a **rudder**: A/D turn the craft with it.
+  - A Spin joint has no range: it turns round and round. Its **Turns** button (Joints tab) sets which way.
+
+## Flight Controller
+A block for anything that flies. Right-click it, or press **J** while piloting. Its tabs: **Flight**, **Joints** (same as the Locomotion Controller's, so a helicopter needs only this) and **Keys**.
+- **Lean:** W/S tip the whole craft toward the move (up to the Lean angle), so every rotor and jet pushes that way a little, like a helicopter. 0 = always level.
+- **Rotor heads:** a **Powered Ball Joint set to Spin** with blades on it (on a hub above it, or straight on it) spins them and **tilts its blades** toward where you steer (up to the Rotor tilt angle). Motors and gearboxes on it set how fast it spins.
+- **Tilt keys:** arrow keys tip the nose down/up and roll left/right (roll slides the craft sideways). Change them in the Keys tab.
+- **Air brake:** hold X to stop fast in the air.
+- **Dampeners** (on by default): let go of the keys in the air and it slows to a stop and holds its height.
+- W/S no longer spin lifting rotors to full when a Flight Controller is on: they steer instead. Space/Shift still climb and sink.
 
 ## Servo motors and gearboxes
 - Each motor has a **shaft axis**: place it against the joint or gearbox it should drive.

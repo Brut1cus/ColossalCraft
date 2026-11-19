@@ -34,9 +34,12 @@ public class HullCoreScreen extends Screen {
             "Turns with the Spin keys (Keys tab) like a wheel; with blades it is a rotor.",
             "Slow idle motion: tails, antennae, heads.",
             "Follows the keyframes you set in the Animate tab."};
-    private static final String[] HULL_TABS = {"Overview", "Power", "Help"}, LOCO_TABS = {"Joints", "Gait", "Keys", "Footing"};
+    private static final String[] HULL_TABS = {"Overview", "Power", "Help"}, LOCO_TABS = {"Joints", "Gait", "Keys", "Footing"}, FLIGHT_TABS = {"Flight", "Joints", "Keys"};
     private boolean loco() { return data.getBoolean("Loco"); }
-    private String[] tabs() { return loco() ? LOCO_TABS : HULL_TABS; }
+    private boolean flight() { return data.getBoolean("Flight"); }
+    /** Locomotion or Flight Controller (not the Hull Core). */
+    private boolean controller() { return loco() || flight(); }
+    private String[] tabs() { return flight() ? FLIGHT_TABS : loco() ? LOCO_TABS : HULL_TABS; }
     private String cur() { return tabs()[Math.max(0, Math.min(tab, tabs().length - 1))]; }
     /** Keys tab: the action waiting for a key press, or -1. */
     private int binding = -1;
@@ -60,7 +63,7 @@ public class HullCoreScreen extends Screen {
 
     public HullCoreScreen(BlockPos pos, CompoundTag data) { super(Component.literal("Hull Core")); this.pos = pos; this.data = data; }
 
-    public boolean matches(BlockPos p, CompoundTag d) { return d.getBoolean("Loco") == loco() && (built() ? d.getInt("Entity") == entity() : p.equals(pos) && !d.getBoolean("Built")); }
+    public boolean matches(BlockPos p, CompoundTag d) { return d.getBoolean("Loco") == loco() && d.getBoolean("Flight") == flight() && (built() ? d.getInt("Entity") == entity() : p.equals(pos) && !d.getBoolean("Built")); }
     public void setData(CompoundTag d) { data = d; rebuild(); }
     public void setTab(int t) { tab = t; scroll = 0; rebuild(); }
     public void setView(int v) { view = v; preset(v); rebuild(); }
@@ -90,7 +93,7 @@ public class HullCoreScreen extends Screen {
             Button b = Button.builder(Component.literal(TABS[i]), x -> { tab = ti; scroll = 0; rebuild(); }).bounds(l + 6, t + 28 + i * 24, NAV - 10, 20).build();
             b.active = tab != i; addRenderableWidget(b);
         }
-        if (!loco() && data.getInt("Thrusters") > 0) { // hover needs thrusters; the Locomotion Controller only sets up legs
+        if (!controller() && data.getInt("Thrusters") > 0) { // hover needs thrusters; the Locomotion Controller only sets up legs
             Button hover = Button.builder(Component.literal("Hover: " + (data.getBoolean("Hover") ? "ON" : "OFF")), x -> send(3, -1, 0)).bounds(l + 6, t + H - 76, NAV - 10, 18).build();
             hover.setTooltip(Tooltip.create(Component.literal("Hover assist: thrusters hold height on their own when you don't press up/down.")));
             addRenderableWidget(hover);
@@ -111,10 +114,11 @@ public class HullCoreScreen extends Screen {
             act.active = ok;
             act.setTooltip(Tooltip.create(Component.literal(ok ? "Turn these blocks into one moving Colossus. Scaffolding stays behind." : strings("Errors").getString(0))));
         }
-        if (!loco()) addRenderableWidget(act);
+        if (!controller()) addRenderableWidget(act);
 
         if (cur().equals("Gait")) gaitWidgets(l + NAV + 8, t + 30);
         if (cur().equals("Keys")) keyWidgets(l + NAV + 8, t + 30);
+        if (cur().equals("Flight")) flightWidgets(l + NAV + 8, t + 30);
         if (cur().equals("Footing")) {
             boolean on = data.getBoolean("Smart");
             Button fb = Button.builder(Component.literal("Smart footing: " + (on ? "ON" : "OFF")), z -> send(17, -1, 0)).bounds(l + W - 158, t + 28, 150, 16).build();
@@ -138,18 +142,25 @@ public class HullCoreScreen extends Screen {
         if (j == null) return;
         int mode = j.getInt("Mode"); if (mode == 2) mode = 1; if (mode == 5) mode = 0;
         boolean poweredBall = j.getBoolean("Ball") && j.getBoolean("Powered");
-        int[] cyc = poweredBall ? new int[]{0, 1, 4} : MODE_CYCLE; // powered ball: ankle (Locked), hip (Leg), shoulder (Sway)
+        int[] cyc = poweredBall ? new int[]{0, 1, 4, 3} : MODE_CYCLE; // powered ball: ankle (Locked), hip (Leg), shoulder (Sway), rotor head (Spin)
         int idx = 0; for (int i = 0; i < cyc.length; i++) if (cyc[i] == mode) idx = i;
         int next = cyc[(idx + 1) % cyc.length];
         int by = top() + H - 52, w = (W - NAV - 8 - 174) / 2 - 2;
         boolean ball = j.getBoolean("Ball") && !poweredBall;
         Button mb = Button.builder(Component.literal(ball ? "Mode: auto" : "Mode: " + MODE_NAMES[mode]), z -> send(1, selected, next)).bounds(x, by, w - 20, 14).build();
-        if (poweredBall) mb = Button.builder(Component.literal("Mode: " + (mode == 1 ? "Hip" : mode == 4 ? "Shoulder" : "Ankle")), z -> send(1, selected, next)).bounds(x, by, w - 20, 14).build();
-        mb.setTooltip(Tooltip.create(Component.literal(poweredBall ? "Powered ball joint. Ankle (Locked): keeps the foot flat and tilts it to slopes. Hip (Leg): the leg swings forward/back and sideways under IK. Shoulder (Sway): swings an arm in time with the steps."
+        if (poweredBall) mb = Button.builder(Component.literal("Mode: " + (mode == 1 ? "Hip" : mode == 4 ? "Shoulder" : mode == 3 ? "Rotor" : "Ankle")), z -> send(1, selected, next)).bounds(x, by, w - 20, 14).build();
+        mb.setTooltip(Tooltip.create(Component.literal(poweredBall ? "Powered ball joint. Ankle (Locked): keeps the foot flat and tilts it to slopes. Hip (Leg): the leg swings forward/back and sideways under IK. Shoulder (Sway): swings an arm in time with the steps. Rotor (Spin): spins its blades, and tilts them to steer with a Flight Controller."
                 : ball ? "Ball joints level the part below them on their own: no mode to set."
                 : MODE_HELP[mode] + "  (click for " + MODE_NAMES[next] + ")\n\nLocked: rigid, never moves.\nLeg: hips and knees of walking legs.\nSpin: wheels and rotors, turned by the Spin keys.\nSway: gentle idle motion.")));
         mb.active = !ball;
         addRenderableWidget(mb);
+        if (mode == 3) { // Spin: it turns round and round, so no range; only which way
+            boolean rev = j.getBoolean("Rev");
+            Button db = Button.builder(Component.literal(rev ? "Turns: ↺ counter" : "Turns: ↻ clockwise"), z -> send(19, selected, 0)).bounds(x + w - 16, by, w + 16, 14).build();
+            db.setTooltip(Tooltip.create(Component.literal("Which way it spins, seen from the side its turning part is on. A Spin joint has no range: it turns round and round. Rotors push the same way either way; wheels drive the other way.")));
+            addRenderableWidget(db); rom2X = -1;
+            return;
+        }
         // range of motion: the value is shown in the panel; up/down arrows change it (shift = bigger steps), never past the joint's cap
         int amp = j.getInt("Amp"), capAmp = Math.max(1, j.getInt("RomCap") / 2);
         int fold = j.contains("Fold") ? j.getInt("Fold") : 180;
@@ -205,6 +216,40 @@ public class HullCoreScreen extends Screen {
                 "Stance: share of each step a foot stays down. More = steadier, slower. Below 50% goes back to the gait type's default.");
         int ht = (int) Math.round(data.getDouble("GaitHeight") * 100);
         stepper(x, y + 62, z -> send(16, 3, ht - 5), z -> send(16, 3, ht + 5), "Hull height: how high the hips stand, as a share of the legs' standing height. 100% = legs nearly straight. Weak knees keep it higher; raise/lower while piloting shifts it a little.");
+    }
+    // ------------------------------------------------------------------ Flight Controller
+    private void flightWidgets(int x, int y) {
+        int tilt = data.getInt("RotorTilt"), lean = data.getInt("Lean");
+        stepper(x, y + 12, z -> send(20, 0, tilt - (hasShiftDown() ? 10 : 5)), z -> send(20, 0, tilt + (hasShiftDown() ? 10 : 5)),
+                "Rotor tilt: how far rotor heads (powered ball joints set to Spin, with blades) tip their blades toward where you steer. More = faster, but they lose some lift.");
+        stepper(x, y + 28, z -> send(20, 1, lean - (hasShiftDown() ? 10 : 5)), z -> send(20, 1, lean + (hasShiftDown() ? 10 : 5)),
+                "Lean: how far the whole craft tips toward where you steer, so every rotor and jet pushes that way a little (like a helicopter). 0 = always level.");
+        boolean d = data.getBoolean("Dampeners");
+        Button db = Button.builder(Component.literal("Dampeners: " + (d ? "ON" : "OFF")), z -> send(20, 2, 0)).bounds(x, y + 46, 156, 15).build();
+        db.setTooltip(Tooltip.create(Component.literal("ON: when you let go of the keys in the air, it slows to a stop and holds its height. OFF: it drifts on (but hover still works).")));
+        addRenderableWidget(db);
+    }
+    private void flightTab(GuiGraphics g, int x, int y) {
+        g.drawString(font, "FLIGHT ASSIST", x, y, DIM, false);
+        g.drawString(font, "Rotor tilt  " + data.getInt("RotorTilt") + "\u00B0", x, y + 15, TXT, false);
+        g.drawString(font, "Lean  " + data.getInt("Lean") + "\u00B0", x, y + 31, TXT, false);
+        int ry = y + 68, heads = 0, rotors = 0, rudders = 0;
+        g.drawString(font, "ROTORS", x, ry, DIM, false); ry += 11;
+        for (Tag tg : list("Joints")) {
+            CompoundTag j = (CompoundTag) tg;
+            if (j.getInt("Blades") <= 0 || j.getInt("Mode") != 3) continue;
+            boolean head = j.getBoolean("Ball") && j.getBoolean("Powered");
+            String ax = j.getString("Axis");
+            boolean side = !head && !ax.isEmpty() && !ax.equalsIgnoreCase("y");
+            if (head) heads++; else if (side) rudders++; else rotors++;
+            if (ry < y + 150) { g.drawString(font, font.plainSubstrByWidth("J" + j.getInt("Id") + " " + j.getInt("Blades") + " blades: " + (head ? "tilting head" : side ? "rudder" : "lift"), 165), x, ry, head ? OK : TXT, false); ry += 10; }
+        }
+        if (heads + rotors + rudders == 0) { g.drawString(font, "No rotors yet. Put Rotor", x, ry, WARN, false); g.drawString(font, "Blades on a Spin joint.", x, ry + 10, WARN, false); }
+        int hx = x + 170, hy = y + 15;
+        String[] help = {"W/S: fly forward / back", "A/D: turn (needs a gyro", "  or a sideways rotor)", "Space / Shift: up / down", "Arrows: tilt nose, roll", "X: air brake",
+                "Rotor head: a powered ball", "  set to Spin, blades on it"};
+        for (String h : help) { g.drawString(font, h, hx, hy, DIM, false); hy += 10; }
+        if (data.getInt("FlightControllers") == 0) g.drawString(font, "! No Flight Controller on this build", x, y + 150, WARN, false);
     }
     private void stepper(int x, int y, Button.OnPress minus, Button.OnPress plus, String tip) {
         Button a = Button.builder(Component.literal("-"), minus).bounds(x + 120, y, 16, 13).build(); a.setTooltip(Tooltip.create(Component.literal(tip)));
@@ -498,13 +543,20 @@ public class HullCoreScreen extends Screen {
     private static String keyName(int code) { return InputConstantsName.of(code); }
 
     /** Keys shown: the spin keys only when some joint is set to Spin. */
-    private int keyCount() { return data.getInt("Wheels") > 0 ? ClientEvents.ACTIONS.length : ClientEvents.SPIN_ACTIONS; }
+    private int keyCount() { return keyList().length; }
+    /** Which actions the Keys tab lists: the Flight Controller shows moving, air brake and tilt; the Locomotion Controller
+     *  shows moving, plus the spin keys when some joint is set to Spin. */
+    private int[] keyList() {
+        if (flight()) return ClientEvents.FLIGHT_KEYS;
+        int n = data.getInt("Wheels") > 0 ? ClientEvents.SPIN_ACTIONS + 3 : ClientEvents.SPIN_ACTIONS;
+        int[] o = new int[n]; for (int i = 0; i < n; i++) o[i] = i; return o;
+    }
     private void keyWidgets(int x, int y) {
         CompoundTag lc = data.getCompound("LocoCfg");
         int rowH = keyCount() > 9 ? 14 : 17;
         for (int i = 0; i < keyCount(); i++) {
-            int ai = i, code = lc.contains("K" + i) ? lc.getInt("K" + i) : -1;
-            String label = binding == i ? "> press a key <" : code < 0 ? "Default (" + ClientEvents.defaultKey(i).getTranslatedKeyMessage().getString() + ")" : keyName(code);
+            int ai = keyList()[i], code = lc.contains("K" + ai) ? lc.getInt("K" + ai) : -1;
+            String label = binding == ai ? "> press a key <" : code < 0 ? "Default (" + ClientEvents.defaultKey(ai).getTranslatedKeyMessage().getString() + ")" : keyName(code);
             addRenderableWidget(Button.builder(Component.literal(label), z -> { binding = ai; rebuild(); }).bounds(x + 100, y + 10 + i * rowH, 130, rowH - 2).build());
             Button r = Button.builder(Component.literal("Reset"), z -> send(13, ai, -1)).bounds(x + 234, y + 10 + i * rowH, 40, rowH - 2).build();
             r.active = code >= 0; addRenderableWidget(r);
@@ -513,8 +565,9 @@ public class HullCoreScreen extends Screen {
     private void keys(GuiGraphics g, int x, int y) {
         g.drawString(font, "KEYS WHILE PILOTING", x, y, DIM, false);
         int rowH = keyCount() > 9 ? 14 : 17;
-        for (int i = 0; i < keyCount(); i++) g.drawString(font, ClientEvents.ACTIONS[i], x, y + 13 + i * rowH + (rowH - 14) / 2, i >= ClientEvents.SPIN_ACTIONS ? WARN : TXT, false);
-        g.drawString(font, keyCount() > ClientEvents.SPIN_ACTIONS ? "Yellow: Spin joints (wheels). Clockwise drives forward." : "Click a key, then press the new one (Esc = default).", x, y + 12 + keyCount() * rowH, DIM, false);
+        for (int i = 0; i < keyCount(); i++) { int ai = keyList()[i]; g.drawString(font, flight() && ai == 10 ? "Air brake" : ClientEvents.ACTIONS[ai], x, y + 13 + i * rowH + (rowH - 14) / 2, ai >= ClientEvents.SPIN_ACTIONS ? WARN : TXT, false); }
+        g.drawString(font, flight() ? "Yellow: flight keys. Keys are shared with the Locomotion Controller."
+                : keyCount() > ClientEvents.SPIN_ACTIONS ? "Yellow: Spin joints (wheels). Clockwise drives forward." : "Click a key, then press the new one (Esc = default).", x, y + 12 + keyCount() * rowH, DIM, false);
     }
 
     @Override public boolean keyPressed(int key, int scan, int mods) {
@@ -595,7 +648,7 @@ public class HullCoreScreen extends Screen {
         super.render(g, mx, my, pt);
         tips.clear();
         int l = left(), t = top();
-        g.drawString(font, loco() ? "LOCOMOTION CONTROLLER" : "HULL CORE", l + 8, t + 7, HEAD, false);
+        g.drawString(font, flight() ? "FLIGHT CONTROLLER" : loco() ? "LOCOMOTION CONTROLLER" : "HULL CORE", l + 8, t + 7, HEAD, false);
         String chip = built() ? "● BUILT - flying/driving" : "● PARKED - just blocks";
         g.drawString(font, chip, l + W - 8 - font.width(chip), t + 7, built() ? OK : WARN, false);
         int cx = l + NAV + 8, cy = t + 30;
@@ -604,6 +657,7 @@ public class HullCoreScreen extends Screen {
             case "Joints" -> joints(g, cx, cy, mx, my);
             case "Gait" -> gait(g, cx, cy);
             case "Keys" -> keys(g, cx, cy);
+            case "Flight" -> flightTab(g, cx, cy);
             case "Footing" -> footing(g, cx, cy);
             case "Power" -> power(g, cx, cy);
             case "Help" -> help(g, cx, cy);
@@ -611,7 +665,7 @@ public class HullCoreScreen extends Screen {
         }
         // footer status
         ListTag er = strings("Errors");
-        String status = !er.isEmpty() ? er.getString(0) : loco() ? (built() ? "Press L while piloting to open this screen." : "Build the Colossus from its Hull Core.")
+        String status = !er.isEmpty() ? er.getString(0) : flight() ? (built() ? "Press J while piloting to open this screen." : "Build the Colossus from its Hull Core.") : loco() ? (built() ? "Press L while piloting to open this screen." : "Build the Colossus from its Hull Core.")
                 : built() ? "Press G while piloting to open this screen." : "Ready. Press BUILD COLOSSUS.";
         g.drawString(font, font.plainSubstrByWidth(status, W - 175), l + 8, t + H - 21, !er.isEmpty() ? ERR : DIM, false);
         for (Tip tp : tips) if (mx >= tp.x0 && mx < tp.x1 && my >= tp.y0 && my < tp.y1) { g.renderTooltip(font, font.split(Component.literal(tp.text), 220), mx, my); break; }

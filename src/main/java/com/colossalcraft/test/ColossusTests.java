@@ -417,6 +417,8 @@ public class ColossusTests {
         h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 13, 7)), null), "assemble failed");
         double[] z0 = {0};
         h.runAfterDelay(30, () -> { ColossusEntity c = findNear(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
+        for (int t = 31; t < 300; t++) h.runAfterDelay(t, () -> { ColossusEntity c = findNear(h); // walked far enough: finish before it leaves the test area
+            if (c != null && c.tilt == 0 && z0[0] - c.getZ() > 2.5) { ColossalCraft.LOG.info("[test] sideways ball knees walked {}", z0[0] - c.getZ()); c.setInput(0, 0, false, false); h.succeed(); } });
         h.runAfterDelay(300, () -> {
             ColossusEntity c = findNear(h);
             ColossalCraft.LOG.info("[test] sideways ball knees walked {} tilt {}", z0[0] - c.getZ(), c.tilt);
@@ -466,7 +468,11 @@ public class ColossusTests {
         h.runAfterDelay(30, () -> { ColossusEntity c = findNear(h); z0[0] = c.getZ(); c.autopilot = true; c.setInput(1, 0, false, false); });
         for (int t = 31; t <= 300; t++) h.runAfterDelay(t, () -> { ColossusEntity c = findNear(h); if (c == null) return;
             boolean swing = java.util.Arrays.asList(c.walker.state).contains(WalkerController.State.SWING);
-            if (swing) { swingTicks[0]++; lagSum[0] += c.walker.legDyn.lag; lagMax[0] = Math.max(lagMax[0], c.walker.legDyn.lag); } });
+            if (swing) { swingTicks[0]++; lagSum[0] += c.walker.legDyn.lag; lagMax[0] = Math.max(lagMax[0], c.walker.legDyn.lag); }
+            if (z0[0] - c.getZ() > 2.5 && swingTicks[0] > 20 && c.tilt == 0) { // walked far enough: finish before it leaves the test area
+                ColossalCraft.LOG.info("[test] torque-driven legs: walked {}, swing ticks {}, max lag {} rad", z0[0] - c.getZ(), swingTicks[0], lagMax[0]);
+                h.assertTrue(lagMax[0] > 1e-3, "a lifted leg moves by its motors' torque, so it trails its target a little");
+                c.setInput(0, 0, false, false); h.succeed(); } });
         h.runAfterDelay(302, () -> {
             ColossusEntity c = findNear(h);
             ColossalCraft.LOG.info("[test] torque-driven legs: walked {}, swing ticks {}, mean lag {} rad, max lag {} rad", z0[0] - c.getZ(), swingTicks[0], lagSum[0] / Math.max(1, swingTicks[0]), lagMax[0]);
@@ -727,6 +733,97 @@ public class ColossusTests {
                 h.assertTrue(c.getY() - y0 > 0.5, "rotor should lift it, dy=" + (c.getY() - y0));
                 h.succeed();
             });
+        });
+    }
+
+    /** The rotorLiftsItOff craft, with the blades put straight onto the bearing's sides (lying across the deck) or on a hub. */
+    static void heli(GameTestHelper h, boolean onBearing, boolean ballHead) {
+        floor(h);
+        for (int x = 6; x <= 8; x++) for (int z = 6; z <= 8; z++) h.setBlock(x, 6, z, Blocks.OAK_PLANKS);
+        h.setBlock(7, 7, 7, ModRegistry.HULL_CORE.get());
+        h.setBlock(6, 7, 7, ModRegistry.EMBER_BOILER.get());
+        CompoundTag t = new CompoundTag(); t.putLong("Energy", 900_000);
+        h.getBlockEntity(new BlockPos(6, 7, 7)).loadWithComponents(t, h.getLevel().registryAccess());
+        h.setBlock(6, 7, 8, ModRegistry.FLIGHT_CONTROLLER.get());
+        h.setBlock(7, 7, 8, Blocks.OAK_PLANKS);
+        if (ballHead) h.setBlock(7, 8, 7, ModRegistry.POWERED_BALL_JOINT.get().defaultBlockState().setValue(com.colossalcraft.block.SimpleParts.LONE, true));
+        else h.setBlock(7, 8, 7, ModRegistry.BEARING.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y));
+        {
+            h.setBlock(8, 8, 7, ModRegistry.REDUCTION_GEARBOX.get().defaultBlockState().setValue(DirectionalBlock.FACING, Direction.EAST));
+            for (int x = 8; x <= 10; x++) for (int z = 6; z <= 8; z++) h.setBlock(x, 7, z, ModRegistry.MOTOR.get());
+        }
+        int y = onBearing ? 8 : 10;
+        if (!onBearing) { h.setBlock(7, 9, 7, Blocks.OAK_PLANKS); h.setBlock(7, 10, 7, Blocks.OAK_PLANKS); }
+        for (int r = 1; r <= 4; r++) {
+            if (!onBearing) h.setBlock(7 + r, y, 7, ModRegistry.ROTOR_BLADE.get());
+            h.setBlock(7 - r, y, 7, ModRegistry.ROTOR_BLADE.get());
+            h.setBlock(7, y, 7 + r, ModRegistry.ROTOR_BLADE.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z));
+            h.setBlock(7, y, 7 - r, ModRegistry.ROTOR_BLADE.get().defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z));
+        }
+        StructureScan.Result r0 = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)));
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        for (StructureModel.Joint j : r0.model.joints) { CompoundTag jc = new CompoundTag(); jc.putByte("Mode", (byte) StructureModel.SPIN); hc.joints.put(StructureModel.jointKey(j.key), jc); }
+        hc.setChanged();
+    }
+
+    @GameTest(template = "empty16")
+    public static void bladesOnBearingSidesTurn(GameTestHelper h) {
+        heli(h, true, false);
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        StructureModel.Joint j = m.joints.get(0);
+        ColossalCraft.LOG.info("[test] blades on bearing sides: blades {} child segs {}", j.blades, j.childSegs.size());
+        h.assertTrue(j.blades == 12, "all 12 blades lying on the deck should turn with the bearing, got " + j.blades);
+        h.succeed();
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 260)
+    public static void heliFliesForwardAndBrakes(GameTestHelper h) {
+        heli(h, false, false);
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] p0 = new double[3]; double[] v = {0};
+        h.runAfterDelay(10, () -> { ColossusEntity c = findNear(h); c.autopilot = true; c.setInput(0, 0, true, false); });
+        h.runAfterDelay(90, () -> { ColossusEntity c = findNear(h); p0[0] = c.getX(); p0[1] = c.getY(); p0[2] = c.getZ(); c.setInput(1, 0, false, false); });
+        h.runAfterDelay(140, () -> {
+            ColossusEntity c = findNear(h);
+            net.minecraft.world.phys.Vec3 f = net.minecraft.world.phys.Vec3.atLowerCornerOf(c.model.forward.getNormal()).yRot((float) -c.yaw);
+            double moved = (c.getX() - p0[0]) * f.x + (c.getZ() - p0[2]) * f.z;
+            ColossalCraft.LOG.info("[test] heli forward moved {} dy {} pitch {} y {}", moved, c.getY() - p0[1], c.bodyPitch, c.getY());
+            h.assertTrue(moved > 0.7, "leaning forward should fly it forward, moved " + moved);
+            h.assertTrue(c.bodyPitch < -0.05, "it should lean nose down, pitch " + c.bodyPitch);
+            v[0] = c.vel.horizontalDistance();
+            c.setInput(0, 0, false, false); c.setSpinInput(false, false, true);
+        });
+        h.runAfterDelay(165, () -> {
+            ColossusEntity c = findNear(h);
+            ColossalCraft.LOG.info("[test] heli air brake speed {} -> {}", v[0], c.vel.horizontalDistance());
+            h.assertTrue(c.vel.horizontalDistance() < v[0] * 0.3, "air brake should stop it");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty16", timeoutTicks = 220)
+    public static void rotorHeadTiltsToFly(GameTestHelper h) {
+        heli(h, false, true);
+        var hc = (com.colossalcraft.block.HullCoreBlockEntity) h.getBlockEntity(new BlockPos(7, 7, 7));
+        CompoundTag fl = new CompoundTag(); fl.putInt("Lean", 0); fl.putInt("Tilt", 25); hc.joints.put(StructureModel.FLIGHT, fl); hc.setChanged();
+        StructureModel m = StructureScan.scan(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7))).model;
+        StructureModel.Joint j = m.joints.get(0);
+        ColossalCraft.LOG.info("[test] rotor head: head {} blades {} torque {} speed {}", j.rotorHead, j.blades, j.motorTorque, j.maxSpeed);
+        h.assertTrue(j.rotorHead && j.blades == 16, "powered ball set to Spin with blades should be a rotor head");
+        h.assertTrue(ColossusEntity.assemble(h.getLevel(), h.absolutePos(new BlockPos(7, 7, 7)), null), "assemble failed");
+        double[] p0 = new double[3], y0 = {0};
+        h.runAfterDelay(30, () -> { ColossusEntity c = findNear(h); y0[0] = c.getY(); c.autopilot = true; c.setInput(0, 0, true, false); }); // settled on the ground first
+        h.runAfterDelay(100, () -> { ColossusEntity c = findNear(h); p0[0] = c.getX(); p0[1] = c.getY(); p0[2] = c.getZ(); c.setInput(1, 0, false, false); });
+        h.runAfterDelay(150, () -> {
+            ColossusEntity c = findNear(h);
+            net.minecraft.world.phys.Vec3 f = net.minecraft.world.phys.Vec3.atLowerCornerOf(c.model.forward.getNormal()).yRot((float) -c.yaw);
+            double moved = (c.getX() - p0[0]) * f.x + (c.getZ() - p0[2]) * f.z;
+            ColossalCraft.LOG.info("[test] rotor head moved {} dy {} tilt {} body pitch {} rose {}", moved, c.getY() - p0[1], c.model.ballPitch[0], c.bodyPitch, p0[1]);
+            h.assertTrue(Math.abs(c.bodyPitch) < 0.01, "lean 0: the body stays level");
+            h.assertTrue(c.model.ballPitch[0] < -0.2, "the rotor head should tip forward");
+            h.assertTrue(p0[1] > y0[0] + 0.5, "the rotor head should lift it first");
+            h.assertTrue(moved > 0.7, "tipping the rotor should fly it forward, moved " + moved);
+            h.succeed();
         });
     }
 

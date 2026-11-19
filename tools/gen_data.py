@@ -504,17 +504,20 @@ shaped('gantry_hoist', ['GGG', ' C ', ' I '], {'G': 'gantry_scaffold', 'C': 'min
 # Locomotion Controller + Jump Drive
 orientable('locomotion_controller', 'locomotion_controller_front', 'locomotion_controller_side', 'locomotion_controller_side', 'Locomotion Controller')
 item_from_block('locomotion_controller')
+orientable('flight_controller', 'flight_controller_front', 'locomotion_controller_side', 'locomotion_controller_side', 'Flight Controller')
+item_from_block('flight_controller')
 w(f'{A}/models/block/jump_drive.json', {'parent': 'minecraft:block/cube_column', 'textures': {'end': tex('jump_drive_top'), 'side': tex('jump_drive_side')}})
 w(f'{A}/blockstates/jump_drive.json', {'variants': {'': {'model': f'{NS}:block/jump_drive'}}})
 item_from_block('jump_drive'); blocks.append('jump_drive'); NAMES['jump_drive'] = 'Jump Drive'
-for b in ('locomotion_controller', 'jump_drive'):
+for b in ('locomotion_controller', 'flight_controller', 'jump_drive'):
     w(f'{D}/loot_table/blocks/{b}.json', {'type': 'minecraft:block', 'pools': [{'rolls': 1, 'entries': [{'type': 'minecraft:item', 'name': f'{NS}:{b}'}], 'conditions': [{'condition': 'minecraft:survives_explosion'}]}]})
 lang = json.load(open(f'{A}/lang/en_us.json'))
 for b in blocks: lang[f'block.{NS}.{b}'] = NAMES[b]
-lang['key.colossalcraft.loco'] = 'Colossus: Open Locomotion Controller'; lang['key.colossalcraft.brake'] = 'Colossus: Brake wheels (default)'; lang['key.colossalcraft.jump'] = 'Colossus: Jump Drive (default)'
+lang['key.colossalcraft.loco'] = 'Colossus: Open Locomotion Controller'; lang['key.colossalcraft.flight'] = 'Colossus: Open Flight Controller'; lang['key.colossalcraft.pitch_down'] = 'Colossus: Nose down (default)'; lang['key.colossalcraft.pitch_up'] = 'Colossus: Nose up (default)'; lang['key.colossalcraft.roll_left'] = 'Colossus: Roll left (default)'; lang['key.colossalcraft.roll_right'] = 'Colossus: Roll right (default)'; lang['key.colossalcraft.brake'] = 'Colossus: Brake wheels (default)'; lang['key.colossalcraft.jump'] = 'Colossus: Jump Drive (default)'
 w(f'{A}/lang/en_us.json', lang)
 w(f'{R}/data/minecraft/tags/block/mineable/pickaxe.json', {'replace': False, 'values': [f'{NS}:{b}' for b in blocks if b not in ('sky_sail', 'kinetic_dynamo', 'gantry_scaffold')] + [{'id': f'{NS}:kinetic_dynamo', 'required': False}]})
 shaped('locomotion_controller', ['SCS', 'RMR', 'SRS'], {'S': S, 'C': 'minecraft:comparator', 'R': 'minecraft:redstone', 'M': 'motor'})
+shaped('flight_controller', ['SCS', 'FMF', 'SRS'], {'S': S, 'C': 'minecraft:compass', 'F': 'minecraft:feather', 'R': 'minecraft:redstone', 'M': 'motor'})
 shaped('jump_drive', ['SPS', 'RBR', 'SPS'], {'S': S, 'P': 'minecraft:piston', 'R': 'minecraft:redstone_block', 'B': 'minecraft:slime_block'})
 w(f'{D}/tags/block/natural_ground.json', {'values': ['#minecraft:dirt', '#minecraft:sand', '#minecraft:base_stone_overworld', '#minecraft:base_stone_nether',
     'minecraft:gravel', 'minecraft:snow', 'minecraft:snow_block', 'minecraft:powder_snow', 'minecraft:ice', 'minecraft:packed_ice', 'minecraft:blue_ice',

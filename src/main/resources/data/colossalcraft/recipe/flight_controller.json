@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SCS",
+    "FMF",
+    "SRS"
+  ],
+  "key": {
+    "S": {
+      "item": "colossalcraft:colossteel_ingot"
+    },
+    "C": {
+      "item": "minecraft:compass"
+    },
+    "F": {
+      "item": "minecraft:feather"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "M": {
+      "item": "colossalcraft:motor"
+    }
+  },
+  "result": {
+    "id": "colossalcraft:flight_controller",
+    "count": 1
+  }
+}

@@ -253,7 +253,15 @@ public final class SimpleParts {
         public static final net.minecraft.world.level.block.state.properties.EnumProperty<Direction.Axis> AXIS = BlockStateProperties.AXIS;
         public RotorBladeBlock(Properties p) { super(p); registerDefaultState(stateDefinition.any().setValue(AXIS, Direction.Axis.X)); }
         @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b) { b.add(AXIS); }
-        @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(AXIS, c.getClickedFace().getAxis()); }
+        /** Blades lie flat: on a side face they point out from it; on a top or bottom face they point the way you look
+         *  (sneak to stand one upright). Placed against another blade's end, they carry on its line. */
+        @Override public BlockState getStateForPlacement(BlockPlaceContext c) {
+            Direction f = c.getClickedFace();
+            BlockState on = c.getLevel().getBlockState(c.getClickedPos().relative(f.getOpposite()));
+            if (on.getBlock() instanceof RotorBladeBlock && on.getValue(AXIS) == f.getAxis()) return defaultBlockState().setValue(AXIS, f.getAxis());
+            Direction.Axis ax = f.getAxis().isHorizontal() ? f.getAxis() : c.isSecondaryUseActive() ? Direction.Axis.Y : c.getHorizontalDirection().getAxis();
+            return defaultBlockState().setValue(AXIS, ax);
+        }
         @Override protected VoxelShape getShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) { return SH.get(s.getValue(AXIS)); }
         @Override protected BlockState rotate(BlockState s, Rotation r) { return RotatedPillarBlock.rotatePillar(s, r); }
     }
@@ -297,6 +305,16 @@ public final class SimpleParts {
         @Override public BlockState getStateForPlacement(BlockPlaceContext c) { return defaultBlockState().setValue(FACING, c.getHorizontalDirection().getOpposite()); }
         @Override protected net.minecraft.world.InteractionResult useWithoutItem(BlockState s, net.minecraft.world.level.Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
             if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer sp) com.colossalcraft.network.Net.openLocoParked(sp, pos);
+            return net.minecraft.world.InteractionResult.sidedSuccess(level.isClientSide);
+        }
+    }
+
+    /** Flight Controller: flight assists for anything that flies (rotor tilt, leaning into a move, air brakes, dampeners).
+     *  Right-click it (or press J while piloting) for its screen. */
+    public static class FlightControllerBlock extends LocomotionControllerBlock {
+        public FlightControllerBlock(Properties p) { super(p); }
+        @Override protected net.minecraft.world.InteractionResult useWithoutItem(BlockState s, net.minecraft.world.level.Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
+            if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer sp) com.colossalcraft.network.Net.openFlightParked(sp, pos);
             return net.minecraft.world.InteractionResult.sidedSuccess(level.isClientSide);
         }
     }

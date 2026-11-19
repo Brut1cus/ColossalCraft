@@ -37,6 +37,7 @@ public final class ClientHooks {
         var b = c.blocks.get(hit).getBlock();
         if (!attack && !p.isSecondaryUseActive()) {
             if (b instanceof com.colossalcraft.block.HullCoreBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 0)); return true; }
+            if (b instanceof com.colossalcraft.block.SimpleParts.FlightControllerBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 3)); return true; }
             if (b instanceof com.colossalcraft.block.SimpleParts.LocomotionControllerBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 2)); return true; }
             if (b instanceof com.colossalcraft.block.SimpleParts.PilotSeatBlock) { net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(c.getId(), 1)); return true; }
         }
@@ -52,7 +53,7 @@ public final class ClientHooks {
         if (mc.player == null || mc.player.isSecondaryUseActive()) return false;
         Hit h = ColossusLook.current(); if (h == null) return false;
         var b = h.c().blocks.get(h.pos()); if (b == null) return false;
-        int what = b.getBlock() instanceof com.colossalcraft.block.HullCoreBlock ? 0 : b.getBlock() instanceof com.colossalcraft.block.SimpleParts.LocomotionControllerBlock ? 2
+        int what = b.getBlock() instanceof com.colossalcraft.block.HullCoreBlock ? 0 : b.getBlock() instanceof com.colossalcraft.block.SimpleParts.FlightControllerBlock ? 3 : b.getBlock() instanceof com.colossalcraft.block.SimpleParts.LocomotionControllerBlock ? 2
                 : b.getBlock() instanceof com.colossalcraft.block.SimpleParts.PilotSeatBlock ? 1 : -1;
         if (what < 0) return false;
         net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.colossalcraft.network.Net.ClickColossus(h.c().getId(), what));

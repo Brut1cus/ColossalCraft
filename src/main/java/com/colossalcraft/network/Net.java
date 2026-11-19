@@ -38,7 +38,8 @@ public final class Net {
                 ByteBufCodecs.BOOL, PilotInput::sprint, ByteBufCodecs.BOOL, PilotInput::jump, PilotInput::new);
         public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
-    /** Spin keys while piloting: bit 1 clockwise / forward, 2 counter-clockwise / back, 4 brake. */
+    /** Spin and flight keys while piloting: bit 1 clockwise / forward, 2 counter-clockwise / back, 4 brake (air brake),
+     *  8 nose down, 16 nose up, 32 roll left, 64 roll right. */
     public record SpinInput(int bits) implements CustomPacketPayload {
         public static final Type<SpinInput> TYPE = new Type<>(id("spin_input"));
         public static final StreamCodec<ByteBuf, SpinInput> CODEC = ByteBufCodecs.VAR_INT.map(SpinInput::new, SpinInput::bits);
@@ -114,7 +115,8 @@ public final class Net {
         PayloadRegistrar r = e.registrar("1");
         r.playToServer(PilotInput.TYPE, PilotInput.CODEC, Net::onInput);
         r.playToServer(PilotAction.TYPE, PilotAction.CODEC, Net::onPilotAction);
-        r.playToServer(SpinInput.TYPE, SpinInput.CODEC, (p, ctx) -> ctx.enqueueWork(() -> { if (ctx.player().getVehicle() instanceof ColossusEntity c) c.setSpinInput((p.bits() & 1) != 0, (p.bits() & 2) != 0, (p.bits() & 4) != 0); }));
+        r.playToServer(SpinInput.TYPE, SpinInput.CODEC, (p, ctx) -> ctx.enqueueWork(() -> { if (ctx.player().getVehicle() instanceof ColossusEntity c) { c.setSpinInput((p.bits() & 1) != 0, (p.bits() & 2) != 0, (p.bits() & 4) != 0);
+            c.setFlightInput(((p.bits() & 8) != 0 ? 1 : 0) - ((p.bits() & 16) != 0 ? 1 : 0), ((p.bits() & 64) != 0 ? 1 : 0) - ((p.bits() & 32) != 0 ? 1 : 0)); } }));
         r.playToServer(HullAction.TYPE, HullAction.CODEC, Net::onHullAction);
         r.playToServer(ClickColossus.TYPE, ClickColossus.CODEC, Net::onClickColossus);
         r.playToClient(ColossusConfig.TYPE, ColossusConfig.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.colossusConfig(p.entity(), p.cfg())));
@@ -126,21 +128,30 @@ public final class Net {
         r.playToClient(StructureRemoved.TYPE, StructureRemoved.CODEC, (p, ctx) -> ctx.enqueueWork(() -> com.colossalcraft.client.ClientHooks.structureRemoved(p.entity(), p.data())));
     }
 
-    /** Which screen each player has open: Hull Core (false) or Locomotion Controller (true). */
-    private static final java.util.Map<java.util.UUID, Boolean> LOCO_SCREEN = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Which screen each player has open: 0 Hull Core, 1 Locomotion Controller, 2 Flight Controller. */
+    private static final java.util.Map<java.util.UUID, Integer> LOCO_SCREEN = new java.util.concurrent.ConcurrentHashMap<>();
+    private static void screenFlags(CompoundTag t, ServerPlayer sp) { int s = LOCO_SCREEN.getOrDefault(sp.getUUID(), 0); t.putBoolean("Loco", s == 1); t.putBoolean("Flight", s == 2); }
 
     public static void sendScan(ServerPlayer sp, BlockPos pos, StructureScan.Result r) {
         CompoundTag t = StructureScan.toTag(r);
-        t.putBoolean("Loco", LOCO_SCREEN.getOrDefault(sp.getUUID(), false));
+        screenFlags(t, sp);
         PacketDistributor.sendToPlayer(sp, new HullData(pos, t));
     }
-    public static void openHullParked(ServerPlayer sp, BlockPos heart) { LOCO_SCREEN.put(sp.getUUID(), false); sendScan(sp, heart, StructureScan.scan(sp.level(), heart)); }
+    public static void openHullParked(ServerPlayer sp, BlockPos heart) { LOCO_SCREEN.put(sp.getUUID(), 0); sendScan(sp, heart, StructureScan.scan(sp.level(), heart)); }
 
     /** Locomotion Controller (not built): find the Hull Core it belongs to and open the kinematics screen. */
     public static void openLocoParked(ServerPlayer sp, BlockPos controller) {
         BlockPos heart = findHeart(sp.level(), controller);
         if (heart == null) { sp.displayClientMessage(Component.literal("This Locomotion Controller isn't connected to a Hull Core."), true); return; }
-        LOCO_SCREEN.put(sp.getUUID(), true);
+        LOCO_SCREEN.put(sp.getUUID(), 1);
+        sendScan(sp, heart, StructureScan.scan(sp.level(), heart));
+    }
+    /** Flight Controller (not built): open its screen for the Hull Core it belongs to. */
+    public static void openFlightParked(ServerPlayer sp, BlockPos controller) {
+        BlockPos heart = findHeart(sp.level(), controller);
+        if (heart == null) { sp.displayClientMessage(Component.literal("This Flight Controller isn't connected to a Hull Core."), true); return; }
+        LOCO_SCREEN.put(sp.getUUID(), 2);
+        ColossalCraft.LOG.debug("flight screen for {}", heart);
         sendScan(sp, heart, StructureScan.scan(sp.level(), heart));
     }
     public static BlockPos findHeart(net.minecraft.world.level.Level level, BlockPos from) {
@@ -169,8 +180,9 @@ public final class Net {
                     case 0 -> { c.allowDismount = true; pl.stopRiding(); c.allowDismount = false; }
                     case 1 -> c.disassemble(pl);
                     case 2 -> { c.toggleHover(); pl.displayClientMessage(Component.literal("Hover assist: " + (c.hover() ? "ON" : "OFF")), true); }
-                    case 3 -> { if (pl instanceof ServerPlayer sp) { LOCO_SCREEN.put(sp.getUUID(), false); sendEntityScan(sp, c); } }
-                    case 4 -> { if (pl instanceof ServerPlayer sp) { LOCO_SCREEN.put(sp.getUUID(), true); sendEntityScan(sp, c); } }
+                    case 3 -> { if (pl instanceof ServerPlayer sp) { LOCO_SCREEN.put(sp.getUUID(), 0); sendEntityScan(sp, c); } }
+                    case 4 -> { if (pl instanceof ServerPlayer sp) { LOCO_SCREEN.put(sp.getUUID(), 1); sendEntityScan(sp, c); } }
+                    case 5 -> { if (pl instanceof ServerPlayer sp) { LOCO_SCREEN.put(sp.getUUID(), 2); sendEntityScan(sp, c); } }
                 }
                 return;
             }
@@ -188,7 +200,7 @@ public final class Net {
 
     public static void sendEntityScan(ServerPlayer sp, ColossusEntity c) {
         CompoundTag t = StructureScan.toTag(StructureScan.fromEntity(c));
-        t.putBoolean("Loco", LOCO_SCREEN.getOrDefault(sp.getUUID(), false));
+        screenFlags(t, sp);
         PacketDistributor.sendToPlayer(sp, new HullData(BlockPos.ZERO, t));
     }
 
@@ -202,8 +214,9 @@ public final class Net {
         ctx.enqueueWork(() -> {
             if (!(ctx.player() instanceof ServerPlayer sp)) return;
             ColossusEntity c = colossusNear(sp, p.entity()); if (c == null) return;
-            if (p.what() == 0) { LOCO_SCREEN.put(sp.getUUID(), false); sendEntityScan(sp, c); }
-            else if (p.what() == 2) { LOCO_SCREEN.put(sp.getUUID(), true); sendEntityScan(sp, c); }
+            if (p.what() == 0) { LOCO_SCREEN.put(sp.getUUID(), 0); sendEntityScan(sp, c); }
+            else if (p.what() == 2) { LOCO_SCREEN.put(sp.getUUID(), 1); sendEntityScan(sp, c); }
+            else if (p.what() == 3) { LOCO_SCREEN.put(sp.getUUID(), 2); sendEntityScan(sp, c); }
             else if (p.what() == 1 && !sp.isPassenger()) sp.startRiding(c, true);
         });
     }
@@ -221,7 +234,8 @@ public final class Net {
             StructureScan.Result r = StructureScan.scan(sp.level(), a.pos());
             switch (a.action()) {
                 case 11, 12, 13, 17 -> { hc.joints = applyLoco(hc.joints, a); hc.setChanged(); }
-                case 1, 2, 6, 7, 8, 10, 15, 18 -> {
+                case 20 -> { hc.joints = applyFlight(hc.joints, a); hc.setChanged(); }
+                case 1, 2, 6, 7, 8, 10, 15, 18, 19 -> {
                     if (a.joint() >= 0 && a.joint() < r.model.joints.size()) {
                         String key = StructureModel.jointKey(r.model.joints.get(a.joint()).key);
                         hc.joints.put(key, applyJoint(hc.joints.getCompound(key), a)); hc.setChanged();
@@ -247,6 +261,18 @@ public final class Net {
             default -> {}
         }
         cfg.put(StructureModel.LOCO, l); return cfg;
+    }
+
+    /** Flight Controller settings: joint = 0 rotor tilt (degrees), 1 lean (degrees), 2 dampeners on/off. */
+    private static CompoundTag applyFlight(CompoundTag cfg, HullAction a) {
+        cfg = cfg.copy(); CompoundTag f = cfg.getCompound(StructureModel.FLIGHT).copy();
+        switch (a.joint()) {
+            case 0 -> f.putInt("Tilt", Math.max(0, Math.min(30, a.value())));
+            case 1 -> f.putInt("Lean", Math.max(0, Math.min(30, a.value())));
+            case 2 -> f.putBoolean("Damp", !(!f.contains("Damp") || f.getBoolean("Damp")));
+            default -> {}
+        }
+        cfg.put(StructureModel.FLIGHT, f); return cfg;
     }
 
     private static CompoundTag gait(CompoundTag g, int value) { g = g.copy(); g.putInt("Speed", Math.max(5, Math.min(400, value))); return g; }
@@ -278,6 +304,7 @@ public final class Net {
             case 7 -> c.putInt("Phase", Math.floorMod(a.value(), 360));
             case 8 -> c.putInt("SpeedX", Math.max(25, Math.min(400, a.value())));
             case 10 -> c.putBoolean("Loop", !c.getBoolean("Loop"));
+            case 19 -> c.putBoolean("Rev", !c.getBoolean("Rev")); // which way a Spin joint turns
             case 15 -> c.putInt("Group", Math.floorMod(a.value(), 4));
             default -> {}
         }
@@ -288,7 +315,8 @@ public final class Net {
         ColossusEntity c = colossusNear(sp, a.entity()); if (c == null) return;
         switch (a.action()) {
             case 11, 12, 13, 17 -> c.setJointCfg(applyLoco(c.jointCfg, a));
-            case 1, 2, 6, 7, 8, 10, 15, 18 -> {
+            case 20 -> c.setJointCfg(applyFlight(c.jointCfg, a));
+            case 1, 2, 6, 7, 8, 10, 15, 18, 19 -> {
                 if (a.joint() >= 0 && a.joint() < c.model.joints.size()) {
                     String key = StructureModel.jointKey(c.model.joints.get(a.joint()).key);
                     CompoundTag cfg = c.jointCfg.copy(); cfg.put(key, applyJoint(cfg.getCompound(key), a)); c.setJointCfg(cfg);

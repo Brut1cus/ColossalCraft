@@ -38,6 +38,7 @@
     "colossalcraft:rotor_blade",
     "colossalcraft:gantry_hoist",
     "colossalcraft:locomotion_controller",
+    "colossalcraft:flight_controller",
     "colossalcraft:jump_drive",
     {
       "id": "colossalcraft:kinetic_dynamo",

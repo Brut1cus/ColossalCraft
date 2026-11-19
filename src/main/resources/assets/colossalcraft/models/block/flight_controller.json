@@ -1,0 +1,1 @@
+{"parent":"minecraft:block/orientable","textures":{"front":"colossalcraft:block/flight_controller_front","side":"colossalcraft:block/locomotion_controller_side","top":"colossalcraft:block/locomotion_controller_side"}}

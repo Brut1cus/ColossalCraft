@@ -34,11 +34,16 @@ public class StructureModel {
     public static final String GAIT = "_gait";
     /** Reserved key for Locomotion Controller settings (IK solver, gait type, keys). */
     public static final String LOCO = "_loco";
+    /** Reserved key for Flight Controller settings. */
+    public static final String FLIGHT = "_flight";
     public static final String[] IK_MODES = {"Auto", "Analytic 2-link", "Analytic 3-link", "FABRIK", "CCD"};
     public static final int IK_AUTO = 0, IK_ANALYTIC2 = 1, IK_ANALYTIC3 = 2, IK_FABRIK = 3, IK_CCD = 4;
     public static final String[] GAIT_MODES = {"Biped", "Biped (digitigrade)", "Quadruped", "Spider", "Custom", "Triped", "Wave"};
     public static final int GAIT_BIPED = 0, GAIT_DIGI = 1, GAIT_QUAD = 2, GAIT_SPIDER = 3, GAIT_CUSTOM = 4, GAIT_TRIPED = 5, GAIT_WAVE = 6;
     public int ikMode = 0, gaitMode = 0, locoControllers, jumpDrives;
+    /** Flight Controller: how many, how far rotor heads tilt and the body leans (degrees), dampeners on. */
+    public int flightControllers, rotorTilt = 15, leanMax = 10; public boolean dampeners = true;
+    public boolean flying() { return flightControllers > 0; }
     /** Steps per second (one full leg cycle). */
     public double gaitSpeed = 0.5;
     /** Pace (Locomotion Controller): share of the legs' natural step rate. Natural rate: bigger legs step slower
@@ -122,6 +127,12 @@ public class StructureModel {
         public double bladeA2, bladeA3; public int blades; public double thrustSign = 1;
         /** Wheel data (Spin joints without blades): radius (blocks), +-1 so positive spin drives forward, touches the ground. */
         public double wheelRadius; public int wheelSign = 1; public boolean wheelGround;
+        /** Spin joints: +1 or -1, which way it turns (set in the Joints tab). */
+        public int spinDir = 1;
+        /** A powered ball joint set to Spin: a rotor head. It spins its blades and tilts them (ballPitch/ballRoll) to steer. */
+        public boolean rotorHead;
+        /** Rotor blades on this joint while it isn't set to Spin (they do nothing yet). */
+        public int idleBlades;
         /** Gear ratios seen by this joint's motors (for the screen). */
         public final List<Double> ratios = new ArrayList<>();
         public boolean stalled() { return !ball && mode != LOCKED && !childSegs.isEmpty() && (motorTorque <= 0 || motorTorque < reqTorque); }
@@ -131,6 +142,8 @@ public class StructureModel {
     public Object[] role(Joint j) {
         // a short name for what the joint does; what to do about it goes to the Hull Core checklist (StructureScan warnings)
         boolean footBelow = j.footShare > 0;
+        if (j.idleBlades > 0) return new Object[]{"Rotor: blades on it make thrust. Use Spin.", SPIN};
+        if (j.ball && j.powered && j.blades > 0) return new Object[]{"Rotor head (powered ball): spins its blades and tilts them to steer.", SPIN};
         if (j.ball && j.powered) {
             boolean topOfLeg = footBelow; // no other leg joint above it on the way to the body
             int cur = Math.max(0, j.parentSeg), guard = 0;
@@ -151,7 +164,7 @@ public class StructureModel {
             }
             return new Object[]{"Leg joint (hip or knee).", LEG};
         }
-        if (j.blades > 0) return new Object[]{"Rotor: its blades make thrust.", SPIN};
+        if (j.blades > 0) return new Object[]{"Rotor: blades on it make thrust. Use Spin.", SPIN};
         if (j.mode == SPIN) return new Object[]{j.wheelGround ? "Wheel: drives along the ground." : "Spinner.", -1};
         return new Object[]{"Arm, tail or turret.", -1};
     }
@@ -344,7 +357,7 @@ public class StructureModel {
             if (jc.contains("Amp")) j.amp = jc.getInt("Amp");
             j.cfgAmp = jc.contains("Amp") ? jc.getInt("Amp") : -1;
             int[] k = jc.getIntArray("Keys"); for (int i = 0; i < Math.min(KEYS, k.length); i++) j.keys[i] = k[i];
-            j.phase = jc.getInt("Phase"); if (jc.contains("SpeedX")) j.speedFactor = jc.getInt("SpeedX") / 100.0; j.loop = jc.getBoolean("Loop");
+            j.phase = jc.getInt("Phase"); if (jc.contains("SpeedX")) j.speedFactor = jc.getInt("SpeedX") / 100.0; j.loop = jc.getBoolean("Loop"); j.spinDir = jc.getBoolean("Rev") ? -1 : 1;
             j.group = jc.getInt("Group");
             j.ball = j.shape.ball();
             j.powered = j.shape == JointShape.POWERED_BALL;
@@ -353,7 +366,7 @@ public class StructureModel {
             // sideways range of two-axis joints: hips default to +-30 degrees out to the side, ball ankles to their swing range
             j.amp2 = jc.contains("Amp2") ? jc.getInt("Amp2") : j.ball && !j.powered ? j.amp : Math.min(15, j.amp);
             if (j.ball) { j.tiltCap = j.romCap; j.amp2 = Math.min(j.amp2, Math.max(1, j.romCap / 2)); }
-            if (j.powered) { j.motorTorque += Parts.MOTOR_TORQUE * j.area; j.motorPower += Parts.MOTOR_POWER; }
+            if (j.powered) { j.motorTorque += Parts.MOTOR_TORQUE * j.area; j.motorPower += Parts.MOTOR_POWER; j.maxSpeed = Parts.MOTOR_RPM * 6; }
             joints.add(j);
         }
 
@@ -368,9 +381,23 @@ public class StructureModel {
                 BlockPos p = q.poll(); s.blocks.add(p);
                 for (Direction d : Direction.values()) {
                     BlockPos n = p.relative(d);
-                    if (blocks.containsKey(n) && !jointPos.contains(n) && !compOf.containsKey(n)) { compOf.put(n, s.id); q.add(n); }
+                    if (blocks.containsKey(n) && !jointPos.contains(n) && !compOf.containsKey(n) && glued(blocks.get(p), blocks.get(n), d)) { compOf.put(n, s.id); q.add(n); }
                 }
             }
+        }
+        // a rotor blade that only lies against something (touches no joint) still belongs to what it lies on
+        for (Seg s : comps) {
+            if (s.blocks.isEmpty() || !s.blocks.stream().allMatch(p -> blocks.get(p).getBlock() instanceof RotorBladeBlock)) continue;
+            boolean onJoint = s.blocks.stream().anyMatch(p -> Arrays.stream(Direction.values()).anyMatch(d -> jointPos.contains(p.relative(d))));
+            if (onJoint) continue;
+            Integer to = null;
+            for (BlockPos p : s.blocks) for (Direction d : Direction.values()) { Integer c = compOf.get(p.relative(d)); if (c != null && c != s.id && !comps.get(c).blocks.isEmpty()) { to = c; break; } }
+            if (to == null) continue;
+            Seg t = comps.get(to); for (BlockPos p : s.blocks) compOf.put(p, to); t.blocks.addAll(s.blocks); s.blocks.clear();
+        }
+        if (comps.stream().anyMatch(c -> c.blocks.isEmpty())) { // renumber without the emptied ones
+            List<Seg> kept = new ArrayList<>(); for (Seg c : comps) if (!c.blocks.isEmpty()) { c.id = kept.size(); kept.add(c); }
+            comps.clear(); comps.addAll(kept); compOf.clear(); for (Seg c : comps) for (BlockPos p : c.blocks) compOf.put(p, c.id);
         }
         // cluster -> touching comps
         List<Set<Integer>> touch = new ArrayList<>();
@@ -454,6 +481,10 @@ public class StructureModel {
         CompoundTag lcfg = cfg.getCompound(LOCO);
         if (cfg.contains(LOCO)) { ikMode = Math.floorMod(lcfg.getInt("IK"), IK_MODES.length); gaitMode = Math.floorMod(lcfg.getInt("Gait"), GAIT_MODES.length); }
         smartFooting = !lcfg.contains("Smart") || lcfg.getBoolean("Smart");
+        CompoundTag fcfg = cfg.getCompound(FLIGHT);
+        if (fcfg.contains("Tilt")) rotorTilt = Math.max(0, Math.min(30, fcfg.getInt("Tilt")));
+        if (fcfg.contains("Lean")) leanMax = Math.max(0, Math.min(30, fcfg.getInt("Lean")));
+        dampeners = !fcfg.contains("Damp") || fcfg.getBoolean("Damp");
         // ---- gears: from each joint walk through touching gearboxes; a motor gets the ratio of the gearbox it touches ----
         Map<BlockPos, double[]> motorGear = new HashMap<>(); // motor -> {joint, ratio, efficiency}
         for (Joint j : joints) {
@@ -497,6 +528,7 @@ public class StructureModel {
                 if (Cells.gu(s) == 0 && Cells.gv(s) == 0 && Cells.gh(s) == 0) { double cap = gb.assemblyCapacity(s); gyroCap += cap; gyroPower += cap / 3000.0; segGyro.merge(segOf.getOrDefault(p, 0), cap, Double::sum); }
             }
             else if (b instanceof SailBlock && !(b instanceof RotorBladeBlock)) sails++;
+            else if (b instanceof FlightControllerBlock) flightControllers++;
             else if (b instanceof LocomotionControllerBlock) locoControllers++;
             else if (b instanceof JumpDriveBlock) jumpDrives++;
             else if (b instanceof PilotSeatBlock && seat == null) { seat = p; forward = s.getValue(PilotSeatBlock.FACING); }
@@ -529,7 +561,7 @@ public class StructureModel {
             Joint j = joints.get((int) best[0]); double ratio = best[1], eff = best[2];
             j.motors += k; j.motorTorque += Parts.MOTOR_TORQUE * sc * ratio * eff; j.motorPower += Parts.MOTOR_POWER * sc; j.motorDrive += Parts.MOTOR_DRIVE * sc;
             double sp = Parts.MOTOR_RPM * 6 / ratio;
-            j.maxSpeed = j.maxSpeed == 0 ? sp : Math.min(j.maxSpeed, sp); j.ratios.add(ratio);
+            j.maxSpeed = j.maxSpeed == 0 || (j.powered && j.motors == k) ? sp : Math.min(j.maxSpeed, sp); j.ratios.add(ratio); // motors on a powered ball set its speed
             if (j.ball) j.powered = true; // a motor on a ball joint assembly powers it
             motorClusters.add(new MotorCluster(cl, ax, k, n, center, j.id, ratio));
             for (BlockPos p : cl) spinParts.put(p, new double[]{j.id, ratio});
@@ -538,15 +570,20 @@ public class StructureModel {
         for (var e : blocks.entrySet()) {
             if (!(e.getValue().getBlock() instanceof SailBlock)) continue;
             int sg = segOf.getOrDefault(e.getKey(), 0), guard = 0;
-            Joint spinJ = null;
-            while (sg > 0 && guard++ < 1000) { Seg sgm = segs.get(sg); if (sgm.parentJoint < 0) break; Joint pj = joints.get(sgm.parentJoint); if (pj.mode == SPIN) { spinJ = pj; break; } sg = Math.max(0, pj.parentSeg); }
-            if (spinJ == null) continue;
+            Joint spinJ = null, first = null;
+            while (sg > 0 && guard++ < 1000) { Seg sgm = segs.get(sg); if (sgm.parentJoint < 0) break; Joint pj = joints.get(sgm.parentJoint); if (first == null) first = pj; if (pj.mode == SPIN) { spinJ = pj; break; } sg = Math.max(0, pj.parentSeg); }
+            if (spinJ == null) { if (first != null && e.getValue().getBlock() instanceof RotorBladeBlock) first.idleBlades++; continue; }
             Vec3 a = axisVec(spinJ.axis), c = Vec3.atCenterOf(e.getKey()).subtract(spinJ.pivot);
             double r = c.subtract(a.scale(a.dot(c))).length();
             double area = e.getValue().getBlock() instanceof RotorBladeBlock ? 0.6 : 1.0;
             spinJ.bladeA2 += area * r * r; spinJ.bladeA3 += area * r * r * r; spinJ.blades++;
         }
-        for (Joint j : joints) if (j.blades > 0) { double d = j.subCom.subtract(j.pivot).dot(axisVec(j.axis)); j.thrustSign = d < 0 ? -1 : 1; }
+        // which way a rotor pushes: away from the side its blades hang toward, or (blades level with the joint) away from the craft
+        for (Joint j : joints) if (j.blades > 0) {
+            Vec3 ax = axisVec(j.axis); double d = j.subCom.subtract(j.pivot).dot(ax);
+            if (Math.abs(d) < 0.25) d = j.pivot.subtract(com).dot(ax);
+            j.thrustSign = d < 0 ? -1 : 1;
+        }
         for (Joint j : joints) for (BlockPos p : j.blocks) jointOf.put(p, j.id);
         // ---- joint torque & static load ----
         for (Joint j : joints) {
@@ -564,6 +601,7 @@ public class StructureModel {
             if (j.blockAxis == Direction.Axis.Y) { j.universal = true; j.axis = forward.getAxis() == Direction.Axis.Z ? Direction.Axis.X : Direction.Axis.Z; }
             else { j.hinged = true; j.axis = j.blockAxis; j.romCap = 360; j.amp = j.cfgAmp >= 0 ? Math.min(j.cfgAmp, 90) : 45; }
         }
+        for (Joint j : joints) j.rotorHead = j.ball && j.powered && j.mode == SPIN;
         // wheels: Spin joints without blades. Size, which way "forward" turns them, and whether they reach the ground
         for (Joint j : joints) if (j.mode == SPIN && j.blades == 0 && !j.childSegs.isEmpty()) {
             Vec3 a = axisVec(j.axis); double rMax = 0, low = Double.MAX_VALUE;
@@ -574,7 +612,7 @@ public class StructureModel {
             j.wheelRadius = rMax;
             Vec3 roll = a.cross(new Vec3(0, 1, 0)); // which way the ground pushes it when it turns forward (positive)
             Vec3 fw = Vec3.atLowerCornerOf(forward.getNormal());
-            j.wheelSign = roll.dot(fw) < -0.5 ? -1 : 1;
+            j.wheelSign = (roll.dot(fw) < -0.5 ? -1 : 1) * j.spinDir;
             j.wheelGround = j.axis != Direction.Axis.Y && low <= localBounds.minY + 0.01;
             wheels++;
         }
@@ -617,6 +655,14 @@ public class StructureModel {
             else { j.foldNeg = Math.max(min, side[0]); j.foldPos = Math.max(min, side[1]); }
             j.fold = Math.max(j.foldNeg, j.foldPos);
         }
+    }
+    /** Do two touching blocks hold together? A rotor blade holds onto other blades, and onto anything else only at its ends
+     *  (along its length), so a blade lying across the hull or another part doesn't glue the rotor to it. */
+    static boolean glued(BlockState a, BlockState b, Direction d) {
+        boolean ba = a.getBlock() instanceof RotorBladeBlock, bb = b.getBlock() instanceof RotorBladeBlock;
+        if (ba == bb) return true;
+        BlockState blade = ba ? a : b;
+        return blade.getValue(RotorBladeBlock.AXIS) == d.getAxis();
     }
     /** Spin joints with no blades: they turn with the Spin keys and drive on the ground like wheels. */
     public int wheels;
@@ -918,7 +964,7 @@ public class StructureModel {
                 double f = walkPhase / (2 * Math.PI) + j.autoPhase + j.phase / 360.0; f -= Math.floor(f);
                 yield amp * (f < 0.5 ? 1 - 4 * f : -1 + 4 * (f - 0.5)) * walkBlend;
             }
-            case SPIN -> j.blades > 0 ? spin : wheelAngle * j.wheelSign;
+            case SPIN -> j.blades > 0 ? spin * j.spinDir : wheelAngle * j.wheelSign;
             case SWAY -> walkAmount > 0.01
                     ? amp * 0.6 * walkAmount * Math.sin(2 * Math.PI * walkClock + (j.pivot.subtract(com).dot(new Vec3(-forward.getNormal().getZ(), 0, forward.getNormal().getX())) < 0 ? 0 : Math.PI)) // arms swing with the steps, left and right opposite
                     : amp * 0.5 * Math.sin(time * 0.06 + j.id * 0.9);
@@ -945,6 +991,13 @@ public class StructureModel {
                 Vec3 f = Vec3.atLowerCornerOf(forward.getNormal()), a = axisVec(j.axis);
                 double roll = rollAngle(j, time), pitch = angle(j, walkPhase, walkBlend, spin, time), yawA = j.id < ikYaw.length ? ikYaw[j.id] : 0;
                 out[s.id] = new Matrix4d(parent).translate(j.pivot.x, j.pivot.y, j.pivot.z).rotate(yawA, 0, 1, 0).rotate(roll, f.x, f.y, f.z).rotate(pitch, a.x, a.y, a.z).translate(-j.pivot.x, -j.pivot.y, -j.pivot.z);
+                continue;
+            }
+            if (j.rotorHead) { // rotor head: tilt the disc (to steer), then spin about the ball's own axis
+                Vec3 f = Vec3.atLowerCornerOf(forward.getNormal()), r = new Vec3(-f.z, 0, f.x), a = axisVec(j.blockAxis);
+                double tp = j.id < ballPitch.length ? ballPitch[j.id] : 0, tr = j.id < ballRoll.length ? ballRoll[j.id] : 0;
+                out[s.id] = new Matrix4d(parent).translate(j.pivot.x, j.pivot.y, j.pivot.z).rotate(tp, r.x, r.y, r.z).rotate(tr, f.x, f.y, f.z)
+                        .rotate(angle(j, walkPhase, walkBlend, spin, time), a.x, a.y, a.z).translate(-j.pivot.x, -j.pivot.y, -j.pivot.z);
                 continue;
             }
             if (j.ball && !j.hinged) { // undo the parent's turning (within the limit) so the part below stays level

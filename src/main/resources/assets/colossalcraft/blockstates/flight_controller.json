@@ -1,0 +1,1 @@
+{"variants":{"facing=north":{"model":"colossalcraft:block/flight_controller"},"facing=east":{"model":"colossalcraft:block/flight_controller","y":90},"facing=south":{"model":"colossalcraft:block/flight_controller","y":180},"facing=west":{"model":"colossalcraft:block/flight_controller","y":270}}}
